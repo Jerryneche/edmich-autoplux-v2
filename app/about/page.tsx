@@ -61,7 +61,7 @@ export default function AboutPage() {
             className="text-2xl text-neutral-700 max-w-3xl leading-relaxed animate-fade-in-up"
             style={{ animationDelay: "0.2s" }}
           >
-            EDMICH is not just a company—it's a vision to revolutionize how
+            EDMICH is not just a company—it&aposs a vision to revolutionize how
             Africa connects with automotive excellence.
           </p>
         </div>
@@ -115,8 +115,8 @@ export default function AboutPage() {
               transformed automotive. Alibaba connected global trade. We asked
               ourselves:{" "}
               <span className="italic text-neutral-900 font-medium">
-                "How do we bring that same innovation to Africa's automotive
-                sector?"
+                How do we bring that same innovation to Africa&aposs automotive
+                sector
               </span>
             </p>
             <p className="text-lg text-neutral-600 leading-relaxed">
@@ -144,14 +144,14 @@ export default function AboutPage() {
 
             <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-200 rounded-2xl p-8 mb-6 shadow-xl">
               <p className="text-2xl font-semibold text-cyan-900 mb-4 italic">
-                "To make access to automotive parts and services as seamless as
+                To make access to automotive parts and services as seamless as
                 ordering food online—while empowering African businesses to
-                compete globally."
+                compete globally.
               </p>
             </div>
 
             <p className="text-lg text-neutral-600 leading-relaxed">
-              We're building trust through verification. Speed through
+              We&aposre building trust through verification. Speed through
               technology. Growth through connection. Every supplier verified.
               Every part traceable. Every transaction secure. This is automotive
               commerce, reimagined.
@@ -296,7 +296,7 @@ export default function AboutPage() {
             for automotive. Think bigger.
           </p>
           <p className="text-2xl font-semibold text-blue-600 italic">
-            The future of automotive in Africa starts here. And we're just
+            The future of automotive in Africa starts here. And we&aposre just
             getting started.
           </p>
         </div>

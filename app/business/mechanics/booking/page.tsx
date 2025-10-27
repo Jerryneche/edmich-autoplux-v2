@@ -63,8 +63,6 @@ export default function BookingPage() {
       } else {
         alert("Error submitting booking. Please try again.");
       }
-    } catch (error) {
-      alert("Network error. Please check your connection.");
     } finally {
       setIsSubmitting(false);
     }
@@ -165,7 +163,7 @@ export default function BookingPage() {
                   Book Your Service
                 </h2>
                 <p className="text-neutral-600 mb-8">
-                  Fill in the details and we'll get back to you shortly
+                  Fill in the details and we will get back to you shortly
                 </p>
 
                 {/* Success Message */}
@@ -177,7 +175,7 @@ export default function BookingPage() {
                         Booking Submitted!
                       </p>
                       <p className="text-sm text-green-700">
-                        We'll contact you shortly to confirm.
+                        We will contact you shortly to confirm.
                       </p>
                     </div>
                   </div>
