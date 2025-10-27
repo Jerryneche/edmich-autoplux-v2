@@ -13,7 +13,6 @@ import {
   PhoneIcon,
   ChatBubbleLeftRightIcon,
   ArrowPathIcon,
-  SparklesIcon,
 } from "@heroicons/react/24/outline";
 
 // Mock tracking data - Replace with actual API

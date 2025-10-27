@@ -82,8 +82,6 @@ export default function LogisticsRequestPage() {
       } else {
         alert("Error submitting logistics request. Please try again.");
       }
-    } catch (error) {
-      alert("Network error. Please check your connection.");
     } finally {
       setIsSubmitting(false);
     }
@@ -233,7 +231,7 @@ export default function LogisticsRequestPage() {
                         Request Submitted!
                       </p>
                       <p className="text-sm text-green-700">
-                        We'll send you a quote within 15 minutes.
+                        We will send you a quote within 15 minutes.
                       </p>
                     </div>
                   </div>
