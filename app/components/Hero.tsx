@@ -17,7 +17,6 @@ type Props = {
 };
 
 export default function Hero({
-  image,
   title,
   subtitle,
   primaryCta,
@@ -44,7 +43,7 @@ export default function Hero({
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-8 animate-fade-in-up">
           <SparklesIcon className="h-4 w-4 text-blue-400" />
           <span className="text-sm font-medium text-white/90">
-            Nigeria's Leading Auto Parts Marketplace
+            Nigeria&apos;s Leading Auto Parts Marketplace
           </span>
         </div>
 

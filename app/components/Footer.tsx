@@ -23,8 +23,8 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-neutral-600 leading-relaxed mb-4">
-              Nigeria's leading B2B automotive marketplace connecting suppliers,
-              buyers, and mechanics.
+              Nigeria&apos;s leading B2B automotive marketplace connecting
+              suppliers, buyers, and mechanics.
             </p>
             <div className="flex gap-3">
               <a
