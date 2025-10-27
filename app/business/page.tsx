@@ -1,7 +1,8 @@
+import { headers } from "next/headers";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Hero from "../components/Hero";
-import { headers } from "next/headers";
+
 import {
   BuildingStorefrontIcon,
   WrenchScrewdriverIcon,
@@ -12,12 +13,27 @@ import {
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 
-async function getSuppliers() {
-  const host = headers().get("host");
+interface Supplier {
+  id: string;
+  name: string;
+  location: string;
+  approved: string;
+  businessName: string;
+  company: string;
+  product: string;
+  price: string;
+  // Add other fields as needed
+}
+
+export async function getSuppliers() {
+  const headersList = headers(); // ✅ This is now awaited correctly
+  const host = headersList.get("host");
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+
   const res = await fetch(`${protocol}://${host}/api/suppliers`, {
     cache: "no-store",
   });
+
   if (!res.ok) return [];
   return res.json();
 }
@@ -149,12 +165,13 @@ export default async function BusinessPage() {
           </div>
 
           {/* Suppliers Grid */}
-          {suppliers && suppliers.filter((s: any) => s.approved).length > 0 ? (
+          {suppliers &&
+          suppliers.filter((s: Supplier) => s.approved).length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {suppliers
-                ?.filter((s: any) => s.approved)
+                ?.filter((s: Supplier) => s.approved)
                 .slice(0, 6)
-                .map((s: any) => (
+                .map((s: Supplier) => (
                   <div key={s.id} className="group relative">
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
                     <div className="relative bg-white border-2 border-neutral-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-xl transition-all">
