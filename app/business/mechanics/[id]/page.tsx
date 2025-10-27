@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import {
-  StarIcon,
   MapPinIcon,
   ClockIcon,
   CheckBadgeIcon,
@@ -85,7 +84,7 @@ async function getMechanic(id: string) {
   return PLACEHOLDER_MECHANICS.find((m) => m.id === id) || null;
 }
 
-async function getMechanicReviews(id: string) {
+async function getMechanicReviews(_id: string) {
   // TODO: Replace with actual API call
   return [
     {

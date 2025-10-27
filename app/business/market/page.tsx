@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { headers } from "next/headers";
@@ -5,13 +6,30 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ShoppingCartIcon,
-  StarIcon,
   CheckBadgeIcon,
   SparklesIcon,
   HeartIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import Link from "next/link";
+import { Supplier } from "@prisma/client";
+
+interface Product {
+  id: string;
+  name: string;
+  image: string;
+  price: string;
+  reviews: string;
+  company: string;
+  suplier: string;
+  product: string;
+  rating: string;
+  verified: string;
+  inStock: string;
+  category: string;
+
+  // Add other fields as needed
+}
 
 // Placeholder products when API fails or no data
 const PLACEHOLDER_PRODUCTS = [
@@ -146,7 +164,7 @@ async function getSuppliers() {
     if (!res.ok) return PLACEHOLDER_PRODUCTS;
     const data = await res.json();
     return data.length > 0 ? data : PLACEHOLDER_PRODUCTS;
-  } catch (error) {
+  } catch {
     console.warn("API failed, using placeholder data");
     return PLACEHOLDER_PRODUCTS;
   }
@@ -154,7 +172,7 @@ async function getSuppliers() {
 
 export default async function MarketPage() {
   const suppliers = await getSuppliers();
-  const approved = suppliers.filter((s: any) => s.approved !== false);
+  const approved = suppliers.filter((s: Supplier) => s.approved !== false);
 
   return (
     <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
@@ -256,7 +274,7 @@ export default async function MarketPage() {
         {/* Products Grid */}
         {approved.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {approved.map((product: any) => (
+            {approved.map((product: Product) => (
               <div key={product.id} className="group relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
 
@@ -264,10 +282,12 @@ export default async function MarketPage() {
                   {/* Image Placeholder */}
                   <div className="relative h-48 bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center">
                     {product.image ? (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
+                      <Image
+                        src={supplier.image}
+                        alt={supplier.name}
+                        width={300}
+                        height={200}
+                        className="object-cover"
                       />
                     ) : (
                       <ShoppingCartIcon className="h-16 w-16 text-neutral-300" />
@@ -312,7 +332,7 @@ export default async function MarketPage() {
 
                     {/* Supplier */}
                     <p className="text-sm text-neutral-600 mb-3">
-                      {product.supplier ||
+                      {product.suplier ||
                         product.company ||
                         "Verified Supplier"}
                     </p>
