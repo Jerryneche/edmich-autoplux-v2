@@ -1,19 +1,6 @@
-// next-auth.d.ts
+import { authOptions } from "@/lib/auth";
 import NextAuth from "next-auth";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      id: string;
-      role: string;
-    };
-  }
+const handler = NextAuth(authOptions);
 
-  interface User {
-    id: string;
-    role: string;
-  }
-}
+export { handler as GET, handler as POST };

@@ -33,13 +33,14 @@ export default function RootLayout({
   );
 }
 */
-
+// app/layout.tsx
 import type { Metadata } from "next";
-import { Toaster } from "react-hot-toast";
 import { Inter } from "next/font/google";
+import ClientProvider from "./ClientProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
+
 export const metadata: Metadata = {
   title: "Edmich Autoplux",
   description:
@@ -57,7 +58,8 @@ export const metadata: Metadata = {
     title: "Edmich Autoplux",
     description:
       "Buy genuine spare parts, connect mechanics, streamline logistics—built for Nigeria and Africa.",
-    url: "https://edmich.com",
+    url: "https://www.edmich.com",
+
     siteName: "Edmich Autoplux",
     images: [{ url: "/edmich-logo.png", width: 1200, height: 630 }],
     locale: "en_US",
@@ -69,6 +71,7 @@ export const metadata: Metadata = {
     description: "Nigeria’s B2B auto parts marketplace.",
     images: ["/edmich-logo.png"],
   },
+  metadataBase: new URL("https://www.edmich.com"),
 };
 
 export default function RootLayout({
@@ -79,8 +82,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-neutral-50 text-neutral-900`}>
-        {children}
-        <Toaster position="top-right" />
+        <ClientProvider>{children}</ClientProvider>
       </body>
     </html>
   );

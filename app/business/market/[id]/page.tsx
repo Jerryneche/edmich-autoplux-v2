@@ -1,169 +1,280 @@
+import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import AddToCartButton from "@/app/components/AddToCartButton";
+import {
+  ArrowLeftIcon,
+  StarIcon,
+  TruckIcon,
+  ShieldCheckIcon,
+  Package,
+} from "lucide-react";
+import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
+import Link from "next/link";
 import Image from "next/image";
 
-// Mock product data (later we’ll fetch from DB or API)
-const products = [
+const PLACEHOLDER_PRODUCTS = [
   {
-    id: 1,
-    name: "Turbocharger",
-    image: "/pturbocharger.jpg",
-    price: "₦150,000",
-    supplier: "Lagos Auto Supplies",
-    description:
-      "High-performance turbocharger designed for durability and efficiency. Perfect for boosting engine power.",
+    id: "1",
+    name: "Premium Brake Pads Set",
+    description: "High-quality brake pads for optimal stopping power",
+    price: 15000,
+    category: "Brakes",
+    image:
+      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=300&fit=crop",
+    stock: 25,
+    supplierId: "supplier-1",
+    supplier: "AutoParts Nigeria",
   },
   {
-    id: 2,
-    name: "Brake Pads",
-    image: "/pbreakpad.jpg",
-    price: "₦25,000",
-    supplier: "Kano Motors",
-    description:
-      "Premium brake pads with long-lasting performance and safety assurance.",
+    id: "2",
+    name: "Engine Oil Filter",
+    description: "Premium oil filter for engine protection",
+    price: 8500,
+    category: "Filters",
+    image:
+      "https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=400&h=300&fit=crop",
+    stock: 40,
+    supplierId: "supplier-2",
+    supplier: "Quality Motors Ltd",
   },
   {
-    id: 3,
-    name: "Car Battery",
-    image: "/pbattery.jpg",
-    price: "₦45,000",
-    supplier: "Abuja Auto Traders",
-    description:
-      "Reliable 12V car battery with extended lifespan and warranty coverage.",
+    id: "3",
+    name: "Air Filter Assembly",
+    description: "High-flow air filter for better engine performance",
+    price: 12000,
+    category: "Filters",
+    image:
+      "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&h=300&fit=crop",
+    stock: 30,
+    supplierId: "supplier-3",
+    supplier: "Parts Express",
   },
   {
-    id: 4,
-    name: "Car Rim",
-    image: "/shopG1.jpg",
-    price: "₦57,000",
-    supplier: "Abass Auto Dealer",
-    description:
-      "Reliable 18 wheel car rim  with extended lifespan and warranty coverage.",
+    id: "4",
+    name: "Spark Plugs (Set of 4)",
+    description: "OEM quality spark plugs for smooth ignition",
+    price: 18000,
+    category: "Engine",
+    image:
+      "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&h=300&fit=crop",
+    stock: 50,
+    supplierId: "supplier-1",
+    supplier: "AutoParts Nigeria",
   },
   {
-    id: 5,
-    name: "Engine Compressor",
-    image: "/shopG16.jpg",
-    price: "₦80,000",
-    supplier: "kano Auto Traders",
-    description:
-      "Reliable toyota compressor with extended lifespan and warranty coverage.",
+    id: "5",
+    name: "LED Headlight Assembly",
+    description: "Bright LED headlights for better visibility",
+    price: 45000,
+    category: "Lighting",
+    image:
+      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&h=300&fit=crop",
+    stock: 0,
+    supplierId: "supplier-4",
+    supplier: "Lightning Auto Parts",
   },
   {
-    id: 6,
-    name: "Engine",
-    image: "/shopG31.jpg",
-    price: "₦900,000",
-    supplier: "Obi and co",
-    description:
-      "Reliable car engine with extended lifespan and warranty coverage.",
+    id: "6",
+    name: "Wiper Blades (Pair)",
+    description: "All-weather wiper blades for clear visibility",
+    price: 6500,
+    category: "Accessories",
+    image:
+      "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=400&h=300&fit=crop",
+    stock: 60,
+    supplierId: "supplier-5",
+    supplier: "ClearView Auto",
   },
   {
-    id: 7,
-    name: "Engine Kick Starter",
-    image: "/shopG12.jpg",
-    price: "₦30,000",
-    supplier: "Abuja Auto Traders",
-    description:
-      "Reliable engine kick with extended lifespan and warranty coverage.",
+    id: "7",
+    name: "Car Battery 12V 70Ah",
+    description: "Long-lasting maintenance-free battery",
+    price: 35000,
+    category: "Electrical",
+    image:
+      "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=400&h=300&fit=crop",
+    stock: 15,
+    supplierId: "supplier-6",
+    supplier: "Power Auto",
   },
   {
-    id: 8,
-    name: "Car plug",
-    image: "/shopG25.jpg",
-    price: "₦5,000",
-    supplier: "Abutex global",
-    description:
-      "Reliable car plug with extended lifespan and warranty coverage.",
+    id: "8",
+    name: "Radiator Assembly",
+    description: "Efficient cooling radiator for your engine",
+    price: 28000,
+    category: "Cooling",
+    image:
+      "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400&h=300&fit=crop",
+    stock: 12,
+    supplierId: "supplier-7",
+    supplier: "Cool Parts Ltd",
   },
   {
-    id: 9,
-    name: "Drive Shaft",
-    image: "/shopG29.jpg",
-    price: "₦62,000",
-    supplier: "Afam ventures",
-    description:
-      "Reliable car drive shaft with extended lifespan and warranty coverage.",
-  },
-  {
-    id: 10,
-    name: "Low arm",
-    image: "/shopG11.jpg",
-    price: "₦30,000",
-    supplier: "Abuja Auto Traders",
-    description:
-      "Reliable low arm with extended lifespan and warranty coverage.",
-  },
-  {
-    id: 11,
-    name: "Engine timing set",
-    image: "/shopG30.jpg",
-    price: "₦22,000",
-    supplier: "Abuja Auto Traders",
-    description:
-      "Reliable timimng belt and components with extended lifespan and warranty coverage.",
-  },
-
-  {
-    id: 12,
-    name: "shock spring",
-    image: "/shopG21.jpg",
-    price: "₦8,000",
-    supplier: "Abuja Auto Traders",
-    description:
-      "Reliable shock absorber spring with extended lifespan and warranty coverage.",
+    id: "9",
+    name: "Shock Absorbers (Pair)",
+    description: "Heavy-duty shock absorbers for smooth ride",
+    price: 22000,
+    category: "Suspension",
+    image:
+      "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=400&h=300&fit=crop",
+    stock: 20,
+    supplierId: "supplier-8",
+    supplier: "Suspension Pro",
   },
 ];
 
-export default function ProductDetails({ params }: { params: { id: string } }) {
-  const product = products.find((p) => p.id === Number(params.id));
+async function getProduct(id: string) {
+  // FORCE USE PLACEHOLDER — IGNORE API FOR NOW
+  const product = PLACEHOLDER_PRODUCTS.find((p) => p.id === id);
+  if (!product) {
+    console.log("Product not found in placeholder:", id);
+    return null;
+  }
+  console.log("Found product:", product.name);
+  return product;
+}
+
+export default async function ProductDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params; // ← AWAIT THE PROMISE
+  const product = await getProduct(id);
 
   if (!product) {
-    return (
-      <main>
-        <Header />
-        <section className="pt-24 min-h-screen flex items-center justify-center text-center">
-          <h1 className="text-2xl font-semibold">Product not found</h1>
-        </section>
-        <Footer />
-      </main>
-    );
+    notFound();
   }
-
   return (
-    <main>
+    <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
       <Header />
-      <section className="relative h-screen w-full">
-        {/* Hero background */}
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10" />
 
-        {/* Content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-end pb-24 text-center">
-          <h1 className="text-4xl md:text-5xl font-semibold">{product.name}</h1>
-          <p className="mt-3 text-neutral-300 max-w-2xl">
-            {product.description}
-          </p>
-          <p className="mt-2 text-lg font-medium text-white">{product.price}</p>
-          <p className="text-sm text-neutral-400">
-            Supplier: {product.supplier}
-          </p>
+      <div className="pt-24 pb-16">
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Back Button */}
+          <Link
+            href="/business/market"
+            className="inline-flex items-center gap-2 text-neutral-600 hover:text-blue-600 mb-8 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+            Back to Marketplace
+          </Link>
 
-          <div className="mt-8 flex flex-col md:flex-row gap-4">
-            <button className="bg-white text-black px-8 py-3 rounded-md text-sm font-medium">
-              Buy Now
-            </button>
-            <button className="bg-black/60 border border-white/20 text-white px-8 py-3 rounded-md text-sm font-medium">
-              Contact Supplier
-            </button>
+          <div className="grid lg:grid-cols-2 gap-12">
+            {/* Product Images */}
+            <div className="space-y-4">
+              <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-neutral-100 to-neutral-200 shadow-xl">
+                {product.image ? (
+                  <Image
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Package className="w-32 h-32 text-neutral-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Product Info */}
+            <div className="space-y-6">
+              {/* Category Badge */}
+              <div className="inline-block px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">
+                {product.category}
+              </div>
+
+              {/* Product Name */}
+              <h1 className="text-4xl font-bold text-neutral-900">
+                {product.name}
+              </h1>
+
+              {/* Rating */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <StarSolid
+                      key={star}
+                      className="h-5 w-5 fill-yellow-400 text-yellow-400"
+                    />
+                  ))}
+                </div>
+                <span className="text-neutral-600">4.8 (124 reviews)</span>
+              </div>
+
+              {/* Price */}
+              <div className="py-6 border-y border-neutral-200">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    ₦{product.price.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-neutral-600 mt-2">
+                  {product.stock > 0 ? (
+                    <span className="text-green-600 font-medium">
+                      ✓ In Stock ({product.stock} available)
+                    </span>
+                  ) : (
+                    <span className="text-red-600 font-medium">
+                      Out of Stock
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Description */}
+              <div>
+                <h2 className="text-xl font-bold text-neutral-900 mb-3">
+                  Product Description
+                </h2>
+                <p className="text-neutral-600 leading-relaxed">
+                  {product.description ||
+                    "High-quality auto part designed for optimal performance and durability."}
+                </p>
+              </div>
+
+              {/* Supplier */}
+              <div className="bg-neutral-50 rounded-xl p-4">
+                <p className="text-sm text-neutral-600">Sold by</p>
+                <p className="text-lg font-semibold text-neutral-900">
+                  {product.supplier}
+                </p>
+              </div>
+
+              {/* Add to Cart Button */}
+              <div className="space-y-4">
+                <AddToCartButton
+                  product={product}
+                  variant="primary"
+                  className="w-full text-lg py-4"
+                />
+
+                {/* Trust Badges */}
+                <div className="grid grid-cols-3 gap-4 pt-4">
+                  <div className="flex flex-col items-center text-center">
+                    <TruckIcon className="h-8 w-8 text-blue-600 mb-2" />
+                    <p className="text-xs text-neutral-600">Fast Delivery</p>
+                  </div>
+                  <div className="flex flex-col items-center text-center">
+                    <ShieldCheckIcon className="h-8 w-8 text-green-600 mb-2" />
+                    <p className="text-xs text-neutral-600">Verified Quality</p>
+                  </div>
+                  <div className="flex flex-col items-center text-center">
+                    <StarIcon className="h-8 w-8 text-yellow-500 mb-2" />
+                    <p className="text-xs text-neutral-600">Top Rated</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+
       <Footer />
     </main>
   );

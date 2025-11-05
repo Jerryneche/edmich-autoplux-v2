@@ -1,20 +1,76 @@
 "use client";
 
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { signIn } from "next-auth/react";
 import {
-  ShieldCheckIcon,
-  UserCircleIcon,
   EnvelopeIcon,
   LockClosedIcon,
   ArrowRightIcon,
+  ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
-import Link from "next/link";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError("");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const result = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false, // ✅ Don't auto redirect
+      });
+
+      if (result?.error) {
+        setError("Invalid email or password");
+        toast.error("Invalid email or password");
+      } else {
+        toast.success("Login successful!");
+
+        // ✅ Redirect to dashboard after successful login
+        window.location.href = "/dashboard";
+      }
+    } catch (error) {
+      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOAuthSignIn = async (provider: "google" | "github") => {
+    setIsLoading(true);
+    try {
+      // ✅ Redirect to dashboard after OAuth
+      await signIn(provider, { callbackUrl: "/dashboard" });
+    } catch (error) {
+      toast.error("OAuth sign in failed");
+      setIsLoading(false);
+    }
+  };
+
   return (
     <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
+      <Toaster position="top-center" />
       <Header />
 
       <section className="relative pt-32 pb-24 overflow-hidden">
@@ -29,15 +85,8 @@ export default function LoginPage() {
 
         <div className="relative max-w-6xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left Side - Marketing Content */}
+            {/* Left Side - Marketing */}
             <div className="hidden md:block">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200 mb-6">
-                <ShieldCheckIcon className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-700">
-                  Secure Login
-                </span>
-              </div>
-
               <h1 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
                 Welcome back to{" "}
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -46,33 +95,20 @@ export default function LoginPage() {
               </h1>
 
               <p className="text-xl text-neutral-600 mb-8 leading-relaxed">
-                Access your dashboard, manage orders, and connect with thousands
-                of verified suppliers across Nigeria.
+                Access your dashboard and manage your automotive business with
+                ease.
               </p>
 
-              {/* Features List */}
               <div className="space-y-4">
                 {[
-                  {
-                    icon: ShieldCheckIcon,
-                    text: "Secure & encrypted authentication",
-                  },
-                  {
-                    icon: UserCircleIcon,
-                    text: "Personalized dashboard experience",
-                  },
-                  {
-                    icon: ArrowRightIcon,
-                    text: "Instant access to marketplace",
-                  },
+                  "Manage your products and orders",
+                  "Track bookings and deliveries",
+                  "Connect with verified partners",
+                  "Grow your business",
                 ].map((feature, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <feature.icon className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-neutral-700 font-medium">
-                      {feature.text}
-                    </span>
+                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                    <span className="text-neutral-700">{feature}</span>
                   </div>
                 ))}
               </div>
@@ -83,7 +119,6 @@ export default function LoginPage() {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl blur-2xl opacity-30"></div>
 
               <div className="relative bg-white rounded-3xl shadow-2xl border-2 border-neutral-200 p-8 md:p-10">
-                {/* Mobile Title */}
                 <div className="md:hidden mb-6">
                   <h1 className="text-3xl font-bold text-neutral-900 mb-2">
                     Welcome Back
@@ -97,14 +132,23 @@ export default function LoginPage() {
                   Sign In
                 </h2>
                 <p className="hidden md:block text-neutral-600 mb-8">
-                  Choose your preferred login method
+                  Access your dashboard
                 </p>
 
-                {/* Social Login Buttons */}
+                {/* Error Alert */}
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-center gap-3">
+                    <ExclamationCircleIcon className="h-5 w-5 text-red-600 flex-shrink-0" />
+                    <p className="text-red-900 text-sm font-medium">{error}</p>
+                  </div>
+                )}
+
+                {/* OAuth Buttons */}
                 <div className="space-y-3 mb-8">
                   <button
-                    onClick={() => signIn("google")}
-                    className="group w-full flex items-center justify-center gap-3 bg-white border-2 border-neutral-300 py-4 rounded-xl font-semibold text-neutral-700 hover:border-blue-400 hover:shadow-lg transition-all"
+                    onClick={() => handleOAuthSignIn("google")}
+                    disabled={isLoading}
+                    className="group w-full flex items-center justify-center gap-3 bg-white border-2 border-neutral-300 py-4 rounded-xl font-semibold text-neutral-700 hover:border-blue-400 hover:shadow-lg transition-all disabled:opacity-50"
                   >
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
                       <path
@@ -125,10 +169,13 @@ export default function LoginPage() {
                       />
                     </svg>
                     <span>Continue with Google</span>
-                    <ArrowRightIcon className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                   </button>
 
-                  <button className="group w-full flex items-center justify-center gap-3 bg-neutral-900 py-4 rounded-xl font-semibold text-white hover:bg-neutral-800 hover:shadow-lg transition-all">
+                  <button
+                    onClick={() => handleOAuthSignIn("github")}
+                    disabled={isLoading}
+                    className="group w-full flex items-center justify-center gap-3 bg-neutral-900 py-4 rounded-xl font-semibold text-white hover:bg-neutral-800 hover:shadow-lg transition-all disabled:opacity-50"
+                  >
                     <svg
                       className="h-5 w-5"
                       fill="currentColor"
@@ -137,7 +184,6 @@ export default function LoginPage() {
                       <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                     </svg>
                     <span>Continue with GitHub</span>
-                    <ArrowRightIcon className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                   </button>
                 </div>
 
@@ -153,8 +199,8 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Email Form */}
-                <form className="space-y-4">
+                {/* Email/Password Form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-2">
                       Email Address
@@ -163,8 +209,12 @@ export default function LoginPage() {
                       <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
                       <input
                         type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
                         placeholder="you@example.com"
                         className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                        required
                       />
                     </div>
                   </div>
@@ -177,8 +227,12 @@ export default function LoginPage() {
                       <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
                       <input
                         type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
                         placeholder="••••••••"
                         className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                        required
                       />
                     </div>
                   </div>
@@ -203,24 +257,31 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] transition-all"
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
-                    Sign In
-                    <ArrowRightIcon className="h-4 w-4" />
+                    {isLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Signing in...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <ArrowRightIcon className="h-4 w-4" />
+                      </>
+                    )}
                   </button>
                 </form>
 
                 {/* Sign Up Link */}
                 <p className="mt-6 text-center text-sm text-neutral-600">
-                  Don&apos;t have an account?{" "}
+                  Don't have an account?{" "}
                   <Link
-                    href="https://chat.whatsapp.com/F2sdzUoQzpWLocya5oVkIJ"
-                    className=" font-semibold text-blue-600 hover:text-blue-700"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Join our WhatsApp community for updates and discussions"
+                    href="/signup"
+                    className="font-semibold text-blue-600 hover:text-blue-700"
                   >
-                    Join our WhatsApp community       
+                    Sign up for free
                   </Link>
                 </p>
               </div>
@@ -233,25 +294,3 @@ export default function LoginPage() {
     </main>
   );
 }
-/*
-// app/login/page.tsx
-export default function LoginPage() {
-  return (
-    <main className="container py-16">
-      <div className="max-w-md mx-auto card p-8 text-center">
-        <h1 className="text-2xl font-semibold">Sign in to Edmich</h1>
-        <p className="mt-2 text-neutral-600">Use your Google account to continue.</p>
-        <a
-          href="/api/auth/signin/google"
-          className="mt-6 inline-flex items-center justify-center gap-3 btn-primary w-full"
-        >
-          <img src="/google.svg" alt="Google" className="h-5 w-5" />
-          Sign in with Google
-        </a>
-        <p className="mt-4 text-xs text-neutral-500">Having trouble? Try a different account or contact info@edmich.com.</p>
-      </div>
-    </main>
-  );
-}
-
-*/

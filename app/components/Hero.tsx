@@ -49,11 +49,12 @@ export default function Hero({
 
         {/* Title with gradient text */}
         <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 animate-fade-in-up animation-delay-100">
+          {" "}
           <span className="block text-white drop-shadow-2xl leading-tight">
-            {title.split(" ").slice(0, -2).join(" ")}
+            {title ? title.split(" ").slice(0, -2).join(" ") : ""}
           </span>
           <span className="block bg-gradient-to-r from-blue-400 via-blue-300 to-purple-400 bg-clip-text text-transparent drop-shadow-2xl leading-tight">
-            {title.split(" ").slice(-2).join(" ")}
+            {title ? title.split(" ").slice(-2).join(" ") : ""}
           </span>
         </h1>
 
