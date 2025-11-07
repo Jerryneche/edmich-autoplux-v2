@@ -13,7 +13,7 @@ import {
   CheckCircleIcon,
   TruckIcon,
   XCircleIcon,
-  PackageIcon,
+  CubeIcon,
   MapPinIcon,
   PhoneIcon,
   UserIcon,
@@ -113,7 +113,7 @@ export default function OrderDetailPage({
       case "CANCELLED":
         return <XCircleIcon className="h-6 w-6" />;
       default:
-        return <PackageIcon className="h-6 w-6" />;
+        return <CubeIcon className="h-6 w-6" />;
     }
   };
 
@@ -314,7 +314,7 @@ export default function OrderDetailPage({
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <PackageIcon className="w-12 h-12 text-neutral-400" />
+                            <CubeIcon className="w-12 h-12 text-neutral-400" />
                           </div>
                         )}
                       </Link>
