@@ -14,7 +14,7 @@ import {
   TruckIcon,
   XCircleIcon,
   ChevronRightIcon,
-  PackageIcon,
+  CubeIcon,
 } from "@heroicons/react/24/outline";
 
 interface OrderItem {
@@ -105,7 +105,7 @@ export default function OrdersPage() {
       case "CANCELLED":
         return <XCircleIcon className="h-5 w-5" />;
       default:
-        return <PackageIcon className="h-5 w-5" />;
+        return <CubeIcon className="h-5 w-5" />;
     }
   };
 
@@ -218,7 +218,7 @@ export default function OrdersPage() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <PackageIcon className="w-10 h-10 text-neutral-400" />
+                                <CubeIcon className="w-10 h-10 text-neutral-400" />
                               </div>
                             )}
                           </div>
