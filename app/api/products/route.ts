@@ -1,3 +1,5 @@
+// app/api/products/route.ts
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -6,16 +8,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
     const search = searchParams.get("search");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = parseInt(searchParams.get("limit") || "50", 10);
 
     const where: any = {};
 
-    // Filter by category if provided
     if (category && category !== "All") {
       where.category = category;
     }
 
-    // Search filter
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -27,25 +27,18 @@ export async function GET(request: Request) {
     const products = await prisma.product.findMany({
       where,
       take: limit,
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
       include: {
         supplier: {
           select: {
             id: true,
             businessName: true,
-            user: {
-              select: {
-                name: true,
-              },
-            },
+            user: { select: { name: true } },
           },
         },
       },
     });
 
-    // Transform data to include supplier name
     const transformedProducts = products.map((product) => ({
       id: product.id,
       name: product.name,
@@ -56,8 +49,8 @@ export async function GET(request: Request) {
       stock: product.stock,
       supplierId: product.supplierId,
       supplier:
-        product.supplier.businessName ||
-        product.supplier.user?.name ||
+        product.supplier?.businessName ||
+        product.supplier?.user?.name ||
         "Verified Supplier",
     }));
 
