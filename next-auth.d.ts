@@ -1,4 +1,4 @@
-// next-auth.d.ts (ROOT)
+// next-auth.d.ts (in project root)
 
 import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT } from "next-auth/jwt";
