@@ -28,8 +28,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "types/**/*.d.ts" // THIS LINE IS REQUIRED
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

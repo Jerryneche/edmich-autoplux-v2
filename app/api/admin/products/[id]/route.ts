@@ -18,16 +18,12 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.product.delete({
-      where: { id },
-    });
-
+    await prisma.product.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     if (error.code === "P2025") {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
-
     return NextResponse.json(
       { error: "Failed to delete product" },
       { status: 500 }
