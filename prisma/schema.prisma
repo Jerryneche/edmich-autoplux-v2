@@ -164,6 +164,9 @@ model Booking {
   status          BookingStatus   @default(PENDING)
   updatedAt       DateTime        @updatedAt
   userId          String
+  name            String?
+  email           String?
+  phone           String?
   mechanic        MechanicProfile @relation(fields: [mechanicId], references: [id], onDelete: Cascade)
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
