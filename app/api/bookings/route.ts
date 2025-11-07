@@ -15,10 +15,18 @@ export async function POST(request: Request) {
 
   const data = await request.json();
 
-  const { mechanicId, service, date, time, name, email, phone, carModel } =
-    data;
+  const {
+    mechanicId,
+    service,
+    appointmentDate, // ← MATCH SCHEMA
+    time,
+    name,
+    email,
+    phone,
+    carModel,
+  } = data;
 
-  if (!mechanicId || !service || !date || !time) {
+  if (!mechanicId || !service || !appointmentDate || !time) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 }
@@ -31,7 +39,7 @@ export async function POST(request: Request) {
         userId: session.user.id,
         mechanicId,
         service,
-        date: new Date(date),
+        appointmentDate: new Date(appointmentDate), // ← MATCH FIELD
         time,
         name: name || null,
         email: email || null,
@@ -51,7 +59,7 @@ export async function POST(request: Request) {
   }
 }
 
-// GET: Fetch All Bookings (Admin / Mechanic)
+// GET: Fetch All Bookings
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
