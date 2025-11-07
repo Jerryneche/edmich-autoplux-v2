@@ -26,13 +26,9 @@ export async function POST(request: Request) {
     phone,
   } = data;
 
-  // Required fields
   if (!mechanicId || !service || !appointmentDate || !carModel) {
     return NextResponse.json(
-      {
-        error:
-          "Missing required fields: mechanicId, service, appointmentDate, carModel",
-      },
+      { error: "Missing required fields" },
       { status: 400 }
     );
   }
@@ -63,7 +59,7 @@ export async function POST(request: Request) {
   }
 }
 
-// GET: Fetch All Bookings (Admin / Mechanic View)
+// GET: Fetch All Bookings with Mechanic Name from User
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
@@ -78,15 +74,29 @@ export async function GET() {
         mechanic: {
           select: {
             id: true,
-            businessName: true,
             specialty: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(bookings);
+    // Transform to include mechanic name
+    const transformed = bookings.map((booking) => ({
+      ...booking,
+      mechanic: {
+        id: booking.mechanic.id,
+        specialty: booking.mechanic.specialty,
+        name: booking.mechanic.user.name || "Unknown Mechanic",
+      },
+    }));
+
+    return NextResponse.json(transformed);
   } catch (error) {
     console.error("Booking fetch error:", error);
     return NextResponse.json(
