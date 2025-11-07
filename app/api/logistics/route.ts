@@ -1,56 +1,49 @@
+// app/api/logistics/route.ts
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-export async function GET() {
-  try {
-    const requests = await prisma.logisticsRequest.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-    return NextResponse.json(requests);
-  } catch (error) {
-    console.error("GET /logistics error:", error);
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const data = await request.json();
+
+  const { pickup, dropoff, vehicle, deliveryDate, weight, notes } = data;
+
+  // Required fields
+  if (!pickup || !dropoff || !vehicle || !deliveryDate) {
     return NextResponse.json(
-      { error: "Failed to fetch logistics requests" },
-      { status: 500 }
+      {
+        error:
+          "Missing required fields: pickup, dropoff, vehicle, deliveryDate",
+      },
+      { status: 400 }
     );
   }
-}
 
-export async function POST(req: Request) {
   try {
-    const data = await req.json();
-
-    if (
-      !data.name ||
-      !data.email ||
-      !data.phone ||
-      !data.pickup ||
-      !data.dropoff ||
-      !data.vehicle ||
-      !data.deliveryDate
-    ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    const request = await prisma.logisticsRequest.create({
+    const logisticsRequest = await prisma.logisticsRequest.create({
       data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        pickup: data.pickup,
-        dropoff: data.dropoff,
-        vehicle: data.vehicle,
-        deliveryDate: new Date(data.deliveryDate), // ✅ ensure DateTime
-        notes: data.notes ?? "",
+        userId: session.user.id,
+        pickup,
+        dropoff,
+        vehicle,
+        deliveryDate: new Date(deliveryDate),
+        weight: weight || null,
+        notes: notes || null,
+        status: "PENDING",
       },
     });
 
-    return NextResponse.json(request, { status: 201 });
-  } catch (error) {
-    console.error("POST /logistics error:", error);
+    return NextResponse.json(logisticsRequest, { status: 201 });
+  } catch (error: any) {
+    console.error("Logistics request error:", error);
     return NextResponse.json(
       { error: "Failed to create logistics request" },
       { status: 500 }
