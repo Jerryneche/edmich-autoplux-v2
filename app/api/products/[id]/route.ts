@@ -1,24 +1,24 @@
+// app/api/products/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params; // AWAIT params
+
     const product = await prisma.product.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id },
       include: {
         supplier: {
           select: {
             id: true,
             businessName: true,
             user: {
-              select: {
-                name: true,
-              },
+              select: { name: true },
             },
           },
         },
@@ -40,8 +40,8 @@ export async function GET(
       stock: product.stock,
       supplierId: product.supplierId,
       supplier:
-        product.supplier.businessName ||
-        product.supplier.user?.name ||
+        product.supplier?.businessName ||
+        product.supplier?.user?.name ||
         "Verified Supplier",
     };
 
