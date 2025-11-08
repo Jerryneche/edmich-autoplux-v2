@@ -191,7 +191,7 @@ model LogisticsRequest {
   id             String            @id @default(cuid())
   name           String
   email          String
-  phone          String
+  phone          String?
   pickup         String
   dropoff        String
   vehicle        String

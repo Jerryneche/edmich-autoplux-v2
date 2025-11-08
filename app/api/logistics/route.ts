@@ -32,9 +32,9 @@ export async function POST(request: Request) {
     const logisticsRequest = await prisma.logisticsRequest.create({
       data: {
         userId: session.user.id,
-        name: session.user.name || "Unknown User", // ADD
-        email: session.user.email || "", // ADD
-        phone: session.user.phone || "", // ADD (or get from profile)
+        name: session.user.name || "Unknown User",
+        email: session.user.email || "",
+        // phone: REMOVED (optional in DB)
         pickup,
         dropoff,
         vehicle,
