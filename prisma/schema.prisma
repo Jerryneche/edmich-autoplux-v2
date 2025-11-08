@@ -36,26 +36,27 @@ model Session {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  name             String?
-  email            String            @unique
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  emailVerified    DateTime?
-  image            String?
-  onboardingStatus OnboardingStatus  @default(PENDING)
-  password         String?
-  phone            String?
-  role             UserRole          @default(BUYER)
-  accounts         Account[]
-  bookings         Booking[]
-  logisticsProfile LogisticsProfile?
-  mechanicProfile  MechanicProfile?
-  orders           Order[]
-  reviews          Review[]
-  sessions         Session[]
-  supplierProfile  SupplierProfile?
-  tradeIns         TradeIn[]
+  id                String             @id @default(cuid())
+  name              String?
+  email             String             @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  emailVerified     DateTime?
+  image             String?
+  onboardingStatus  OnboardingStatus   @default(PENDING)
+  password          String?
+  phone             String?
+  role              UserRole           @default(BUYER)
+  accounts          Account[]
+  bookings          Booking[]
+  logisticsProfile  LogisticsProfile?
+  mechanicProfile   MechanicProfile?
+  orders            Order[]
+  reviews           Review[]
+  sessions          Session[]
+  supplierProfile   SupplierProfile?
+  tradeIns          TradeIn[]
+  logisticsRequests LogisticsRequest[]
 }
 
 model SupplierProfile {
@@ -153,38 +154,57 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
+// ADD THESE MODELS TO YOUR SCHEMA (AFTER LogisticsProfile)
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  company     String
+  product     String
+  price       String
+  description String
+  approved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Booking {
-  id              String          @id @default(cuid())
-  carModel        String
-  service         String
-  notes           String?
-  createdAt       DateTime        @default(now())
-  appointmentDate DateTime
-  mechanicId      String
-  status          BookingStatus   @default(PENDING)
-  updatedAt       DateTime        @updatedAt
-  userId          String
+  id              String           @id @default(cuid())
   name            String?
   email           String?
   phone           String?
-  mechanic        MechanicProfile @relation(fields: [mechanicId], references: [id], onDelete: Cascade)
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carModel        String
+  service         String
+  appointmentDate DateTime
+  notes           String?
+  status          BookingStatus    @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  userId          String
+  mechanicId      String?
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mechanic        MechanicProfile? @relation(fields: [mechanicId], references: [id])
 }
 
 model LogisticsRequest {
   id             String            @id @default(cuid())
+  name           String
+  email          String
+  phone          String
   pickup         String
   dropoff        String
   vehicle        String
-  notes          String?
-  createdAt      DateTime          @default(now())
   deliveryDate   DateTime
-  logisticsId    String?
+  notes          String?
   status         LogisticsStatus   @default(PENDING)
   trackingNumber String?           @unique
+  weight         String?
+  createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   userId         String
-  weight         String?
+  logisticsId    String?
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   logistics      LogisticsProfile? @relation(fields: [logisticsId], references: [id])
 }
 

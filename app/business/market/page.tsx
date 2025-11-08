@@ -4,7 +4,7 @@ import ClientMarket from "./ClientMarket";
 import { ProductCardData } from "@/app/types/product";
 
 const PLACEHOLDER_PRODUCTS: ProductCardData[] = [
-  /* your 10+ items */
+  /* your items */
 ];
 
 async function getProducts(
@@ -12,7 +12,7 @@ async function getProducts(
   limit: number = 9
 ): Promise<ProductCardData[]> {
   try {
-    const headersList = await headers(); // ADD AWAIT
+    const headersList = await headers();
     const host = headersList.get("host");
     const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
 
@@ -24,7 +24,20 @@ async function getProducts(
     if (!res.ok) throw new Error("API failed");
 
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+
+    // NORMALIZE null → undefined
+    const normalized = Array.isArray(data)
+      ? data.map((p: any) => ({
+          ...p,
+          description: p.description ?? undefined,
+          image: p.image ?? undefined,
+          supplier: p.supplier ?? undefined,
+          rating: p.rating ?? undefined,
+          createdAt: p.createdAt ?? undefined,
+        }))
+      : [];
+
+    return normalized;
   } catch (error) {
     console.warn("Using placeholder products:", error);
     return PLACEHOLDER_PRODUCTS.slice((page - 1) * limit, page * limit);
@@ -32,7 +45,6 @@ async function getProducts(
 }
 
 export default async function MarketPage() {
-  const initialProducts = await getProducts(1, 9); // ALSO AWAIT HERE
-
+  const initialProducts = await getProducts(1, 9);
   return <ClientMarket initialProducts={initialProducts} />;
 }
