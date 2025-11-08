@@ -60,6 +60,7 @@ export async function POST(request: Request) {
 }
 
 // GET: Fetch All Bookings with Mechanic Name from User
+// app/api/bookings/route.ts → GET
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
@@ -86,14 +87,16 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    // Transform to include mechanic name
+    // Transform with null safety
     const transformed = bookings.map((booking) => ({
       ...booking,
-      mechanic: {
-        id: booking.mechanic.id,
-        specialty: booking.mechanic.specialty,
-        name: booking.mechanic.user.name || "Unknown Mechanic",
-      },
+      mechanic: booking.mechanic
+        ? {
+            id: booking.mechanic.id,
+            specialty: booking.mechanic.specialty,
+            name: booking.mechanic.user.name || "Unknown Mechanic",
+          }
+        : null,
     }));
 
     return NextResponse.json(transformed);
