@@ -1,3 +1,4 @@
+// app/signup/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -15,31 +16,32 @@ import {
   ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
+import { signIn } from "next-auth/react"; // ADD THIS
 
 const roles = [
   {
     value: "BUYER",
     label: "Buyer",
     description: "Purchase auto parts and services",
-    icon: "🛒",
+    icon: "Shopping Cart",
   },
   {
     value: "SUPPLIER",
     label: "Supplier",
     description: "Sell auto parts to verified buyers",
-    icon: "📦",
+    icon: "Package",
   },
   {
     value: "MECHANIC",
     label: "Mechanic",
     description: "Offer repair and maintenance services",
-    icon: "🔧",
+    icon: "Wrench",
   },
   {
     value: "LOGISTICS",
     label: "Logistics",
     description: "Provide delivery and transport services",
-    icon: "🚚",
+    icon: "Truck",
   },
 ];
 
@@ -151,7 +153,7 @@ export default function SignupPage() {
 
       toast.success("Account created successfully!");
 
-      // ✅ Auto sign in after registration
+      // AUTO SIGN IN AFTER REGISTRATION
       setTimeout(async () => {
         const signInResult = await signIn("credentials", {
           email: formData.email,
@@ -160,7 +162,8 @@ export default function SignupPage() {
         });
 
         if (signInResult?.ok) {
-          window.location.href = "/dashboard";
+          router.push("/dashboard");
+          router.refresh();
         } else {
           router.push("/login");
         }
