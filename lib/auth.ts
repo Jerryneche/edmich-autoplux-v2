@@ -51,16 +51,13 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       if (account?.provider !== "credentials") {
         const dbUser = await prisma.user.findUnique({
           where: { email: user.email! },
         });
 
-        // New OAuth user → create with default role
         if (!dbUser) {
-          // Prisma Adapter will create user, but we patch role
-          // This runs AFTER adapter creates user
           setImmediate(async () => {
             await prisma.user.update({
               where: { email: user.email! },
@@ -73,22 +70,25 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, trigger, session }) {
+      // CAST USER TO YOUR TYPE
+      const dbUser = user as any;
+
       // Initial sign in
-      if (user) {
-        token.id = user.id;
-        token.role = user.role ?? "BUYER";
-        token.onboardingStatus = user.onboardingStatus ?? "PENDING";
+      if (dbUser) {
+        token.id = dbUser.id;
+        token.role = dbUser.role ?? "BUYER";
+        token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
       }
 
       // Update session
       if (trigger === "update" && session) {
-        const dbUser = await prisma.user.findUnique({
+        const refreshedUser = await prisma.user.findUnique({
           where: { id: token.id as string },
         });
 
-        if (dbUser) {
-          token.role = dbUser.role ?? "BUYER";
-          token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
+        if (refreshedUser) {
+          token.role = refreshedUser.role ?? "BUYER";
+          token.onboardingStatus = refreshedUser.onboardingStatus ?? "PENDING";
         }
       }
 
@@ -105,16 +105,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      // After sign in
-      if (url.startsWith(baseUrl)) {
-        const redirectTo = new URL(url, baseUrl);
-        const session = await import("next-auth/next").then(
-          (mod) => mod.getServerSession
-        );
-        // This won't work in callback, so we handle in middleware
-        return url;
-      }
-      return baseUrl;
+      return url.startsWith(baseUrl) ? url : baseUrl;
     },
   },
   pages: {
