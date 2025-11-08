@@ -1,3 +1,4 @@
+// lib/auth.ts
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
@@ -51,59 +52,69 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      // For OAuth users, ensure they have a role
       if (account?.provider !== "credentials") {
-        const existingUser = await prisma.user.findUnique({
+        const dbUser = await prisma.user.findUnique({
           where: { email: user.email! },
         });
 
-        // If new OAuth user, set default role as BUYER
-        if (!existingUser) {
-          // User will be created by adapter with default values from schema
-          return true;
-        }
-
-        // If existing user without role, they need to select one
-        if (!existingUser.role) {
-          return true; // Allow sign in, middleware will redirect to role selection
+        // New OAuth user → create with default role
+        if (!dbUser) {
+          // Prisma Adapter will create user, but we patch role
+          // This runs AFTER adapter creates user
+          setImmediate(async () => {
+            await prisma.user.update({
+              where: { email: user.email! },
+              data: { role: "BUYER", onboardingStatus: "PENDING" },
+            });
+          });
         }
       }
       return true;
     },
+
     async jwt({ token, user, trigger, session }) {
       // Initial sign in
       if (user) {
         token.id = user.id;
-        token.role = user.role;
-        token.onboardingStatus = user.onboardingStatus;
+        token.role = user.role ?? "BUYER";
+        token.onboardingStatus = user.onboardingStatus ?? "PENDING";
       }
 
-      // Handle session updates
+      // Update session
       if (trigger === "update" && session) {
-        // Refresh user data from database
-        const refreshedUser = await prisma.user.findUnique({
+        const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
         });
 
-        if (refreshedUser) {
-          token.role = refreshedUser.role;
-          token.onboardingStatus = refreshedUser.onboardingStatus;
+        if (dbUser) {
+          token.role = dbUser.role ?? "BUYER";
+          token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
         }
       }
 
       return token;
     },
+
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token.id) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.onboardingStatus = token.onboardingStatus as string;
       }
       return session;
     },
+
     async redirect({ url, baseUrl }) {
-      // After sign in, redirect based on onboarding status
-      return url.startsWith(baseUrl) ? url : baseUrl;
+      // After sign in
+      if (url.startsWith(baseUrl)) {
+        const redirectTo = new URL(url, baseUrl);
+        const session = await import("next-auth/next").then(
+          (mod) => mod.getServerSession
+        );
+        // This won't work in callback, so we handle in middleware
+        return url;
+      }
+      return baseUrl;
     },
   },
   pages: {
