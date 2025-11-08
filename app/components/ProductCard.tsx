@@ -135,7 +135,19 @@ export default function ProductCard({
             </div>
 
             {/* Quick Add Icon Button */}
-            <AddToCartButton product={product} variant="icon" />
+            {/* Quick Add Icon Button */}
+            <AddToCartButton
+              product={{
+                id: product.id,
+                name: product.name,
+                description: product.description ?? undefined,
+                price: product.price,
+                image: product.image ?? undefined,
+                stock: product.stock,
+                supplierId: product.supplierId,
+              }}
+              variant="icon"
+            />
           </div>
 
           {/* Action Buttons - ONLY ONE "View Details" */}
