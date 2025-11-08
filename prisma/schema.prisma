@@ -231,13 +231,6 @@ enum TradeInStatus {
   REDEEMED
 }
 
-enum Role {
-  BUYER
-  SUPPLIER
-  MECHANIC
-  LOGISTICS
-}
-
 enum UserRole {
   BUYER
   SUPPLIER

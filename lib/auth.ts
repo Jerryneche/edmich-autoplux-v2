@@ -7,6 +7,9 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+// Define role type matching Prisma enum
+type UserRole = "BUYER" | "SUPPLIER" | "MECHANIC" | "LOGISTICS" | "ADMIN";
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -52,17 +55,26 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account }) {
+      // For OAuth users: ensure default role & onboarding status
       if (account?.provider !== "credentials") {
         const dbUser = await prisma.user.findUnique({
           where: { email: user.email! },
         });
 
         if (!dbUser) {
+          // Adapter creates user → we update role & onboarding
           setImmediate(async () => {
-            await prisma.user.update({
-              where: { email: user.email! },
-              data: { role: "BUYER", onboardingStatus: "PENDING" },
-            });
+            try {
+              await prisma.user.update({
+                where: { email: user.email! },
+                data: {
+                  role: "BUYER",
+                  onboardingStatus: "PENDING",
+                },
+              });
+            } catch (error) {
+              console.error("Failed to set default role/onboarding:", error);
+            }
           });
         }
       }
@@ -70,24 +82,23 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, trigger, session }) {
-      // CAST USER TO YOUR TYPE
-      const dbUser = user as any;
+      const dbUser = user as any; // NextAuth doesn't know our custom fields
 
-      // Initial sign in
+      // Initial sign-in
       if (dbUser) {
         token.id = dbUser.id;
-        token.role = dbUser.role ?? "BUYER";
+        token.role = (dbUser.role ?? "BUYER") as UserRole;
         token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
       }
 
-      // Update session
+      // Session update (e.g. after profile completion)
       if (trigger === "update" && session) {
         const refreshedUser = await prisma.user.findUnique({
           where: { id: token.id as string },
         });
 
         if (refreshedUser) {
-          token.role = refreshedUser.role ?? "BUYER";
+          token.role = (refreshedUser.role ?? "BUYER") as UserRole;
           token.onboardingStatus = refreshedUser.onboardingStatus ?? "PENDING";
         }
       }
@@ -98,13 +109,14 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.role = token.role as UserRole;
         session.user.onboardingStatus = token.onboardingStatus as string;
       }
       return session;
     },
 
     async redirect({ url, baseUrl }) {
+      // Let middleware handle onboarding redirects
       return url.startsWith(baseUrl) ? url : baseUrl;
     },
   },
