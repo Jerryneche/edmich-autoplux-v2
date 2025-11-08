@@ -1,25 +1,29 @@
-// next-auth.d.ts (in project root)
-
+// types/next-auth.d.ts
 import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT } from "next-auth/jwt";
+
+type UserRole = "BUYER" | "SUPPLIER" | "MECHANIC" | "LOGISTICS" | "ADMIN";
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: "BUYER" | "SUPPLIER" | "ADMIN" | "MECHANIC" | "LOGISTICS";
+      role: UserRole;
+      onboardingStatus: string;
     } & DefaultSession["user"];
   }
 
   interface User extends DefaultUser {
     id: string;
-    role: "BUYER" | "SUPPLIER" | "ADMIN" | "MECHANIC" | "LOGISTICS";
+    role: UserRole;
+    onboardingStatus?: string;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
-    role?: "BUYER" | "SUPPLIER" | "ADMIN" | "MECHANIC" | "LOGISTICS";
+    role?: UserRole;
+    onboardingStatus?: string;
   }
 }
