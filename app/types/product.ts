@@ -24,16 +24,20 @@ export interface Product {
 }
 
 // Simplified Product for cards/lists
+
+// app/types/product.ts
 export interface ProductCardData {
   id: string;
   name: string;
-  description?: string | null;
+  description?: string; // ← NO NULL
   price: number;
   category: string;
-  image?: string | null;
+  image?: string; // ← NO NULL
   stock: number;
   supplierId: string;
-  supplier?: string; // Supplier name as string for display
+  supplier?: string; // ← NO NULL
+  rating?: number;
+  createdAt?: number;
 }
 
 // Review type
