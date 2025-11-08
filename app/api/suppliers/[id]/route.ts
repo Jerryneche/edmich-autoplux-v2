@@ -1,20 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+// app/api/suppliers/[id]/route.ts
 
-const prisma = new PrismaClient();
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-// Approve supplier
 export async function PATCH(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
-  const { approved } = await req.json();
+  const session = await getServerSession(authOptions);
 
-  const supplier = await prisma.supplier.update({
-    where: { id: Number(id) },
-    data: { approved },
-  });
+  if (!session?.user?.role || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  return NextResponse.json(supplier);
+  const { id } = await params;
+  const { verified } = await req.json(); // ← MATCH SCHEMA
+
+  try {
+    const supplier = await prisma.supplierProfile.update({
+      where: { id },
+      data: { verified }, // ← USE verified, NOT approved
+    });
+
+    return NextResponse.json(supplier);
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      return NextResponse.json(
+        { error: "Supplier not found" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Failed to update supplier" },
+      { status: 500 }
+    );
+  }
 }
