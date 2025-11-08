@@ -1,7 +1,42 @@
+// prisma/seed.ts// prisma/seed.ts
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export async function main() {
+  // --- Create Test Users ---
+  const user1 = await prisma.user.upsert({
+    where: { email: "buyer@example.com" },
+    update: {},
+    create: {
+      email: "buyer@example.com",
+      name: "Test Buyer",
+      role: "BUYER",
+      onboardingStatus: "COMPLETED",
+    },
+  });
+
+  const user2 = await prisma.user.upsert({
+    where: { email: "mechanic@example.com" },
+    update: {},
+    create: {
+      email: "mechanic@example.com",
+      name: "Test Mechanic",
+      role: "MECHANIC",
+      onboardingStatus: "COMPLETED",
+    },
+  });
+
+  const user3 = await prisma.user.upsert({
+    where: { email: "logistics@example.com" },
+    update: {},
+    create: {
+      email: "logistics@example.com",
+      name: "Test Logistics",
+      role: "LOGISTICS",
+      onboardingStatus: "COMPLETED",
+    },
+  });
+
   // --- Suppliers ---
   await prisma.supplier.createMany({
     data: [
@@ -23,15 +58,6 @@ export async function main() {
         description: "Premium synthetic oil for all vehicles",
         approved: false,
       },
-      {
-        name: "Mike Johnson",
-        email: "supplier3@example.com",
-        company: "Tyre World",
-        product: "Car Tyres",
-        price: "₦45,000",
-        description: "Durable tyres for SUVs and sedans",
-        approved: true,
-      },
     ],
   });
 
@@ -46,14 +72,7 @@ export async function main() {
         service: "Brake repair",
         appointmentDate: new Date("2025-11-01T10:00:00Z"),
         notes: "Customer requests OEM parts only",
-      },
-      {
-        name: "Sarah Williams",
-        email: "sarah@example.com",
-        phone: "08098765432",
-        carModel: "Honda Civic",
-        service: "Engine diagnostics",
-        appointmentDate: new Date("2025-11-02T14:00:00Z"),
+        userId: user1.id,
       },
     ],
   });
@@ -70,28 +89,18 @@ export async function main() {
         vehicle: "Truck",
         deliveryDate: new Date("2025-11-05T09:00:00Z"),
         notes: "Fragile parts, handle with care",
-      },
-      {
-        name: "Emily Davis",
-        email: "emily@example.com",
-        phone: "08198765432",
-        pickup: "Port Harcourt",
-        dropoff: "Enugu",
-        vehicle: "Van",
-        deliveryDate: new Date("2025-11-06T12:00:00Z"),
+        userId: user3.id,
       },
     ],
   });
 
-  console.log(
-    "✅ Database seeded successfully with suppliers, bookings, and logistics requests!"
-  );
+  console.log("Database seeded successfully!");
 }
 
 if (require.main === module) {
   main()
     .catch((e) => {
-      console.error("❌ Seeding failed:", e);
+      console.error("Seeding failed:", e);
       process.exit(1);
     })
     .finally(async () => {
