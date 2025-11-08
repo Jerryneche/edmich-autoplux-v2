@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+// app/api/logistics/route.ts → POST
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
 
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
     const logisticsRequest = await prisma.logisticsRequest.create({
       data: {
         userId: session.user.id,
+        name: session.user.name || "Unknown User", // ADD
+        email: session.user.email || "", // ADD
+        phone: session.user.phone || "", // ADD (or get from profile)
         pickup,
         dropoff,
         vehicle,
