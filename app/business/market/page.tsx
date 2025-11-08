@@ -4,7 +4,7 @@ import ClientMarket from "./ClientMarket";
 import { ProductCardData } from "@/app/types/product";
 
 const PLACEHOLDER_PRODUCTS: ProductCardData[] = [
-  /* ... your 10+ items ... */
+  /* your 10+ items */
 ];
 
 async function getProducts(
@@ -12,7 +12,7 @@ async function getProducts(
   limit: number = 9
 ): Promise<ProductCardData[]> {
   try {
-    const headersList = headers();
+    const headersList = await headers(); // ADD AWAIT
     const host = headersList.get("host");
     const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
 
@@ -32,7 +32,7 @@ async function getProducts(
 }
 
 export default async function MarketPage() {
-  const initialProducts = await getProducts(1, 9);
+  const initialProducts = await getProducts(1, 9); // ALSO AWAIT HERE
 
   return <ClientMarket initialProducts={initialProducts} />;
 }
