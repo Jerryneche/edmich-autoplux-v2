@@ -250,7 +250,9 @@ export default async function ProductDetailPage({
               <div className="space-y-4">
                 <AddToCartButton
                   product={product}
-                  variant="default" // ← CHANGE FROM "primary"
+                  variant="default"
+
+                  // ← CHANGE FROM "primary"
                 />
 
                 {/* Trust Badges */}
