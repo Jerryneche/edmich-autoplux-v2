@@ -11,6 +11,11 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    turbotrace: {
+      logLevel: "error",
+    },
+  },
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
