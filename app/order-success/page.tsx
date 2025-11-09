@@ -1,3 +1,5 @@
+// FIXED: Suspense boundary added for useSearchParams
+
 "use client";
 
 import { useEffect, useState } from "react";
