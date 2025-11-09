@@ -22,6 +22,7 @@ interface Supplier {
   price: string;
 }
 
+export const dynamic = "force-dynamic";
 export async function getSuppliers(): Promise<Supplier[]> {
   try {
     const res = await fetch("/api/suppliers", {

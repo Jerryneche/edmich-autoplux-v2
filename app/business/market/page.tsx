@@ -7,6 +7,7 @@ const PLACEHOLDER_PRODUCTS: ProductCardData[] = [
   /* your items */
 ];
 
+export const dynamic = "force-dynamic";
 async function getProducts(
   page: number = 1,
   limit: number = 9

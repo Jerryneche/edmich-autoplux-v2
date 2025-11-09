@@ -121,6 +121,7 @@ const PLACEHOLDER_PRODUCTS: ProductCardData[] = [
   },
 ];
 
+export const dynamic = "force-dynamic";
 async function getProducts() {
   try {
     const headersList = await headers();
