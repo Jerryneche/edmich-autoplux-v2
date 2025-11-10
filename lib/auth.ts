@@ -55,29 +55,28 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // For OAuth users: ensure default role & onboarding status
-      if (account?.provider !== "credentials") {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
+      if (account?.provider === "credentials") return true;
 
-        if (!dbUser) {
-          // Adapter creates user → we update role & onboarding
-          setImmediate(async () => {
-            try {
-              await prisma.user.update({
-                where: { email: user.email! },
-                data: {
-                  role: "BUYER",
-                  onboardingStatus: "PENDING",
-                },
-              });
-            } catch (error) {
-              console.error("Failed to set default role/onboarding:", error);
-            }
-          });
-        }
+      const email = user.email;
+      if (!email) return true;
+
+      const dbUser = await prisma.user.findUnique({ where: { email } });
+
+      if (!dbUser) {
+        // Let adapter create user → we'll update role after
+        return true;
       }
+
+      // If user exists but no role → default to BUYER
+      if (!dbUser.role) {
+        setImmediate(async () => {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { role: "BUYER", onboardingStatus: "PENDING" },
+          });
+        });
+      }
+
       return true;
     },
 

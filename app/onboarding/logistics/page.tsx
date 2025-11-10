@@ -8,13 +8,11 @@ import {
   TruckIcon,
   MapPinIcon,
   CheckCircleIcon,
-  PlusIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function LogisticsOnboarding() {
-  const { data: session, update } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [vehicleTypes, setVehicleTypes] = useState<string[]>([]);
@@ -123,14 +121,15 @@ export default function LogisticsOnboarding() {
         throw new Error(data.error || "Failed to complete onboarding");
       }
 
-      // Update session
-      await update();
+      // Force session refresh to reflect DB update
+      await fetch("/api/auth/session", { method: "GET" });
 
       toast.success("Profile created successfully!");
 
       setTimeout(() => {
         router.push("/dashboard/logistics");
-      }, 1000);
+        router.refresh();
+      }, 1200);
     } catch (error: any) {
       toast.error(error.message || "Something went wrong");
     } finally {
@@ -163,131 +162,125 @@ export default function LogisticsOnboarding() {
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-2xl border-2 border-neutral-200 p-8 md:p-10">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Company Information */}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-3xl shadow-2xl border-2 border-neutral-200 p-8 md:p-10 space-y-8"
+        >
+          {/* Company Information */}
+          <div>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
+              <TruckIcon className="h-6 w-6 text-green-600" />
+              Company Information
+            </h3>
             <div>
-              <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                <TruckIcon className="h-6 w-6 text-green-600" />
-                Company Information
-              </h3>
-
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Company Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    placeholder="e.g., Fast Logistics Nigeria"
-                    className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
-                    required
-                  />
-                </div>
-              </div>
+              <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                Company Name *
+              </label>
+              <input
+                type="text"
+                name="companyName"
+                value={formData.companyName}
+                onChange={handleChange}
+                placeholder="e.g., Fast Logistics Nigeria"
+                className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                required
+              />
             </div>
+          </div>
 
-            {/* Vehicle Types */}
-            <div>
-              <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                <TruckIcon className="h-6 w-6 text-blue-600" />
-                Vehicle Types *
-              </h3>
-              <p className="text-sm text-neutral-600 mb-4">
-                Select all vehicle types you have available
-              </p>
-
-              <div className="grid md:grid-cols-2 gap-3">
-                {availableVehicles.map((vehicle) => (
-                  <button
-                    key={vehicle}
-                    type="button"
-                    onClick={() => toggleVehicleType(vehicle)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      vehicleTypes.includes(vehicle)
-                        ? "border-green-500 bg-green-50"
-                        : "border-neutral-200 hover:border-green-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-neutral-900">
-                        {vehicle}
-                      </span>
-                      {vehicleTypes.includes(vehicle) && (
-                        <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {vehicleTypes.length > 0 && (
-                <p className="mt-3 text-sm text-green-600 font-medium">
-                  {vehicleTypes.length} vehicle type(s) selected
-                </p>
-              )}
-            </div>
-
-            {/* Coverage Areas */}
-            <div>
-              <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                <MapPinIcon className="h-6 w-6 text-purple-600" />
-                Coverage Areas *
-              </h3>
-              <p className="text-sm text-neutral-600 mb-4">
-                Select all states where you provide delivery services
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-96 overflow-y-auto p-4 bg-neutral-50 rounded-xl border-2 border-neutral-200">
-                {nigerianStates.map((state) => (
-                  <button
-                    key={state}
-                    type="button"
-                    onClick={() => toggleCoverageArea(state)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      coverageAreas.includes(state)
-                        ? "bg-green-600 text-white"
-                        : "bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200"
-                    }`}
-                  >
-                    {state}
-                    {coverageAreas.includes(state) && (
-                      <CheckCircleIcon className="h-4 w-4 inline ml-1" />
+          {/* Vehicle Types */}
+          <div>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
+              <TruckIcon className="h-6 w-6 text-blue-600" />
+              Vehicle Types *
+            </h3>
+            <p className="text-sm text-neutral-600 mb-4">
+              Select all vehicle types you have available
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              {availableVehicles.map((vehicle) => (
+                <button
+                  key={vehicle}
+                  type="button"
+                  onClick={() => toggleVehicleType(vehicle)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    vehicleTypes.includes(vehicle)
+                      ? "border-green-500 bg-green-50"
+                      : "border-neutral-200 hover:border-green-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-neutral-900">
+                      {vehicle}
+                    </span>
+                    {vehicleTypes.includes(vehicle) && (
+                      <CheckCircleIcon className="h-5 w-5 text-green-600" />
                     )}
-                  </button>
-                ))}
-              </div>
-
-              {coverageAreas.length > 0 && (
-                <p className="mt-3 text-sm text-green-600 font-medium">
-                  {coverageAreas.length} state(s) selected
-                </p>
-              )}
+                  </div>
+                </button>
+              ))}
             </div>
+            {vehicleTypes.length > 0 && (
+              <p className="mt-3 text-sm text-green-600 font-medium">
+                {vehicleTypes.length} vehicle type(s) selected
+              </p>
+            )}
+          </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-xl font-bold hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Creating Profile...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircleIcon className="h-5 w-5" />
-                  <span>Complete Setup</span>
-                </>
-              )}
-            </button>
-          </form>
-        </div>
+          {/* Coverage Areas */}
+          <div>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
+              <MapPinIcon className="h-6 w-6 text-purple-600" />
+              Coverage Areas *
+            </h3>
+            <p className="text-sm text-neutral-600 mb-4">
+              Select all states where you provide delivery services
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-96 overflow-y-auto p-4 bg-neutral-50 rounded-xl border-2 border-neutral-200">
+              {nigerianStates.map((state) => (
+                <button
+                  key={state}
+                  type="button"
+                  onClick={() => toggleCoverageArea(state)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    coverageAreas.includes(state)
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200"
+                  }`}
+                >
+                  {state}
+                  {coverageAreas.includes(state) && (
+                    <CheckCircleIcon className="h-4 w-4 inline ml-1" />
+                  )}
+                </button>
+              ))}
+            </div>
+            {coverageAreas.length > 0 && (
+              <p className="mt-3 text-sm text-green-600 font-medium">
+                {coverageAreas.length} state(s) selected
+              </p>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-xl font-bold hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Creating Profile...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircleIcon className="h-5 w-5" />
+                <span>Complete Setup</span>
+              </>
+            )}
+          </button>
+        </form>
       </section>
     </main>
   );

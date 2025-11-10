@@ -31,16 +31,16 @@ export default function ProductCard({
 
   return (
     <div className="group relative rounded-2xl bg-white/80 backdrop-blur-xl border border-white/40 shadow-lg shadow-black/5 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 hover:border-cyan-400/60">
-      {/* Animated gradient overlay - Tesla cyan glow */}
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/0 via-cyan-500/0 to-cyan-600/0 group-hover:from-cyan-600/12 group-hover:via-cyan-500/8 group-hover:to-cyan-600/12 transition-all duration-500 rounded-2xl" />
+      {/* Animated linear overlay - Tesla cyan glow */}
+      <div className="absolute inset-0 bg-linear-to-br from-cyan-600/0 via-cyan-500/0 to-cyan-600/0 group-hover:from-cyan-600/12 group-hover:via-cyan-500/8 group-hover:to-cyan-600/12 transition-all duration-500 rounded-2xl" />
 
       {/* Glow effect - Tesla style */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-2xl blur-xl opacity-0 group-hover:opacity-25 transition-opacity duration-500" />
+      <div className="absolute -inset-1 bg-linear-to-r from-cyan-500 to-cyan-600 rounded-2xl blur-xl opacity-0 group-hover:opacity-25 transition-opacity duration-500" />
 
       <div className="relative z-10">
         {/* Image Container */}
         <Link href={`/business/market/${product.id}`} className="block">
-          <div className="relative w-full h-48 rounded-xl overflow-hidden bg-gradient-to-br from-neutral-900 to-neutral-800 mb-4">
+          <div className="relative w-full h-48 rounded-xl overflow-hidden bg-linear-to-br from-neutral-900 to-neutral-800 mb-4">
             {product.image ? (
               <Image
                 src={product.image}
@@ -124,7 +124,7 @@ export default function ProductCard({
           <div className="flex items-end justify-between pt-2 border-t border-gray-200">
             <div>
               <p className="text-xs text-gray-500 mb-1">Price</p>
-              <p className="text-2xl font-bold bg-gradient-to-r from-cyan-500 to-cyan-600 bg-clip-text text-transparent">
+              <p className="text-2xl font-bold bg-linear-to-r from-cyan-500 to-cyan-600 bg-clip-text text-transparent">
                 ₦{product.price.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -140,13 +140,13 @@ export default function ProductCard({
               product={{
                 id: product.id,
                 name: product.name,
-                description: product.description ?? undefined,
+                description: product.description,
                 price: product.price,
-                image: product.image ?? undefined,
+                image: product.image,
                 stock: product.stock,
                 supplierId: product.supplierId,
               }}
-              variant="icon"
+              variant="default"
             />
           </div>
 
@@ -154,7 +154,7 @@ export default function ProductCard({
           <div className="pt-3">
             <Link
               href={`/business/market/${product.id}`}
-              className="block w-full text-center px-4 py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white rounded-xl text-sm font-semibold backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25"
+              className="block w-full text-center px-4 py-3 bg-linear-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white rounded-xl text-sm font-semibold backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25"
             >
               View Details
             </Link>
