@@ -30,7 +30,6 @@ export default function CartIconBadge() {
             transform: scale(1.1);
           }
         }
-
         .animate-bounce-subtle {
           animation: bounce-subtle 0.5s ease-in-out;
         }

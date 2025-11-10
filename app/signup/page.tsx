@@ -14,34 +14,38 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
+  ShoppingCartIcon,
+  PackageIcon,
+  WrenchIcon,
+  TruckIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
-import { signIn } from "next-auth/react"; // ADD THIS
+import { signIn } from "next-auth/react";
 
 const roles = [
   {
     value: "BUYER",
     label: "Buyer",
     description: "Purchase auto parts and services",
-    icon: "Shopping Cart",
+    icon: ShoppingCartIcon,
   },
   {
     value: "SUPPLIER",
     label: "Supplier",
     description: "Sell auto parts to verified buyers",
-    icon: "Package",
+    icon: PackageIcon,
   },
   {
     value: "MECHANIC",
     label: "Mechanic",
     description: "Offer repair and maintenance services",
-    icon: "Wrench",
+    icon: WrenchIcon,
   },
   {
     value: "LOGISTICS",
     label: "Logistics",
     description: "Provide delivery and transport services",
-    icon: "Truck",
+    icon: TruckIcon,
   },
 ];
 
@@ -153,7 +157,7 @@ export default function SignupPage() {
 
       toast.success("Account created successfully!");
 
-      // AUTO SIGN IN AFTER REGISTRATION
+      // AUTO SIGN IN
       setTimeout(async () => {
         const signInResult = await signIn("credentials", {
           email: formData.email,
@@ -182,8 +186,8 @@ export default function SignupPage() {
       <Header />
 
       <section className="relative pt-32 pb-24 overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute inset-0 opacity-40">
+        {/* Background Blobs */}
+        <div className="absolute inset-0 opacity-40 pointer-events-none">
           <div className="absolute top-20 left-10 w-96 h-96 bg-purple-200/40 rounded-full blur-3xl animate-pulse"></div>
           <div
             className="absolute bottom-20 right-10 w-96 h-96 bg-blue-200/40 rounded-full blur-3xl animate-pulse"
@@ -211,9 +215,9 @@ export default function SignupPage() {
               {[1, 2, 3].map((s) => (
                 <div key={s} className="flex items-center">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
                       step >= s
-                        ? "bg-blue-600 text-white"
+                        ? "bg-blue-600 text-white shadow-lg"
                         : "bg-neutral-200 text-neutral-500"
                     }`}
                   >
@@ -221,7 +225,7 @@ export default function SignupPage() {
                   </div>
                   {s < 3 && (
                     <div
-                      className={`w-16 h-1 mx-2 transition-all ${
+                      className={`w-16 h-1 mx-2 transition-all duration-300 ${
                         step > s ? "bg-blue-600" : "bg-neutral-200"
                       }`}
                     ></div>
@@ -238,7 +242,7 @@ export default function SignupPage() {
             <div className="relative bg-white rounded-3xl shadow-2xl border-2 border-neutral-200 p-8 md:p-10">
               {/* Error Alert */}
               {error && (
-                <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-center gap-3">
+                <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top">
                   <ExclamationCircleIcon className="h-5 w-5 text-red-600 flex-shrink-0" />
                   <p className="text-red-900 text-sm font-medium">{error}</p>
                 </div>
@@ -246,63 +250,70 @@ export default function SignupPage() {
 
               {/* Step 1: Role Selection */}
               {step === 1 && (
-                <div>
-                  <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                    Choose Your Role
-                  </h2>
-                  <p className="text-neutral-600 mb-8">
-                    Select how you want to use EDMICH
-                  </p>
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                      Choose Your Role
+                    </h2>
+                    <p className="text-neutral-600">
+                      Select how you want to use EDMICH
+                    </p>
+                  </div>
 
                   <div className="grid md:grid-cols-2 gap-4">
-                    {roles.map((role) => (
-                      <button
-                        key={role.value}
-                        type="button"
-                        onClick={() => handleRoleSelect(role.value)}
-                        className={`p-6 rounded-2xl border-2 text-left transition-all hover:shadow-lg ${
-                          formData.role === role.value
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-neutral-200 hover:border-blue-300"
-                        }`}
-                      >
-                        <div className="text-4xl mb-3">{role.icon}</div>
-                        <h3 className="text-lg font-bold text-neutral-900 mb-1">
-                          {role.label}
-                        </h3>
-                        <p className="text-sm text-neutral-600">
-                          {role.description}
-                        </p>
-                        {formData.role === role.value && (
-                          <div className="mt-3 flex items-center gap-2 text-blue-600 font-semibold text-sm">
-                            <CheckCircleIcon className="h-5 w-5" />
-                            <span>Selected</span>
+                    {roles.map((role) => {
+                      const Icon = role.icon;
+                      return (
+                        <button
+                          key={role.value}
+                          type="button"
+                          onClick={() => handleRoleSelect(role.value)}
+                          className={`p-6 rounded-2xl border-2 text-left transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${
+                            formData.role === role.value
+                              ? "border-blue-500 bg-blue-50 shadow-md"
+                              : "border-neutral-200 hover:border-blue-300"
+                          }`}
+                        >
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-3 shadow-md">
+                            <Icon className="h-7 w-7 text-white" />
                           </div>
-                        )}
-                      </button>
-                    ))}
+                          <h3 className="text-lg font-bold text-neutral-900 mb-1">
+                            {role.label}
+                          </h3>
+                          <p className="text-sm text-neutral-600">
+                            {role.description}
+                          </p>
+                          {formData.role === role.value && (
+                            <div className="mt-3 flex items-center gap-2 text-blue-600 font-semibold text-sm">
+                              <CheckCircleIcon className="h-5 w-5" />
+                              <span>Selected</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="w-full mt-8 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] transition-all"
+                    className="w-full mt-4 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
                   >
                     <span>Continue</span>
-                    <ArrowRightIcon className="h-4 w-4" />
+                    <ArrowRightIcon className="h-5 w-5" />
                   </button>
                 </div>
               )}
 
               {/* Step 2: Personal Info */}
               {step === 2 && (
-                <div>
-                  <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                    Personal Information
-                  </h2>
-                  <p className="text-neutral-600 mb-8">
-                    Tell us about yourself
-                  </p>
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                      Personal Information
+                    </h2>
+                    <p className="text-neutral-600">Tell us about yourself</p>
+                  </div>
 
                   <div className="space-y-5">
                     <div>
@@ -360,7 +371,7 @@ export default function SignupPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-4 mt-8">
+                  <div className="flex gap-4 mt-6">
                     <button
                       type="button"
                       onClick={handleBack}
@@ -382,13 +393,15 @@ export default function SignupPage() {
 
               {/* Step 3: Password */}
               {step === 3 && (
-                <form onSubmit={handleSubmit}>
-                  <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                    Create Password
-                  </h2>
-                  <p className="text-neutral-600 mb-8">
-                    Choose a strong password for your account
-                  </p>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                      Create Password
+                    </h2>
+                    <p className="text-neutral-600">
+                      Choose a strong password for your account
+                    </p>
+                  </div>
 
                   <div className="space-y-5">
                     <div>
@@ -447,7 +460,7 @@ export default function SignupPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-4 mt-8">
+                  <div className="flex gap-4 mt-6">
                     <button
                       type="button"
                       onClick={handleBack}
