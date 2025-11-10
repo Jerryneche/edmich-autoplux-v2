@@ -9,6 +9,7 @@ export type CartItem = {
   price: number;
   quantity: number;
   image?: string;
+  stock: number; // ← ADD THIS
 };
 
 export type CartContextType = {
@@ -34,20 +35,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
+        const newQuantity = existing.quantity + item.quantity;
+        if (newQuantity > item.stock) {
+          alert(`Only ${item.stock} in stock!`);
+          return prev;
+        }
         return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + item.quantity } : i
+          i.id === item.id ? { ...i, quantity: newQuantity } : i
         );
+      }
+      if (item.quantity > item.stock) {
+        alert(`Only ${item.stock} in stock!`);
+        return prev;
       }
       return [...prev, item];
     });
   };
 
   const updateQuantity = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(id);
-      return;
-    }
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, quantity } : i)));
+    setItems((prev) => {
+      const item = prev.find((i) => i.id === id);
+      if (item && quantity > item.stock) {
+        alert(`Only ${item.stock} in stock!`);
+        return prev;
+      }
+      if (quantity <= 0) {
+        return prev.filter((i) => i.id !== id);
+      }
+      return prev.map((i) => (i.id === id ? { ...i, quantity } : i));
+    });
   };
 
   const removeItem = (id: string) => {
@@ -60,6 +76,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   const openCart = () => setIsOpen(true);
+  const isOpenCart = () => isOpen;
   const closeCart = () => setIsOpen(false);
 
   return (
