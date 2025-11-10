@@ -51,7 +51,8 @@ export default function Header() {
 
         {/* Desktop Nav */}
         <div className="hidden lg:flex items-center gap-2">
-          {navItems.map(({ href, label, icon = null, Icon }) => {
+          {navItems.map(({ href, label, icon: Icon }) => {
+            // ← ONLY `icon: Icon`
             const isActive =
               pathname === href || pathname?.startsWith(`${href}/`);
             return (
@@ -73,14 +74,14 @@ export default function Header() {
             );
           })}
 
-          {/* Cart - Desktop (BUYER or Guest) */}
+          {/* Cart - Desktop */}
           {(!session || session?.user?.role === "BUYER") && (
             <div className="ml-2">
               <CartIconBadge />
             </div>
           )}
 
-          {/* Auth Buttons */}
+          {/* Auth */}
           {status === "loading" ? (
             <div className="ml-4 w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           ) : session ? (
@@ -110,16 +111,12 @@ export default function Header() {
           )}
         </div>
 
-        {/* Mobile Right Side */}
+        {/* Mobile */}
         <div className="lg:hidden flex items-center gap-3">
-          {/* Cart - Mobile */}
           {(!session || session?.user?.role === "BUYER") && <CartIconBadge />}
-
-          {/* Mobile Menu */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-all duration-300"
-            aria-label="Toggle menu"
+            className="p-2 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-all"
           >
             {mobileOpen ? (
               <XMarkIcon className="h-6 w-6" />
@@ -145,7 +142,7 @@ export default function Header() {
                 key={href}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-5 py-3.5 rounded-xl text-base font-medium transition-all duration-300 ${
+                className={`flex items-center gap-3 px-5 py-3.5 rounded-xl text-base font-medium transition-all ${
                   isActive
                     ? "text-blue-600 bg-blue-50"
                     : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
@@ -157,13 +154,12 @@ export default function Header() {
             );
           })}
 
-          {/* Mobile Auth */}
           {session ? (
             <>
               <Link
                 href="/dashboard"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gray-100 text-gray-900 rounded-xl text-base font-semibold hover:bg-gray-200 transition-all"
+                className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gray-100 text-gray-900 rounded-xl text-base font-semibold hover:bg-gray-200"
               >
                 <UserCircleIcon className="h-5 w-5" />
                 Dashboard
@@ -173,7 +169,7 @@ export default function Header() {
                   signOut({ callbackUrl: "/" });
                   setMobileOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3.5 text-gray-600 hover:bg-gray-100 rounded-xl text-base font-medium transition-all"
+                className="w-full flex items-center justify-center gap-2 px-5 py-3.5 text-gray-600 hover:bg-gray-100 rounded-xl text-base font-medium"
               >
                 Sign Out
               </button>
@@ -182,7 +178,7 @@ export default function Header() {
             <Link
               href="/login"
               onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-base font-semibold hover:shadow-lg transition-all"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-base font-semibold hover:shadow-lg"
             >
               <ArrowRightOnRectangleIcon className="h-5 w-5" />
               Login
