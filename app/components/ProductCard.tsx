@@ -7,13 +7,15 @@ import { Package, Star, TrendingUp } from "lucide-react";
 import AddToCartButton from "@/app/components/AddToCartButton";
 import { ProductCardData } from "@/app/types/product";
 
+interface ProductCardProps {
+  product: ProductCardData;
+  searchQuery?: string;
+}
+
 export default function ProductCard({
   product,
   searchQuery = "",
-}: {
-  product: ProductCardData;
-  searchQuery?: string;
-}) {
+}: ProductCardProps) {
   // Highlight search matches
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
@@ -123,7 +125,7 @@ export default function ProductCard({
             )}
           </div>
 
-          {/* Add to Cart */}
+          {/* Add to Cart Button */}
           <AddToCartButton
             product={{
               id: product.id,
@@ -133,6 +135,7 @@ export default function ProductCard({
               image: product.image,
               stock: product.stock,
               supplierId: product.supplierId,
+              category: product.category, // REQUIRED
             }}
             variant="default"
           />

@@ -26,19 +26,18 @@ export interface Product {
 // Simplified Product for cards/lists
 
 // app/types/product.ts
-export interface ProductCardData {
+export type ProductCardData = {
   id: string;
   name: string;
-  description?: string; // ← NO NULL
+  description?: string;
   price: number;
-  category: string;
-  image?: string; // ← NO NULL
+  image?: string;
   stock: number;
+  supplier?: string;
   supplierId: string;
-  supplier?: string; // ← NO NULL
+  category: string; // REQUIRED
   rating?: number;
-  createdAt?: number;
-}
+};
 
 // Review type
 export interface Review {

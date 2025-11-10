@@ -1,20 +1,27 @@
+// app/components/AddToCartButton.tsx
 "use client";
 
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { ProductCardData } from "../types/product";
 
+type AddToCartButtonProps = {
+  product: ProductCardData;
+  variant?: "default" | "icon";
+};
+
 export default function AddToCartButton({
   product,
   variant = "default",
-}: {
-  product: ProductCardData;
-  variant?: "default" | "icon";
-}) {
+}: AddToCartButtonProps) {
   const { addItem } = useCart();
 
-  const handleAdd = () => {
-    if (product.stock <= 0) return;
+  const handleAddToCart = () => {
+    if (product.stock <= 0) {
+      alert("Sorry, this item is out of stock.");
+      return;
+    }
+
     addItem({
       id: product.id,
       name: product.name,
@@ -25,25 +32,39 @@ export default function AddToCartButton({
     });
   };
 
+  // Icon-only variant (e.g. in header)
   if (variant === "icon") {
     return (
       <button
-        onClick={handleAdd}
+        onClick={handleAddToCart}
         disabled={product.stock === 0}
-        className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        className="relative p-2.5 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Add to cart"
       >
         <ShoppingCart className="w-5 h-5" />
+        {product.stock === 0 && (
+          <span className="absolute inset-0 rounded-full bg-red-500/20" />
+        )}
       </button>
     );
   }
 
+  // Default full button
   return (
     <button
-      onClick={handleAdd}
+      onClick={handleAddToCart}
       disabled={product.stock === 0}
-      className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      className={`
+        px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2
+        ${
+          product.stock > 0
+            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-md hover:scale-[1.02]"
+            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+        }
+      `}
     >
-      Add to Cart
+      <ShoppingCart className="w-4 h-4" />
+      {product.stock > 0 ? "Add to Cart" : "Out of Stock"}
     </button>
   );
 }
