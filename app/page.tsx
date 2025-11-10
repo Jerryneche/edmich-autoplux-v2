@@ -1,4 +1,5 @@
 // app/page.tsx
+"use client";
 import Header from "@/app/components/Header";
 import Hero from "@/app/components/Hero";
 import Footer from "@/app/components/Footer";
@@ -21,7 +22,7 @@ export default function HomePage() {
           <div className="relative z-10 max-w-7xl mx-auto text-center">
             <div className="mb-8 inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20">
               <Sparkles className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm font-medium">Nigeria's Auto Future</span>
+              <span className="text-sm font-medium">Nigerias Auto Future</span>
             </div>
 
             <h1 className="text-6xl md:text-8xl font-bold tracking-tighter bg-gradient-to-r from-white via-blue-200 to-white bg-clip-text text-transparent animate-gradient-x">
@@ -126,7 +127,7 @@ export default function HomePage() {
               Join the <span className="text-blue-400">Auto Revolution</span>
             </h2>
             <p className="text-xl text-neutral-400 mb-12">
-              Be part of Nigeria's first unified auto ecosystem.
+              Be part of Nigerias first unified auto ecosystem.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -149,23 +150,6 @@ export default function HomePage() {
       </main>
 
       <Footer />
-
-      {/* Custom Animations */}
-      <style jsx>{`
-        @keyframes gradient-x {
-          0%,
-          100% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-        }
-        .animate-gradient-x {
-          background-size: 200% 200%;
-          animation: gradient-x 6s ease infinite;
-        }
-      `}</style>
     </>
   );
 }
