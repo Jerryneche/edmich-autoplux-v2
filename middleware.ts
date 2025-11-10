@@ -33,7 +33,7 @@ export default withAuth(
       !path.startsWith("/api")
     ) {
       // Update in background
-      setImmediate(async () => {
+      Promise.resolve().then(async () => {
         try {
           await fetch(
             `${process.env.NEXTAUTH_URL}/api/user/complete-onboarding`,
