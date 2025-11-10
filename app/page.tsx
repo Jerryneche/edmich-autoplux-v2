@@ -26,7 +26,7 @@ export default function HomePage() {
               <span>Nigeria's Auto Future</span>
             </div>
 
-            <h1 className="text-6xl md:text-8xl font-bold tracking-tighter bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent animate-gradient-x">
+            <h1 className="text-4xl md:text-8xl font-bold tracking-tighter bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent animate-gradient-x">
               EDMICH AUTOPLUX
             </h1>
             <p className="mt-6 text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto leading-relaxed">

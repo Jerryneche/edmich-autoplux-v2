@@ -137,7 +137,9 @@ function OrderSuccessContent() {
                   <EnvelopeIcon className="h-5 w-5 text-blue-600" />
                   <p className="font-semibold text-neutral-900">Email Us</p>
                 </div>
-                <p className="text-sm text-neutral-600">support@edmich.com</p>
+                <p className="text-sm text-neutral-600">
+                  edmichservices@gmail.com
+                </p>
               </div>
 
               <div className="bg-white border-2 border-neutral-200 rounded-xl p-4 text-left">
@@ -145,7 +147,7 @@ function OrderSuccessContent() {
                   <PhoneIcon className="h-5 w-5 text-blue-600" />
                   <p className="font-semibold text-neutral-900">Call Us</p>
                 </div>
-                <p className="text-sm text-neutral-600">+234 800 000 0000</p>
+                <p className="text-sm text-neutral-600">+234 9025579441</p>
               </div>
             </div>
 

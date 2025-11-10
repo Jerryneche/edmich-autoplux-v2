@@ -34,13 +34,7 @@ export default function Header() {
         <Link href="/" className="flex items-center gap-3 group">
           <div className="relative w-11 h-11">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <img
-                  src="/logo.svg"
-                  alt="Edmich Autoplux"
-                  className="w-7 h-7 object-contain"
-                />
-              </div>
+              <div className="absolute inset-0 flex items-center justify-center"></div>
             </div>
           </div>
 

@@ -1,3 +1,4 @@
+// app/checkout/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -78,24 +79,32 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const generateTrackingId = () => {
+    const prefix = "EDM";
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+    return `${prefix}-${timestamp}-${random}`;
+  };
+
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
     try {
       setIsProcessing(true);
 
-      // CRITICAL: Convert total to plain number
-      const Shipping = 2500;
-      const tax = totalPrice * 0.075;
-      const grandTotal = totalPrice + Shipping + tax; // ← Number
+      const shipping = 2500;
+      const tax = Math.round(totalPrice * 0.075);
+      const grandTotal = totalPrice + shipping + tax;
+
+      const trackingId = generateTrackingId(); // ← TRACKING ID
 
       const payload = {
         items: items.map((item) => ({
-          productId: Number(item.id), // ← FORCE NUMBER
+          productId: Number(item.id),
           quantity: item.quantity,
           price: item.price,
         })),
-        total: Math.round(grandTotal), // ← Ensure integer
+        total: grandTotal,
         shippingAddress: {
           fullName: formData.fullName,
           email: formData.email,
@@ -107,9 +116,10 @@ export default function CheckoutPage() {
         },
         deliveryNotes: formData.deliveryNotes,
         paymentMethod: formData.paymentMethod,
+        trackingId, // ← SEND TRACKING ID
       };
 
-      console.log("Sending payload:", payload); // ← DEBUG
+      console.log("Placing order:", payload);
 
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -126,7 +136,11 @@ export default function CheckoutPage() {
 
       clearCart();
       toast.success("Order placed successfully!");
-      router.push(`/checkout/success?orderId=${data.orderId}`);
+
+      // ← REDIRECT TO SUCCESS + RECEIPT + TRACKING ID
+      router.push(
+        `/checkout/success?orderId=${data.orderId}&trackingId=${trackingId}&total=${grandTotal}`
+      );
     } catch (error: any) {
       console.error("Checkout error:", error);
       toast.error("Network error. Please try again.");
@@ -135,10 +149,9 @@ export default function CheckoutPage() {
     }
   };
 
-  // Calculate totals
-  const Shipping = 2500;
-  const tax = totalPrice * 0.075;
-  const grandTotal = totalPrice + Shipping + tax;
+  const shipping = 2500;
+  const tax = Math.round(totalPrice * 0.075);
+  const grandTotal = totalPrice + shipping + tax;
 
   if (status === "loading" || items.length === 0) {
     return (
@@ -157,7 +170,6 @@ export default function CheckoutPage() {
 
       <div className="pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Back Button */}
           <button
             onClick={() => router.back()}
             className="inline-flex items-center gap-2 text-neutral-600 hover:text-blue-600 mb-8 transition-colors"
@@ -166,7 +178,6 @@ export default function CheckoutPage() {
             Back to Shopping
           </button>
 
-          {/* Page Title */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-neutral-900 mb-2">
               Checkout
@@ -177,9 +188,9 @@ export default function CheckoutPage() {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Column - Forms */}
+            {/* Forms */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Contact Information */}
+              {/* Contact */}
               <div className="bg-white rounded-2xl border-2 border-neutral-200 p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
@@ -205,7 +216,6 @@ export default function CheckoutPage() {
                       required
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-2">
                       Email Address *
@@ -220,7 +230,6 @@ export default function CheckoutPage() {
                       required
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-2">
                       Phone Number *
@@ -238,7 +247,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Delivery Address */}
+              {/* Address */}
               <div className="bg-white rounded-2xl border-2 border-neutral-200 p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
@@ -280,7 +289,6 @@ export default function CheckoutPage() {
                         required
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 mb-2">
                         State *
@@ -295,7 +303,6 @@ export default function CheckoutPage() {
                         required
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 mb-2">
                         Zip Code
@@ -319,7 +326,7 @@ export default function CheckoutPage() {
                       name="deliveryNotes"
                       value={formData.deliveryNotes}
                       onChange={handleInputChange}
-                      placeholder="Any special instructions for delivery..."
+                      placeholder="Any special instructions..."
                       rows={3}
                       className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors resize-none"
                     />
@@ -327,7 +334,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Payment Method */}
+              {/* Payment */}
               <div className="bg-white rounded-2xl border-2 border-neutral-200 p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
@@ -339,74 +346,49 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-500 transition-colors">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="card"
-                      checked={formData.paymentMethod === "card"}
-                      onChange={handleInputChange}
-                      className="w-5 h-5 text-blue-600"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-neutral-900">
-                        Card Payment
-                      </p>
-                      <p className="text-sm text-neutral-600">
-                        Pay securely with your card
-                      </p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-500 transition-colors">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="bank_transfer"
-                      checked={formData.paymentMethod === "bank_transfer"}
-                      onChange={handleInputChange}
-                      className="w-5 h-5 text-blue-600"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-neutral-900">
-                        Bank Transfer
-                      </p>
-                      <p className="text-sm text-neutral-600">
-                        Transfer to our bank account
-                      </p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-500 transition-colors">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cash_on_delivery"
-                      checked={formData.paymentMethod === "cash_on_delivery"}
-                      onChange={handleInputChange}
-                      className="w-5 h-5 text-blue-600"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-neutral-900">
-                        Cash on Delivery
-                      </p>
-                      <p className="text-sm text-neutral-600">
-                        Pay when you receive your order
-                      </p>
-                    </div>
-                  </label>
+                  {["card", "bank_transfer", "cash_on_delivery"].map(
+                    (method) => (
+                      <label
+                        key={method}
+                        className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-500 transition-colors"
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={method}
+                          checked={formData.paymentMethod === method}
+                          onChange={handleInputChange}
+                          className="w-5 h-5 text-blue-600"
+                        />
+                        <div className="flex-1">
+                          <p className="font-semibold text-neutral-900">
+                            {method === "card" && "Card Payment"}
+                            {method === "bank_transfer" && "Bank Transfer"}
+                            {method === "cash_on_delivery" &&
+                              "Cash on Delivery"}
+                          </p>
+                          <p className="text-sm text-neutral-600">
+                            {method === "card" && "Pay securely with your card"}
+                            {method === "bank_transfer" &&
+                              "Transfer to our bank account"}
+                            {method === "cash_on_delivery" &&
+                              "Pay when you receive your order"}
+                          </p>
+                        </div>
+                      </label>
+                    )
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Right Column - Order Summary */}
+            {/* Summary */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl border-2 border-neutral-200 p-6 shadow-sm sticky top-24">
                 <h2 className="text-xl font-bold text-neutral-900 mb-6">
                   Order Summary
                 </h2>
 
-                {/* Cart Items */}
                 <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
                   {items.map((item) => (
                     <div key={item.id} className="flex gap-3">
@@ -439,7 +421,6 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Price Breakdown */}
                 <div className="border-t border-neutral-200 pt-4 space-y-3">
                   <div className="flex justify-between text-neutral-700">
                     <span>Subtotal</span>
@@ -447,39 +428,28 @@ export default function CheckoutPage() {
                       ₦{totalPrice.toLocaleString()}
                     </span>
                   </div>
-
                   <div className="flex justify-between text-neutral-700">
                     <span className="flex items-center gap-2">
-                      <TruckIcon className="h-4 w-4" />
-                      Shipping
+                      <TruckIcon className="h-4 w-4" /> Shipping
                     </span>
                     <span className="font-semibold">
-                      ₦{Shipping.toLocaleString()}
+                      ₦{shipping.toLocaleString()}
                     </span>
                   </div>
-
                   <div className="flex justify-between text-neutral-700">
                     <span>Tax (7.5%)</span>
                     <span className="font-semibold">
-                      ₦
-                      {tax.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })}
+                      ₦{tax.toLocaleString()}
                     </span>
                   </div>
-
                   <div className="flex justify-between text-xl font-bold text-neutral-900 pt-3 border-t border-neutral-200">
                     <span>Total</span>
                     <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                      ₦
-                      {grandTotal.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })}
+                      ₦{grandTotal.toLocaleString()}
                     </span>
                   </div>
                 </div>
 
-                {/* Place Order Button */}
                 <button
                   onClick={handlePlaceOrder}
                   disabled={isProcessing}
