@@ -1,3 +1,4 @@
+// app/components/Header.tsx
 "use client";
 
 import Link from "next/link";
@@ -27,76 +28,73 @@ export default function Header() {
   ];
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-neutral-200/50 shadow-sm">
-      <nav className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+    <header className="fixed inset-x-0 top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="relative w-10 h-10">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+          <div className="relative w-11 h-11">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
               <div className="absolute inset-0 flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
+                <img
+                  src="/logo.svg"
+                  alt="Edmich Autoplux"
+                  className="w-7 h-7 object-contain"
+                />
               </div>
             </div>
           </div>
 
-          <span className="font-bold text-2xl bg-gradient-to-r from-neutral-900 to-neutral-700 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-blue-700 transition-all duration-300">
-            EDMICH
+          <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:to-purple-700 transition-all duration-300">
+            EDMICH AUTOPLUX
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-2">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || pathname?.startsWith(href);
+        <div className="hidden lg:flex items-center gap-2">
+          {navItems.map(({ href, label, icon = null, Icon }) => {
+            const isActive =
+              pathname === href || pathname?.startsWith(`${href}/`);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
                   isActive
                     ? "text-blue-600 bg-blue-50"
-                    : "text-neutral-700 hover:text-blue-600 hover:bg-neutral-50"
+                    : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                {Icon && <Icon className="h-4 w-4" />}
                 {label}
                 {isActive && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full"></span>
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
                 )}
               </Link>
             );
           })}
 
-          {/* Cart Icon - Desktop (Shows for guests and BUYER role only) */}
-          {(!session || session?.user?.role === "BUYER") && <CartIconBadge />}
+          {/* Cart - Desktop (BUYER or Guest) */}
+          {(!session || session?.user?.role === "BUYER") && (
+            <div className="ml-2">
+              <CartIconBadge />
+            </div>
+          )}
 
-          {/* Conditional Login/Dashboard Button */}
+          {/* Auth Buttons */}
           {status === "loading" ? (
             <div className="ml-4 w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           ) : session ? (
-            <div className="ml-4 flex items-center gap-3">
+            <div className="ml-4 flex items-center gap-2">
               <Link
                 href="/dashboard"
-                className="flex items-center gap-2 px-4 py-2 bg-neutral-100 text-neutral-900 rounded-xl text-sm font-medium hover:bg-neutral-200 transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-200 transition-all"
               >
                 <UserCircleIcon className="h-4 w-4" />
                 Dashboard
               </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="flex items-center gap-2 px-4 py-2 text-neutral-600 hover:text-neutral-900 rounded-xl text-sm font-medium hover:bg-neutral-100 transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 text-gray-600 hover:text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-100 transition-all"
               >
                 Sign Out
               </button>
@@ -104,7 +102,7 @@ export default function Header() {
           ) : (
             <Link
               href="/login"
-              className="ml-4 flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300 group"
+              className="ml-4 flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300 group"
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               Login
@@ -112,15 +110,15 @@ export default function Header() {
           )}
         </div>
 
-        {/* Mobile Right Side - Cart + Menu */}
-        <div className="md:hidden flex items-center gap-2">
-          {/* Cart Icon - Mobile (Shows for guests and BUYER role only) */}
+        {/* Mobile Right Side */}
+        <div className="lg:hidden flex items-center gap-3">
+          {/* Cart - Mobile */}
           {(!session || session?.user?.role === "BUYER") && <CartIconBadge />}
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu */}
           <button
-            className="p-2 rounded-xl text-neutral-700 hover:text-blue-600 hover:bg-neutral-50 transition-all duration-300"
             onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-2 rounded-xl text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-all duration-300"
             aria-label="Toggle menu"
           >
             {mobileOpen ? (
@@ -132,39 +130,40 @@ export default function Header() {
         </div>
       </nav>
 
-      {/* Mobile Nav */}
+      {/* Mobile Menu */}
       <div
-        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
           mobileOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <div className="bg-white/95 backdrop-blur-xl border-t border-neutral-200/50 px-6 py-6 space-y-2">
+        <div className="bg-white/95 backdrop-blur-xl border-t border-gray-100 px-6 py-6 space-y-3">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || pathname?.startsWith(href);
+            const isActive =
+              pathname === href || pathname?.startsWith(`${href}/`);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 ${
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-5 py-3.5 rounded-xl text-base font-medium transition-all duration-300 ${
                   isActive
                     ? "text-blue-600 bg-blue-50"
-                    : "text-neutral-700 hover:text-blue-600 hover:bg-neutral-50"
+                    : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                 }`}
-                onClick={() => setMobileOpen(false)}
               >
-                <Icon className="h-5 w-5" />
+                {Icon && <Icon className="h-5 w-5" />}
                 {label}
               </Link>
             );
           })}
 
-          {/* Mobile Login/Dashboard */}
+          {/* Mobile Auth */}
           {session ? (
             <>
               <Link
                 href="/dashboard"
-                className="flex items-center justify-center gap-2 px-4 py-3 mt-4 bg-neutral-100 text-neutral-900 rounded-xl text-base font-semibold hover:bg-neutral-200 transition-all"
                 onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gray-100 text-gray-900 rounded-xl text-base font-semibold hover:bg-gray-200 transition-all"
               >
                 <UserCircleIcon className="h-5 w-5" />
                 Dashboard
@@ -174,7 +173,7 @@ export default function Header() {
                   signOut({ callbackUrl: "/" });
                   setMobileOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-neutral-600 hover:bg-neutral-100 rounded-xl text-base font-medium transition-all"
+                className="w-full flex items-center justify-center gap-2 px-5 py-3.5 text-gray-600 hover:bg-gray-100 rounded-xl text-base font-medium transition-all"
               >
                 Sign Out
               </button>
@@ -182,8 +181,8 @@ export default function Header() {
           ) : (
             <Link
               href="/login"
-              className="flex items-center justify-center gap-2 px-4 py-3 mt-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl text-base font-semibold hover:shadow-lg transition-all"
               onClick={() => setMobileOpen(false)}
+              className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-base font-semibold hover:shadow-lg transition-all"
             >
               <ArrowRightOnRectangleIcon className="h-5 w-5" />
               Login
