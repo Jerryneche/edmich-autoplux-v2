@@ -15,7 +15,7 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   ShoppingCartIcon,
-  PackageIcon,
+  CubeIcon,
   WrenchIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
@@ -33,7 +33,7 @@ const roles = [
     value: "SUPPLIER",
     label: "Supplier",
     description: "Sell auto parts to verified buyers",
-    icon: PackageIcon,
+    icon: CubeIcon,
   },
   {
     value: "MECHANIC",

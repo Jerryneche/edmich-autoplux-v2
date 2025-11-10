@@ -3,13 +3,7 @@ import Header from "@/app/components/Header";
 import Hero from "@/app/components/Hero";
 import Footer from "@/app/components/Footer";
 import WelcomeModal from "./components/WelcomeModal";
-import {
-  ShieldCheck,
-  Truck,
-  WrenchScrewdriver,
-  Sparkles,
-  ArrowRight,
-} from "lucide-react";
+import { ShieldCheck, Truck, Wrench, Sparkles, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -99,7 +93,7 @@ export default function HomePage() {
                   color: "from-green-500 to-emerald-600",
                 },
                 {
-                  icon: WrenchScrewdriver,
+                  icon: Wrench,
                   title: "Smart Mechanics",
                   desc: "Book. Diagnose. Fix. Done.",
                   color: "from-orange-500 to-red-600",
