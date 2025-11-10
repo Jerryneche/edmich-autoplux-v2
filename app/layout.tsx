@@ -37,6 +37,7 @@ export default function RootLayout({
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import ClientProvider from "./ClientProvider";
+import { CartProvider } from "./context/CartContext";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -82,7 +83,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-neutral-50 text-neutral-900`}>
-        <ClientProvider>{children}</ClientProvider>
+        <CartProvider>
+          <ClientProvider>{children}</ClientProvider>
+        </CartProvider>
       </body>
     </html>
   );
