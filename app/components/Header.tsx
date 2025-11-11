@@ -39,7 +39,7 @@ export default function Header() {
           </div>
 
           <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:to-purple-700 transition-all duration-300">
-            EDMICH AUTOPLUX
+            EDMICH
           </span>
         </Link>
 
