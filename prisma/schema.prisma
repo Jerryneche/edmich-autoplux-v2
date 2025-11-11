@@ -114,29 +114,34 @@ model LogisticsProfile {
 }
 
 model Product {
-  id          String          @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
   price       Float
   category    String
   image       String?
-  stock       Int             @default(0)
+  stock       Int     @default(0)
   supplierId  String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  orderItems  OrderItem[]
-  supplier    SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  reviews     Review[]
+
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  orderItems OrderItem[]
+  supplier   SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  reviews    Review[]
 }
 
 model Order {
-  id              String   @id @default(cuid())
+  id         String @id @default(cuid())
+  trackingId String @unique @default(dbgenerated("('EDM-' || gen_random_uuid())")) // PostgreSQL
+  // OR for SQLite/MySQL:
+  // trackingId      String   @unique
+
   userId          String
   total           Float
   status          String
   paymentMethod   String
   shippingAddress Json
-  deliveryNotes   String? // ← ADD THIS LINE
+  deliveryNotes   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
