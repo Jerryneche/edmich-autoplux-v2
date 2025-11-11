@@ -79,12 +79,10 @@ export async function POST(req: NextRequest) {
         userId: session.user.id,
         total,
         status: "PENDING",
-        trackingId:
-          trackingId ||
-          `EDM-${Date.now()}-${Math.random()
-            .toString(36)
-            .substr(2, 4)
-            .toUpperCase()}`,
+        trackingId: `EDM-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 5)
+          .toUpperCase()}`,
         shippingAddress: JSON.stringify(shippingAddress),
         deliveryNotes,
         paymentMethod,
