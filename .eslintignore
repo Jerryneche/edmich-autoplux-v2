@@ -1,0 +1,4 @@
+# .eslintignore
+prisma/seed.js
+node_modules/
+.next/
