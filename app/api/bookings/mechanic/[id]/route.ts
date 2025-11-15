@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 // GET - Fetch single booking
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> } // ← Next.js 16: params is Promise
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const params = await context.params; // ← MUST AWAIT
+    const { id } = params;
 
     const booking = await prisma.mechanicBooking.findUnique({
       where: { id },
@@ -54,7 +55,7 @@ export async function GET(
 // PATCH - Update booking status
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -62,7 +63,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const params = await context.params;
+    const { id } = params;
     const body = await request.json();
     const { status } = body;
 
@@ -103,8 +105,8 @@ export async function PATCH(
       data: { status },
     });
 
-    // 🔥 CREATE NOTIFICATION FOR CUSTOMER
-    const statusMessages: any = {
+    // CREATE NOTIFICATION FOR CUSTOMER
+    const statusMessages: Record<string, string> = {
       CONFIRMED: "Your mechanic booking has been confirmed!",
       IN_PROGRESS: "Your mechanic has started working on your vehicle.",
       COMPLETED: "Your mechanic service has been completed!",

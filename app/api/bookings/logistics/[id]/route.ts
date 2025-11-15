@@ -6,14 +6,34 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> } // ← Next.js 16: params is Promise
 ) {
-  // ... your existing GET (unchanged)
+  try {
+    const params = await context.params;
+    const { id } = params;
+
+    const booking = await prisma.logisticsBooking.findUnique({
+      where: { id },
+      include: {
+        user: { select: { name: true, email: true } },
+        driver: { select: { companyName: true, phone: true } },
+      },
+    });
+
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(booking);
+  } catch (error) {
+    console.error("Error fetching booking:", error);
+    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 });
+  }
 }
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +41,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const params = await context.params;
+    const { id } = params;
     const { status } = await request.json();
 
     const validStatuses = [
@@ -97,7 +118,7 @@ export async function PATCH(
       await prisma.notification.create({
         data: {
           userId: booking.userId,
-          type: "BOOKING", // ← FIXED: Use existing enum value
+          type: "BOOKING", // ← Matches your Prisma enum
           title: "Delivery Update",
           message: messages[status],
           link: `/booking/logistics/${id}`,

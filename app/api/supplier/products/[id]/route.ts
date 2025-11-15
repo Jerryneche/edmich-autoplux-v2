@@ -5,26 +5,25 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/notifications";
 
-// GET - Get single product for editing
+// GET - Get single product
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // ← Promise!
 ) {
   try {
     const session = await getServerSession(authOptions);
+    const params = await context.params; // ← MUST AWAIT
+    const { id } = params;
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         supplier: {
-          select: {
-            businessName: true,
-            userId: true,
-          },
+          select: { businessName: true, userId: true },
         },
       },
     });
@@ -33,7 +32,6 @@ export async function GET(
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    // Check if user owns this product
     if (
       product.supplier.userId !== session.user.id &&
       session.user.role !== "ADMIN"
@@ -57,10 +55,12 @@ export async function GET(
 // PUT - Update product
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
+    const params = await context.params;
+    const { id } = params;
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -76,7 +76,6 @@ export async function PUT(
     const body = await request.json();
     const { name, description, price, category, stock, image } = body;
 
-    // Get supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: session.user.id },
     });
@@ -88,9 +87,8 @@ export async function PUT(
       );
     }
 
-    // Check ownership
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!product) {
@@ -107,9 +105,8 @@ export async function PUT(
     const oldStock = product.stock;
     const newStock = parseInt(stock);
 
-    // Update product
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         description,
@@ -120,28 +117,24 @@ export async function PUT(
       },
     });
 
-    // Revalidate pages to show updated product
     try {
       revalidatePath("/shop");
       revalidatePath("/business/market");
       revalidatePath("/dashboard/supplier");
-      revalidatePath(`/shop/${params.id}`);
-    } catch (revalidateError) {
-      console.error("Revalidation error:", revalidateError);
+      revalidatePath(`/shop/${id}`);
+    } catch (e) {
+      console.error("Revalidation error:", e);
     }
 
-    // Send notification for product update
     await createNotification({
       userId: session.user.id,
       type: "PRODUCT",
       title: "Product Updated",
       message: `${name} has been updated successfully`,
-      link: `/shop/${params.id}`,
+      link: `/shop/${id}`,
     });
 
-    // Check stock levels and notify
     if (newStock === 0 && oldStock > 0) {
-      // Product just went out of stock
       await createNotification({
         userId: session.user.id,
         type: "PRODUCT",
@@ -150,7 +143,6 @@ export async function PUT(
         link: `/dashboard/supplier`,
       });
     } else if (newStock <= 5 && newStock > 0 && oldStock > 5) {
-      // Product just became low stock
       await createNotification({
         userId: session.user.id,
         type: "PRODUCT",
@@ -170,13 +162,15 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete a product
+// DELETE - Delete product
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
+    const params = await context.params;
+    const { id } = params;
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -189,7 +183,6 @@ export async function DELETE(
       );
     }
 
-    // Get supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: session.user.id },
     });
@@ -201,9 +194,8 @@ export async function DELETE(
       );
     }
 
-    // Check if product exists and belongs to this supplier
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!product) {
@@ -219,21 +211,18 @@ export async function DELETE(
 
     const productName = product.name;
 
-    // Delete product
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
-    // Revalidate pages to remove deleted product
     try {
       revalidatePath("/shop");
       revalidatePath("/business/market");
       revalidatePath("/dashboard/supplier");
-    } catch (revalidateError) {
-      console.error("Revalidation error:", revalidateError);
+    } catch (e) {
+      console.error("Revalidation error:", e);
     }
 
-    // Send notification
     await createNotification({
       userId: session.user.id,
       type: "PRODUCT",
