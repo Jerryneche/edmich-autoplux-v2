@@ -9,7 +9,7 @@ import {
   ClockIcon,
   CheckCircleIcon,
   TruckIcon,
-  PackageIcon,
+  CubeIcon,
 } from "@heroicons/react/24/outline";
 
 export default function SupplierOrdersPage() {
@@ -48,7 +48,7 @@ export default function SupplierOrdersPage() {
           <h1 className="text-4xl font-bold text-neutral-900 mb-8">Orders</h1>
 
           <div className="bg-white rounded-2xl border-2 border-neutral-200 p-12 text-center">
-            <PackageIcon className="h-20 w-20 text-neutral-300 mx-auto mb-4" />
+            <CubeIcon className="h-20 w-20 text-neutral-300 mx-auto mb-4" />
             <p className="text-2xl font-bold text-neutral-900 mb-2">
               No orders yet
             </p>

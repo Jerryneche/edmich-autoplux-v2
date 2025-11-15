@@ -6,10 +6,7 @@ import { useSession } from "next-auth/react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import ImageUploader from "@/app/components/ImageUploader";
-import {
-  ArrowLeftIcon,
-  CheckCircleIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import Image from "next/image";
@@ -88,7 +85,7 @@ export default function EditProductPage({
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent
+    e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
@@ -152,7 +149,7 @@ export default function EditProductPage({
       ]);
 
       toast.success("Product updated successfully! Changes are now live!");
-      
+
       setTimeout(() => {
         router.push("/dashboard/supplier");
         router.refresh();
@@ -339,7 +336,9 @@ export default function EditProductPage({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setFormData((prev) => ({ ...prev, image: "" }))}
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, image: "" }))
+                        }
                         className="mt-2 text-sm text-red-600 hover:text-red-700 font-semibold"
                       >
                         Remove Image
@@ -355,11 +354,10 @@ export default function EditProductPage({
               <div className="flex gap-3">
                 <div className="text-2xl">✨</div>
                 <div>
-                  <h3 className="font-bold text-blue-900 mb-1">
-                    Live Updates
-                  </h3>
+                  <h3 className="font-bold text-blue-900 mb-1">Live Updates</h3>
                   <p className="text-sm text-blue-800">
-                    Changes will be visible immediately on the shop and marketplace pages
+                    Changes will be visible immediately on the shop and
+                    marketplace pages
                   </p>
                 </div>
               </div>

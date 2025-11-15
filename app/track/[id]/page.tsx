@@ -3,7 +3,7 @@ import React from "react";
 import { prisma } from "@/lib/prisma";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
-import ServiceBookingClient from "./ServiceBookingClient";
+import ServiceBookingClient from "./serviceBookingClient";
 import Image from "next/image";
 import Link from "next/link";
 import {
