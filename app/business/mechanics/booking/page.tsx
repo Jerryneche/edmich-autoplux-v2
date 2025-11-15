@@ -1,360 +1,509 @@
 "use client";
 
 import { useState } from "react";
-import Header from "../../../components/Header";
-import Footer from "../../../components/Footer";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Header from "@/app/components/Header";
+import Footer from "@/app/components/Footer";
 import {
   WrenchScrewdriverIcon,
-  UserIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  TruckIcon,
   CalendarIcon,
-  ClockIcon,
+  MapPinIcon,
+  PhoneIcon,
   CheckCircleIcon,
-  SparklesIcon,
+  TruckIcon,
 } from "@heroicons/react/24/outline";
+import toast, { Toaster } from "react-hot-toast";
 
-export default function BookingPage() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
+const SERVICE_TYPES = [
+  { value: "oil_change", label: "Oil Change", price: 5000 },
+  { value: "brake_service", label: "Brake Service", price: 15000 },
+  { value: "tire_rotation", label: "Tire Rotation", price: 8000 },
+  { value: "engine_diagnostic", label: "Engine Diagnostic", price: 12000 },
+  { value: "battery_replacement", label: "Battery Replacement", price: 20000 },
+  { value: "ac_service", label: "AC Service", price: 18000 },
+  {
+    value: "transmission_service",
+    label: "Transmission Service",
+    price: 25000,
+  },
+  { value: "full_service", label: "Full Service", price: 35000 },
+  { value: "other", label: "Other (Specify)", price: 0 },
+];
+
+const TIME_SLOTS = [
+  "08:00 AM",
+  "09:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "01:00 PM",
+  "02:00 PM",
+  "03:00 PM",
+  "04:00 PM",
+  "05:00 PM",
+];
+
+export default function MechanicsBookingPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    vehicleMake: "",
+    vehicleModel: "",
+    vehicleYear: "",
+    plateNumber: "",
+    serviceType: "",
+    customService: "",
+    date: "",
+    time: "",
+    location: "",
+    address: "",
+    city: "",
+    state: "",
     phone: "",
-    carModel: "",
-    service: "",
-    appointmentDate: "",
-    notes: "",
+    additionalNotes: "",
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const selectedService = SERVICE_TYPES.find(
+    (s) => s.value === formData.serviceType
+  );
 
-  const handleChange = (
+  const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
-  ) => setForm({ ...form, [e.target.name]: e.target.value });
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const validateForm = () => {
+    if (
+      !formData.vehicleMake ||
+      !formData.vehicleModel ||
+      !formData.vehicleYear
+    ) {
+      toast.error("Please complete vehicle information");
+      return false;
+    }
+    if (!formData.serviceType) {
+      toast.error("Please select a service type");
+      return false;
+    }
+    if (formData.serviceType === "other" && !formData.customService) {
+      toast.error("Please specify the service you need");
+      return false;
+    }
+    if (!formData.date || !formData.time) {
+      toast.error("Please select date and time");
+      return false;
+    }
+    if (!formData.location || !formData.address || !formData.city) {
+      toast.error("Please complete location details");
+      return false;
+    }
+    if (!formData.phone) {
+      toast.error("Please provide contact phone number");
+      return false;
+    }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!session) {
+      toast.error("Please login to book a service");
+      router.push("/login");
+      return;
+    }
+
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/bookings", {
+      const bookingData = {
+        ...formData,
+        estimatedPrice: selectedService?.price || 0,
+        status: "PENDING",
+      };
+
+      const response = await fetch("/api/bookings/mechanics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(bookingData),
       });
 
-      if (res.ok) {
-        setSubmitSuccess(true);
-        setForm({
-          name: "",
-          email: "",
-          phone: "",
-          carModel: "",
-          service: "",
-          appointmentDate: "",
-          notes: "",
-        });
+      const data = await response.json();
 
-        // Reset success message after 5 seconds
-        setTimeout(() => setSubmitSuccess(false), 5000);
-      } else {
-        alert("Error submitting booking. Please try again.");
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create booking");
       }
+
+      toast.success("Booking created successfully!");
+
+      setTimeout(() => {
+        router.push(`/dashboard/buyer/bookings?type=mechanics`);
+      }, 1500);
+    } catch (error: any) {
+      console.error("Booking error:", error);
+      toast.error(error.message || "Failed to create booking");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const services = [
-    "General Inspection",
-    "Oil Change",
-    "Brake Repair",
-    "Engine Diagnostics",
-    "Transmission Service",
-    "Tire Replacement",
-    "Battery Service",
-    "AC Repair",
-    "Other",
-  ];
-
   return (
-    <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
+    <main className="min-h-screen bg-gradient-to-b from-white via-neutral-50 to-white">
+      <Toaster position="top-center" />
       <Header />
 
-      <section className="relative pt-32 pb-24 overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-purple-200/40 rounded-full blur-3xl animate-pulse"></div>
-          <div
-            className="absolute bottom-20 right-10 w-96 h-96 bg-blue-200/40 rounded-full blur-3xl animate-pulse"
-            style={{ animationDelay: "1s" }}
-          ></div>
-        </div>
+      <div className="pt-24 pb-16">
+        <div className="max-w-5xl mx-auto px-6">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-50 border border-purple-200 mb-6">
+              <WrenchScrewdriverIcon className="h-4 w-4 text-purple-600" />
+              <span className="text-sm font-semibold text-purple-700">
+                Book a Mechanic
+              </span>
+            </div>
+            <h1 className="text-5xl font-bold text-neutral-900 mb-4">
+              Professional{" "}
+              <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Auto Service
+              </span>
+            </h1>
+            <p className="text-xl text-neutral-600">
+              Book certified mechanics at your convenience
+            </p>
+          </div>
 
-        <div className="relative max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-12 items-start">
-            {/* Left Side - Info */}
-            <div className="md:sticky md:top-32">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-50 border border-purple-200 mb-6">
-                <WrenchScrewdriverIcon className="h-4 w-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-700">
-                  Professional Service
-                </span>
-              </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Vehicle Information */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <TruckIcon className="h-6 w-6 text-purple-600" />
+                Vehicle Information
+              </h2>
 
-              <h1 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
-                Book a Certified{" "}
-                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Mechanic
-                </span>
-              </h1>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Vehicle Make *
+                  </label>
+                  <input
+                    type="text"
+                    name="vehicleMake"
+                    value={formData.vehicleMake}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Toyota"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
 
-              <p className="text-xl text-neutral-600 mb-8 leading-relaxed">
-                Get your vehicle serviced by experienced, verified mechanics at
-                your convenience.
-              </p>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Vehicle Model *
+                  </label>
+                  <input
+                    type="text"
+                    name="vehicleModel"
+                    value={formData.vehicleModel}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Camry"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
 
-              {/* Features */}
-              <div className="space-y-4 mb-8">
-                {[
-                  {
-                    icon: CheckCircleIcon,
-                    text: "Certified & verified mechanics",
-                  },
-                  { icon: ClockIcon, text: "Flexible scheduling options" },
-                  { icon: SparklesIcon, text: "Quality service guaranteed" },
-                  { icon: PhoneIcon, text: "Real-time updates via SMS" },
-                ].map((feature, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <feature.icon className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-neutral-700 font-medium">
-                      {feature.text}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Year *
+                  </label>
+                  <input
+                    type="number"
+                    name="vehicleYear"
+                    value={formData.vehicleYear}
+                    onChange={handleInputChange}
+                    placeholder="2020"
+                    min="1980"
+                    max="2025"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
 
-              {/* Pricing Info */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-6">
-                <h3 className="font-bold text-lg text-neutral-900 mb-2">
-                  Service Pricing
-                </h3>
-                <p className="text-neutral-600 text-sm mb-4">
-                  Our mechanics provide transparent quotes before starting any
-                  work. No hidden charges.
-                </p>
-                <div className="flex items-center gap-2 text-purple-600 font-semibold">
-                  <span>Starting from ₦5,000</span>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Plate Number
+                  </label>
+                  <input
+                    type="text"
+                    name="plateNumber"
+                    value={formData.plateNumber}
+                    onChange={handleInputChange}
+                    placeholder="ABC-123-XY"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Right Side - Form */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-100 to-pink-100 rounded-3xl blur-2xl opacity-30"></div>
+            {/* Service Type */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <WrenchScrewdriverIcon className="h-6 w-6 text-purple-600" />
+                Service Required
+              </h2>
 
-              <div className="relative bg-white rounded-3xl shadow-2xl border-2 border-neutral-200 p-8 md:p-10">
-                <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                  Book Your Service
-                </h2>
-                <p className="text-neutral-600 mb-8">
-                  Fill in the details and we will get back to you shortly
-                </p>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Service Type *
+                  </label>
+                  <select
+                    name="serviceType"
+                    value={formData.serviceType}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  >
+                    <option value="">Select service type</option>
+                    {SERVICE_TYPES.map((service) => (
+                      <option key={service.value} value={service.value}>
+                        {service.label}{" "}
+                        {service.price > 0 &&
+                          `- ₦${service.price.toLocaleString()}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                {/* Success Message */}
-                {submitSuccess && (
-                  <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-xl flex items-center gap-3">
-                    <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-green-900">
-                        Booking Submitted!
-                      </p>
-                      <p className="text-sm text-green-700">
-                        We will contact you shortly to confirm.
-                      </p>
-                    </div>
+                {formData.serviceType === "other" && (
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Specify Service *
+                    </label>
+                    <input
+                      type="text"
+                      name="customService"
+                      value={formData.customService}
+                      onChange={handleInputChange}
+                      placeholder="Describe the service you need"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    />
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* Name */}
+                {selectedService && selectedService.price > 0 && (
+                  <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+                    <p className="text-sm text-purple-700 font-semibold mb-1">
+                      Estimated Price
+                    </p>
+                    <p className="text-3xl font-bold text-purple-900">
+                      ₦{selectedService.price.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-purple-600 mt-1">
+                      Final price may vary based on actual work required
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Date & Time */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <CalendarIcon className="h-6 w-6 text-purple-600" />
+                Schedule
+              </h2>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleInputChange}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Time *
+                  </label>
+                  <select
+                    name="time"
+                    value={formData.time}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  >
+                    <option value="">Select time slot</option>
+                    {TIME_SLOTS.map((slot) => (
+                      <option key={slot} value={slot}>
+                        {slot}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Location */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <MapPinIcon className="h-6 w-6 text-purple-600" />
+                Service Location
+              </h2>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Location Type *
+                  </label>
+                  <select
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  >
+                    <option value="">Select location type</option>
+                    <option value="home">Home</option>
+                    <option value="office">Office</option>
+                    <option value="workshop">Workshop</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Address *
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    placeholder="123 Main Street"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Full Name *
+                      City *
                     </label>
-                    <div className="relative">
-                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                      <input
-                        name="name"
-                        placeholder="John Doe"
-                        value={form.name}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Email & Phone */}
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Email *
-                      </label>
-                      <div className="relative">
-                        <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="email"
-                          name="email"
-                          placeholder="you@example.com"
-                          value={form.email}
-                          onChange={handleChange}
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Phone *
-                      </label>
-                      <div className="relative">
-                        <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="tel"
-                          name="phone"
-                          placeholder="+234 800 000 0000"
-                          value={form.phone}
-                          onChange={handleChange}
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Car Model */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Car Model *
-                    </label>
-                    <div className="relative">
-                      <TruckIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                      <input
-                        name="carModel"
-                        placeholder="e.g., Toyota Camry 2018"
-                        value={form.carModel}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Service Type */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Service Needed *
-                    </label>
-                    <div className="relative">
-                      <WrenchScrewdriverIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400 pointer-events-none" />
-                      <select
-                        name="service"
-                        value={form.service}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all appearance-none"
-                        required
-                      >
-                        <option value="">Select a service</option>
-                        {services.map((service) => (
-                          <option key={service} value={service}>
-                            {service}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Appointment Date */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Preferred Date & Time *
-                    </label>
-                    <div className="relative">
-                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400 pointer-events-none" />
-                      <input
-                        type="datetime-local"
-                        name="appointmentDate"
-                        value={form.appointmentDate}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Additional Notes
-                    </label>
-                    <textarea
-                      name="notes"
-                      placeholder="Any specific issues or requirements..."
-                      value={form.notes}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-100 transition-all resize-none"
-                      rows={4}
+                    <input
+                      type="text"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                      placeholder="Lagos"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                      required
                     />
                   </div>
 
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircleIcon className="h-5 w-5" />
-                        <span>Submit Booking</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                <p className="mt-6 text-center text-sm text-neutral-600">
-                  Need help?{" "}
-                  <a
-                    href="tel:+2349025579441"
-                    className="font-semibold text-purple-600 hover:text-purple-700"
-                  >
-                    Call us
-                  </a>{" "}
-                  or{" "}
-                  <a
-                    href="mailto:edmichservices@gmail.com"
-                    className="font-semibold text-purple-600 hover:text-purple-700"
-                  >
-                    send an email
-                  </a>
-                </p>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      State
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      placeholder="Lagos"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Contact & Notes */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <PhoneIcon className="h-6 w-6 text-purple-600" />
+                Contact Information
+              </h2>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="+234 800 000 0000"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Additional Notes
+                  </label>
+                  <textarea
+                    name="additionalNotes"
+                    value={formData.additionalNotes}
+                    onChange={handleInputChange}
+                    placeholder="Any specific instructions or concerns about your vehicle..."
+                    rows={4}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex-1 px-6 py-4 bg-white border-2 border-neutral-200 text-neutral-700 rounded-xl font-bold hover:border-neutral-300 hover:shadow-md transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    Booking...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircleIcon className="h-5 w-5" />
+                    Confirm Booking
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
-      </section>
+      </div>
 
       <Footer />
     </main>

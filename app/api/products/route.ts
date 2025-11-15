@@ -1,65 +1,45 @@
 // app/api/products/route.ts
-
+// app/api/products/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSeedProducts } from "@/lib/seed-data";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get("category");
-    const search = searchParams.get("search");
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
-
-    const where: any = {};
-
-    if (category && category !== "All") {
-      where.category = category;
-    }
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { category: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
     const products = await prisma.product.findMany({
-      where,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            businessName: true,
-            user: { select: { name: true } },
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        category: true,
+        image: true,
+        stock: true,
+        supplier: { select: { businessName: true } },
       },
     });
 
-    const transformedProducts = products.map((product) => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      category: product.category,
-      image: product.image,
-      stock: product.stock,
-      supplierId: product.supplierId,
-      supplier:
-        product.supplier?.businessName ||
-        product.supplier?.user?.name ||
-        "Verified Supplier",
+    if (products.length === 0) {
+      const seed = await getSeedProducts();
+      return NextResponse.json(seed);
+    }
+
+    const formatted = products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description ?? "",
+      price: p.price,
+      category: p.category,
+      image: p.image || "/placeholder.jpg",
+      stock: p.stock,
+      supplierId: p.supplier?.id || "",
+      supplier: p.supplier?.businessName || "AutoParts Ltd",
     }));
 
-    return NextResponse.json(transformedProducts);
+    return NextResponse.json(formatted);
   } catch (error) {
-    console.error("Error fetching products:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch products" },
-      { status: 500 }
-    );
+    console.error("Products API error:", error);
+    const seed = await getSeedProducts();
+    return NextResponse.json(seed);
   }
 }

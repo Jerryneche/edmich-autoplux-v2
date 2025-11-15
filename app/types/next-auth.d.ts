@@ -1,23 +1,35 @@
-import { DefaultSession, DefaultUser } from "next-auth";
-import { JWT } from "next-auth/jwt";
+import "next-auth";
+import "next-auth/jwt";
 
 declare module "next-auth" {
+  interface User {
+    id: string;
+    role?: string;
+    onboardingStatus?: string;
+  }
+
   interface Session {
     user: {
       id: string;
-      role: "BUYER" | "SUPPLIER" | "ADMIN" | "MECHANIC" | "LOGISTICS";
-    } & DefaultSession["user"];
-  }
-
-  interface User extends DefaultUser {
-    id: string;
-    role: "BUYER" | "SUPPLIER" | "ADMIN" | "MECHANIC" | "LOGISTICS";
+      email: string;
+      name?: string | null;
+      image?: string | null;
+      role: string;
+      onboardingStatus: string;
+      hasSupplierProfile?: boolean;
+      hasMechanicProfile?: boolean;
+      hasLogisticsProfile?: boolean;
+    };
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id?: string;
-    role?: "BUYER" | "SUPPLIER" | "ADMIN" | "MECHANIC" | "LOGISTICS";
+    id: string;
+    role: string;
+    onboardingStatus: string;
+    hasSupplierProfile?: boolean;
+    hasMechanicProfile?: boolean;
+    hasLogisticsProfile?: boolean;
   }
 }

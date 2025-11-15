@@ -32,12 +32,10 @@ export default function RootLayout({
     </html>
   );
 }
-*/
-// app/layout.tsx
+*/ // app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import ClientProvider from "./ClientProvider";
-import { CartProvider } from "./context/CartContext";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -60,7 +58,6 @@ export const metadata: Metadata = {
     description:
       "Buy genuine spare parts, connect mechanics, streamline logistics—built for Nigeria and Africa.",
     url: "https://www.edmich.com",
-
     siteName: "Edmich Autoplux",
     images: [{ url: "/edmich-logo.png", width: 1200, height: 630 }],
     locale: "en_US",
@@ -83,9 +80,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-neutral-50 text-neutral-900`}>
-        <CartProvider>
-          <ClientProvider>{children}</ClientProvider>
-        </CartProvider>
+        {/* ONLY ONE CartProvider */}
+        <ClientProvider>{children}</ClientProvider>
       </body>
     </html>
   );

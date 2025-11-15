@@ -1,48 +1,79 @@
-// app/api/upload/route.ts
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import cloudinary from "@/lib/cloudinary";
 
-import { NextRequest, NextResponse } from "next/server";
-import formidable from "formidable";
-import path from "path";
-import fs from "fs/promises";
-
-// DISABLE BODY PARSING (NEW WAY)
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Create upload directory if not exists
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadDir, { recursive: true });
-
-  const form = formidable({
-    uploadDir,
-    keepExtensions: true,
-    maxFileSize: 10 * 1024 * 1024, // 10MB
-  });
-
-  const parseForm = (): Promise<{
-    fields: formidable.Fields;
-    files: formidable.Files;
-  }> =>
-    new Promise((resolve, reject) => {
-      form.parse(req as any, (err, fields, files) => {
-        if (err) return reject(err);
-        resolve({ fields, files });
-      });
-    });
-
+export async function POST(request: Request) {
   try {
-    const { files } = await parseForm();
-    const file = Array.isArray(files.file) ? files.file[0] : files.file;
+    const session = await getServerSession(authOptions);
 
-    if (!file?.filepath) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const filePath = `/uploads/${path.basename(file.filepath)}`;
-    return NextResponse.json({ url: filePath });
-  } catch (error) {
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    // Convert file to base64
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64 = buffer.toString("base64");
+    const dataURI = `data:${file.type};base64,${base64}`;
+
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: "edmich-products",
+      resource_type: "auto",
+      transformation: [
+        { width: 1000, height: 1000, crop: "limit" },
+        { quality: "auto:good" },
+      ],
+    });
+
+    return NextResponse.json({
+      url: result.secure_url,
+      publicId: result.public_id,
+    });
+  } catch (error: any) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to upload image" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Remove image from Cloudinary
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const publicId = searchParams.get("publicId");
+
+    if (!publicId) {
+      return NextResponse.json(
+        { error: "Public ID required" },
+        { status: 400 }
+      );
+    }
+
+    await cloudinary.uploader.destroy(publicId);
+
+    return NextResponse.json({ message: "Image deleted successfully" });
+  } catch (error: any) {
+    console.error("Delete error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete image" },
+      { status: 500 }
+    );
   }
 }

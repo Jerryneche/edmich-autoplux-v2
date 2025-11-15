@@ -29,7 +29,7 @@ export interface Product {
 export type ProductCardData = {
   id: string;
   name: string;
-  description?: string;
+  description: string;
   price: number;
   image?: string;
   stock: number;

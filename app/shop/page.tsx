@@ -1,155 +1,180 @@
-import { headers } from "next/headers";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import ProductCard from "../components/ProductCard";
+// app/shop/page.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Header from "@/app/components/Header";
+import Footer from "@/app/components/Footer";
 import {
   MagnifyingGlassIcon,
-  FunnelIcon,
-  SparklesIcon,
+  AdjustmentsHorizontalIcon,
 } from "@heroicons/react/24/outline";
-import { ProductCardData } from "@/app/types/product";
+import Link from "next/link";
+import Image from "next/image";
+import toast from "react-hot-toast";
+import { ShoppingBagIcon } from "@heroicons/react/24/solid";
+import { useCart } from "@/app/context/CartContext";
 
-// Placeholder products when API fails
-const PLACEHOLDER_PRODUCTS: ProductCardData[] = [
-  {
-    id: "1",
-    name: "Premium Brake Pads Set",
-    description: "High-quality brake pads for optimal stopping power",
-    price: 15000,
-    category: "Brakes",
-    image:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=300&fit=crop",
-    stock: 25,
-    supplierId: "supplier-1",
-    supplier: "AutoParts Nigeria",
-  },
-  {
-    id: "2",
-    name: "Engine Oil Filter",
-    description: "Premium oil filter for engine protection",
-    price: 8500,
-    category: "Filters",
-    image:
-      "https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=400&h=300&fit=crop",
-    stock: 40,
-    supplierId: "supplier-2",
-    supplier: "Quality Motors Ltd",
-  },
-  {
-    id: "3",
-    name: "Air Filter Assembly",
-    description: "High-flow air filter for better engine performance",
-    price: 12000,
-    category: "Filters",
-    image:
-      "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&h=300&fit=crop",
-    stock: 30,
-    supplierId: "supplier-3",
-    supplier: "Parts Express",
-  },
-  {
-    id: "4",
-    name: "Spark Plugs (Set of 4)",
-    description: "OEM quality spark plugs for smooth ignition",
-    price: 18000,
-    category: "Engine",
-    image:
-      "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&h=300&fit=crop",
-    stock: 50,
-    supplierId: "supplier-1",
-    supplier: "AutoParts Nigeria",
-  },
-  {
-    id: "5",
-    name: "LED Headlight Assembly",
-    description: "Bright LED headlights for better visibility",
-    price: 45000,
-    category: "Lighting",
-    image:
-      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&h=300&fit=crop",
-    stock: 0,
-    supplierId: "supplier-4",
-    supplier: "Lightning Auto Parts",
-  },
-  {
-    id: "6",
-    name: "Wiper Blades (Pair)",
-    description: "All-weather wiper blades for clear visibility",
-    price: 6500,
-    category: "Accessories",
-    image:
-      "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=400&h=300&fit=crop",
-    stock: 60,
-    supplierId: "supplier-5",
-    supplier: "ClearView Auto",
-  },
-  {
-    id: "7",
-    name: "Car Battery 12V 70Ah",
-    description: "Long-lasting maintenance-free battery",
-    price: 35000,
-    category: "Electrical",
-    image:
-      "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=400&h=300&fit=crop",
-    stock: 15,
-    supplierId: "supplier-6",
-    supplier: "Power Auto",
-  },
-  {
-    id: "8",
-    name: "Radiator Assembly",
-    description: "Efficient cooling radiator for your engine",
-    price: 28000,
-    category: "Cooling",
-    image:
-      "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400&h=300&fit=crop",
-    stock: 12,
-    supplierId: "supplier-7",
-    supplier: "Cool Parts Ltd",
-  },
-  {
-    id: "9",
-    name: "Shock Absorbers (Pair)",
-    description: "Heavy-duty shock absorbers for smooth ride",
-    price: 22000,
-    category: "Suspension",
-    image:
-      "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=400&h=300&fit=crop",
-    stock: 20,
-    supplierId: "supplier-8",
-    supplier: "Suspension Pro",
-  },
+const CATEGORIES = [
+  "All",
+  "Brakes",
+  "Engine",
+  "Filters",
+  "Lighting",
+  "Electrical",
+  "Cooling",
+  "Suspension",
+  "Transmission",
+  "Exhaust",
+  "Accessories",
 ];
 
-export const dynamic = "force-dynamic";
-async function getProducts() {
-  try {
-    const headersList = await headers();
-    const host = headersList.get("host");
-    const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest First" },
+  { value: "price_asc", label: "Price: Low to High" },
+  { value: "price_desc", label: "Price: High to Low" },
+  { value: "name", label: "Name: A to Z" },
+  { value: "popular", label: "Most Popular" },
+];
 
-    const res = await fetch(`${protocol}://${host}/api/products?limit=50`, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      console.warn("Products API failed, using placeholder data");
-      return PLACEHOLDER_PRODUCTS;
-    }
-
-    const data = await res.json();
-    return data.length > 0 ? data : PLACEHOLDER_PRODUCTS;
-  } catch (error) {
-    console.warn("Products API error, using placeholder data:", error);
-    return PLACEHOLDER_PRODUCTS;
-  }
+interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  category: string;
+  image: string | null;
+  stock: number;
+  supplier: {
+    businessName: string;
+    city: string;
+    state: string | null;
+    verified: boolean;
+  };
 }
 
-export default async function ShopPage() {
-  const products = await getProducts();
+export default function ShopPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { addItem, items } = useCart();
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") || "All"
+  );
+  const [sortBy, setSortBy] = useState(searchParams.get("sort") || "newest");
+  const [minPrice, setMinPrice] = useState(searchParams.get("minPrice") || "");
+  const [maxPrice, setMaxPrice] = useState(searchParams.get("maxPrice") || "");
+  const [inStockOnly, setInStockOnly] = useState(
+    searchParams.get("inStock") === "true"
+  );
+  const [supplierCity, setSupplierCity] = useState(
+    searchParams.get("city") || ""
+  );
+  const [supplierState, setSupplierState] = useState(
+    searchParams.get("state") || ""
+  );
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [
+    searchQuery,
+    selectedCategory,
+    sortBy,
+    minPrice,
+    maxPrice,
+    inStockOnly,
+    supplierCity,
+    supplierState,
+    currentPage,
+  ]);
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append("q", searchQuery);
+      if (selectedCategory !== "All")
+        params.append("category", selectedCategory);
+      if (sortBy) params.append("sortBy", sortBy);
+      if (minPrice) params.append("minPrice", minPrice);
+      if (maxPrice) params.append("maxPrice", maxPrice);
+      if (inStockOnly) params.append("inStock", "true");
+      if (supplierCity) params.append("city", supplierCity);
+      if (supplierState) params.append("state", supplierState);
+      params.append("page", currentPage.toString());
+
+      const response = await fetch(`/api/products/search?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products);
+        setTotalPages(data.pagination.totalPages);
+        setTotalCount(data.pagination.totalCount);
+      } else {
+        toast.error("Failed to load products");
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      toast.error("Failed to load products");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    fetchProducts();
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory("All");
+    setSortBy("newest");
+    setMinPrice("");
+    setMaxPrice("");
+    setInStockOnly(false);
+    setSupplierCity("");
+    setSupplierState("");
+    setCurrentPage(1);
+  };
+
+  const activeFiltersCount = [
+    selectedCategory !== "All",
+    minPrice !== "",
+    maxPrice !== "",
+    inStockOnly,
+    supplierCity !== "",
+    supplierState !== "",
+  ].filter(Boolean).length;
+
+  const getItemCount = (productId: string) => {
+    const item = items.find((i) => i.id === productId);
+    return item?.quantity || 0;
+  };
+
+  const handleAddToCart = (product: Product) => {
+    if (product.stock > 0) {
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image || "",
+      });
+      toast.success("Added to cart");
+    }
+  };
 
   return (
-    <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
+    <main className="min-h-screen bg-gradient-to-b from-white via-neutral-50 to-white">
       <Header />
 
       {/* Hero Banner */}
@@ -159,100 +184,350 @@ export default async function ShopPage() {
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-200/40 rounded-full blur-3xl"></div>
 
         <div className="relative max-w-7xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200 mb-6">
-            <SparklesIcon className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">
-              {products.length}+ Genuine Parts
-            </span>
-          </div>
-
           <h1 className="text-5xl md:text-6xl font-bold text-neutral-900 mb-6">
             Find the Perfect{" "}
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Auto Parts
             </span>
           </h1>
-          <p className="text-xl text-neutral-600 max-w-2xl mx-auto">
-            Browse verified suppliers offering genuine parts at competitive
-            prices
+          <p className="text-xl text-neutral-600 max-w-2xl mx-auto mb-8">
+            Browse {totalCount}+ verified products from trusted suppliers
           </p>
 
-          {/* Search Bar */}
-          <div className="mt-8 max-w-3xl mx-auto">
+          <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search for brake pads, filters, engine parts..."
                 className="w-full pl-12 pr-4 py-4 bg-white border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
               />
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:shadow-lg transition-all">
+              <button
+                type="submit"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+              >
                 Search
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </section>
 
-      {/* Filters and Products */}
+      {/* Main Content */}
       <section className="max-w-7xl mx-auto px-6 py-12">
-        {/* Filter Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-neutral-200 rounded-xl text-neutral-700 font-medium hover:border-blue-300 transition-all">
-              <FunnelIcon className="h-4 w-4" />
-              Filters
-            </button>
-            <div className="hidden md:flex gap-2">
-              {[
-                "All",
-                "Brakes",
-                "Filters",
-                "Engine",
-                "Lighting",
-                "Electrical",
-              ].map((cat) => (
+        <div className="bg-white rounded-2xl border-2 border-neutral-200 p-4 mb-8 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setCurrentPage(1);
+                  }}
                   className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    cat === "All"
-                      ? "bg-blue-600 text-white"
-                      : "bg-white border border-neutral-200 text-neutral-700 hover:border-blue-300"
+                    selectedCategory === cat
+                      ? "bg-blue-600 text-white shadow-lg"
+                      : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
                   }`}
                 >
                   {cat}
                 </button>
               ))}
             </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg font-medium hover:bg-neutral-200 transition-all"
+              >
+                <AdjustmentsHorizontalIcon className="h-5 w-5" />
+                Filters
+                {activeFiltersCount > 0 && (
+                  <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 bg-white border-2 border-neutral-200 rounded-lg text-neutral-700 font-medium focus:border-blue-500 focus:outline-none"
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-neutral-600">
-              {products.length} Products
-            </span>
-            <select className="px-4 py-2 bg-white border-2 border-neutral-200 rounded-xl text-neutral-700 font-medium focus:border-blue-500 focus:outline-none">
-              <option>Sort by: Recommended</option>
-              <option>Price: Low to High</option>
-              <option>Price: High to Low</option>
-              <option>Top Rated</option>
-              <option>Proximity</option>
-            </select>
+          {showFilters && (
+            <div className="mt-6 pt-6 border-t-2 border-neutral-200">
+              <div className="grid md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Price Range (₦)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                      placeholder="Min"
+                      className="flex-1 px-3 py-2 border-2 border-neutral-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                    />
+                    <span className="flex items-center text-neutral-500">
+                      —
+                    </span>
+                    <input
+                      type="number"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      placeholder="Max"
+                      className="flex-1 px-3 py-2 border-2 border-neutral-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Supplier City
+                  </label>
+                  <input
+                    type="text"
+                    value={supplierCity}
+                    onChange={(e) => setSupplierCity(e.target.value)}
+                    placeholder="e.g., Lagos"
+                    className="w-full px-3 py-2 border-2 border-neutral-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Supplier State
+                  </label>
+                  <input
+                    type="text"
+                    value={supplierState}
+                    onChange={(e) => setSupplierState(e.target.value)}
+                    placeholder="e.g., Lagos"
+                    className="w-full px-3 py-2 border-2 border-neutral-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={inStockOnly}
+                    onChange={(e) => setInStockOnly(e.target.checked)}
+                    className="h-5 w-5 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-neutral-700">
+                    Show only in-stock items
+                  </span>
+                </label>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={fetchProducts}
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Apply Filters
+                </button>
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-3 bg-neutral-100 text-neutral-700 rounded-lg font-semibold hover:bg-neutral-200 transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mb-6 flex items-center justify-between">
+          <p className="text-neutral-600">
+            Showing{" "}
+            <span className="font-semibold text-neutral-900">
+              {products.length}
+            </span>{" "}
+            of{" "}
+            <span className="font-semibold text-neutral-900">{totalCount}</span>{" "}
+            products
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden animate-pulse"
+              >
+                <div className="aspect-square bg-neutral-200"></div>
+                <div className="p-5">
+                  <div className="h-4 bg-neutral-200 rounded mb-2"></div>
+                  <div className="h-3 bg-neutral-200 rounded w-2/3"></div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        ) : products.length === 0 ? (
+          <div className="bg-white rounded-2xl border-2 border-neutral-200 p-12 text-center">
+            <div className="text-6xl mb-4">Search</div>
+            <p className="text-2xl font-bold text-neutral-900 mb-2">
+              No products found
+            </p>
+            <p className="text-neutral-600 mb-6">
+              Try adjusting your search or filters
+            </p>
+            <button
+              onClick={clearFilters}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Clear Filters
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products.map((product) => {
+                const itemCount = getItemCount(product.id);
+                return (
+                  <div key={product.id} className="group relative">
+                    <Link href={`/shop/${product.id}`} className="block">
+                      <div className="bg-white rounded-2xl overflow-hidden border-2 border-neutral-100 hover:border-blue-300 hover:shadow-xl transition-all duration-300">
+                        <div className="relative aspect-square bg-neutral-50 p-8">
+                          {product.image ? (
+                            <Image
+                              src={product.image}
+                              alt={product.name}
+                              fill
+                              className="object-contain group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <div className="text-6xl">Box</div>
+                            </div>
+                          )}
+                          <div className="absolute top-3 left-3">
+                            {product.stock > 0 ? (
+                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                                In Stock
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
+                                Out of Stock
+                              </span>
+                            )}
+                          </div>
+                          {product.supplier.verified && (
+                            <div className="absolute top-3 right-3 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                              Verified
+                            </div>
+                          )}
+                        </div>
 
-        {/* Products Grid - Using the new ProductCard */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product: ProductCardData) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+                        <div className="p-5">
+                          <h3 className="font-bold text-neutral-900 text-lg line-clamp-1 group-hover:text-blue-600 transition-colors">
+                            {product.name}
+                          </h3>
+                          <p className="text-sm text-neutral-600 line-clamp-2 mt-1">
+                            {product.description || "High-quality auto part"}
+                          </p>
+                          <div className="mt-3 flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-neutral-500">
+                                {product.supplier.businessName}
+                              </p>
+                              <p className="text-xs text-neutral-400">
+                                {product.supplier.city}
+                                {product.supplier.state &&
+                                  `, ${product.supplier.state}`}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-2xl font-bold text-neutral-900 mt-4">
+                            ₦{product.price.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
 
-        {/* Load More */}
-        <div className="text-center mt-12">
-          <button className="px-8 py-3 bg-white border-2 border-neutral-200 rounded-xl text-neutral-700 font-semibold hover:border-blue-300 hover:shadow-lg transition-all">
-            Load More Products
-          </button>
-        </div>
+                    {product.stock > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleAddToCart(product);
+                        }}
+                        className="absolute bottom-5 right-5 w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 transition-all group"
+                      >
+                        <ShoppingBagIcon className="h-6 w-6" />
+                        {itemCount > 0 && (
+                          <span className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 rounded-full shadow">
+                            {itemCount}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="mt-12 flex items-center justify-center gap-2">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-white border-2 border-neutral-200 rounded-lg font-semibold hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+
+                <div className="flex gap-2">
+                  {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                          currentPage === pageNum
+                            ? "bg-blue-600 text-white"
+                            : "bg-white border-2 border-neutral-200 hover:border-blue-300"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-white border-2 border-neutral-200 rounded-lg font-semibold hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <Footer />

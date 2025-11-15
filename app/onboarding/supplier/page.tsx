@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
 import {
   BuildingStorefrontIcon,
-  MapPinIcon,
   DocumentTextIcon,
   BanknotesIcon,
   CheckCircleIcon,
@@ -14,9 +13,10 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 
 export default function SupplierOnboarding() {
-  const { data: session } = useSession();
+  const { data: session, status, update } = useSession(); // Added 'update' function
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(true);
   const [formData, setFormData] = useState({
     businessName: "",
     businessAddress: "",
@@ -69,6 +69,46 @@ export default function SupplierOnboarding() {
     "Zamfara",
   ];
 
+  // Check if user already has a profile
+  useEffect(() => {
+    if (status === "loading") return;
+
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+
+    if (session.user.role !== "SUPPLIER") {
+      router.push("/dashboard");
+      return;
+    }
+
+    checkExistingProfile();
+  }, [session, status, router]);
+
+  const checkExistingProfile = async () => {
+    try {
+      const response = await fetch("/api/onboarding/supplier");
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // If profile exists, redirect to dashboard
+        if (data.hasProfile && data.supplierProfile) {
+          toast.success("Welcome back!");
+          router.push("/dashboard/supplier");
+          return;
+        }
+      }
+
+      // No profile found, allow onboarding
+      setCheckingProfile(false);
+    } catch (error) {
+      console.error("Profile check error:", error);
+      setCheckingProfile(false);
+    }
+  };
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -94,22 +134,38 @@ export default function SupplierOnboarding() {
         throw new Error(data.error || "Failed to complete onboarding");
       }
 
-      // Force session refresh to reflect DB update
-      await fetch("/api/auth/session", { method: "GET" });
+      toast.success("Profile created successfully! Redirecting...");
 
-      toast.success("Profile created successfully!");
+      // 🔥 CRITICAL FIX: Update the session to reflect the new profile
+      await update();
 
-      // Redirect after toast
+      // Small delay to ensure session update completes
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Force navigation with replace to prevent back button issues
+      router.replace("/dashboard/supplier");
+
+      // Force a hard refresh if soft navigation doesn't work
       setTimeout(() => {
-        router.push("/dashboard/supplier");
-        router.refresh(); // Ensures middleware sees new status
-      }, 1200);
+        window.location.href = "/dashboard/supplier";
+      }, 1000);
     } catch (error: any) {
       toast.error(error.message || "Something went wrong");
-    } finally {
       setIsLoading(false);
     }
+    // Note: Don't set isLoading to false on success - let the redirect happen
   };
+
+  if (status === "loading" || checkingProfile) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-neutral-600">Loading...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
@@ -308,7 +364,7 @@ export default function SupplierOnboarding() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-bold hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-bold hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             {isLoading ? (
               <>

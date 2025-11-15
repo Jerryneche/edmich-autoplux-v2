@@ -1,468 +1,486 @@
 "use client";
 
 import { useState } from "react";
-import Header from "../../../components/Header";
-import Footer from "../../../components/Footer";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Header from "@/app/components/Header";
+import Footer from "@/app/components/Footer";
 import {
   TruckIcon,
-  UserIcon,
-  EnvelopeIcon,
-  PhoneIcon,
   MapPinIcon,
-  CalendarIcon,
+  CubeIcon,
+  PhoneIcon,
   CheckCircleIcon,
-  SparklesIcon,
-  CurrencyDollarIcon,
-  ClockIcon,
 } from "@heroicons/react/24/outline";
+import toast, { Toaster } from "react-hot-toast";
 
-export default function LogisticsRequestPage() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
+const PACKAGE_TYPES = [
+  { value: "small", label: "Small Package (up to 5kg)", basePrice: 2500 },
+  { value: "medium", label: "Medium Package (5-20kg)", basePrice: 5000 },
+  { value: "large", label: "Large Package (20-50kg)", basePrice: 10000 },
+  { value: "extra_large", label: "Extra Large (50kg+)", basePrice: 15000 },
+  { value: "auto_parts", label: "Auto Parts", basePrice: 8000 },
+];
+
+const DELIVERY_SPEEDS = [
+  { value: "standard", label: "Standard (3-5 days)", multiplier: 1 },
+  { value: "express", label: "Express (1-2 days)", multiplier: 1.5 },
+  { value: "same_day", label: "Same Day", multiplier: 2 },
+];
+
+export default function LogisticsBookingPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    packageType: "",
+    deliverySpeed: "",
+    pickupAddress: "",
+    pickupCity: "",
+    pickupState: "",
+    deliveryAddress: "",
+    deliveryCity: "",
+    deliveryState: "",
+    packageDescription: "",
+    packageValue: "",
     phone: "",
-    pickup: "",
-    dropoff: "",
-    vehicle: "",
-    deliveryDate: "",
-    weight: "",
-    notes: "",
+    recipientName: "",
+    recipientPhone: "",
+    specialInstructions: "",
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
+  const selectedPackage = PACKAGE_TYPES.find(
+    (p) => p.value === formData.packageType
+  );
+  const selectedSpeed = DELIVERY_SPEEDS.find(
+    (s) => s.value === formData.deliverySpeed
+  );
+  const estimatedPrice =
+    selectedPackage && selectedSpeed
+      ? selectedPackage.basePrice * selectedSpeed.multiplier
+      : 0;
 
-  const handleChange = (
+  const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-    // Calculate estimated price based on vehicle type
-    if (e.target.name === "vehicle" && e.target.value) {
-      const prices: { [key: string]: number } = {
-        bike: 2500,
-        van: 5000,
-        truck: 8500,
-        "pickup-truck": 7000,
-      };
-      setEstimatedPrice(prices[e.target.value] || 0);
+  const validateForm = () => {
+    if (!formData.packageType || !formData.deliverySpeed) {
+      toast.error("Please select package type and delivery speed");
+      return false;
     }
+    if (
+      !formData.pickupAddress ||
+      !formData.pickupCity ||
+      !formData.deliveryAddress ||
+      !formData.deliveryCity
+    ) {
+      toast.error("Please complete pickup and delivery addresses");
+      return false;
+    }
+    if (
+      !formData.phone ||
+      !formData.recipientName ||
+      !formData.recipientPhone
+    ) {
+      toast.error("Please complete contact information");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!session) {
+      toast.error("Please login to book delivery");
+      router.push("/login");
+      return;
+    }
+
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/logistics", {
+      const bookingData = {
+        ...formData,
+        estimatedPrice,
+        packageValue: formData.packageValue
+          ? parseFloat(formData.packageValue)
+          : null,
+        status: "PENDING",
+      };
+
+      const response = await fetch("/api/bookings/logistics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(bookingData),
       });
 
-      if (res.ok) {
-        setSubmitSuccess(true);
-        setForm({
-          name: "",
-          email: "",
-          phone: "",
-          pickup: "",
-          dropoff: "",
-          vehicle: "",
-          deliveryDate: "",
-          weight: "",
-          notes: "",
-        });
-        setEstimatedPrice(null);
+      const data = await response.json();
 
-        setTimeout(() => setSubmitSuccess(false), 5000);
-      } else {
-        alert("Error submitting logistics request. Please try again.");
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create booking");
       }
+
+      toast.success("Delivery booked successfully!");
+
+      setTimeout(() => {
+        router.push(`/dashboard/buyer/bookings?type=logistics`);
+      }, 1500);
+    } catch (error: any) {
+      console.error("Booking error:", error);
+      toast.error(error.message || "Failed to create booking");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const vehicleTypes = [
-    {
-      value: "bike",
-      label: "Motorcycle/Bike",
-      capacity: "Up to 20kg",
-      price: "₦2,500",
-    },
-    { value: "van", label: "Van", capacity: "Up to 500kg", price: "₦5,000" },
-    {
-      value: "pickup-truck",
-      label: "Pickup Truck",
-      capacity: "Up to 1000kg",
-      price: "₦7,000",
-    },
-    {
-      value: "truck",
-      label: "Truck",
-      capacity: "Up to 3000kg",
-      price: "₦8,500",
-    },
-  ];
-
   return (
-    <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
+    <main className="min-h-screen bg-gradient-to-b from-white via-neutral-50 to-white">
+      <Toaster position="top-center" />
       <Header />
 
-      <section className="relative pt-32 pb-24 overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-green-200/40 rounded-full blur-3xl animate-pulse"></div>
-          <div
-            className="absolute bottom-20 right-10 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl animate-pulse"
-            style={{ animationDelay: "1s" }}
-          ></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            {/* Left Side - Info */}
-            <div className="lg:sticky lg:top-32">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200 mb-6">
-                <TruckIcon className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-700">
-                  Fast & Reliable Delivery
-                </span>
-              </div>
-
-              <h1 className="text-5xl font-bold text-neutral-900 mb-6 leading-tight">
-                Request{" "}
-                <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  Logistics
-                </span>
-              </h1>
-
-              <p className="text-xl text-neutral-600 mb-8 leading-relaxed">
-                Get instant quotes and book delivery services for your auto
-                parts across Nigeria.
-              </p>
-
-              {/* Features */}
-              <div className="space-y-4 mb-8">
-                {[
-                  { icon: CheckCircleIcon, text: "Instant pricing calculator" },
-                  { icon: ClockIcon, text: "Same-day & express delivery" },
-                  { icon: MapPinIcon, text: "Nationwide coverage" },
-                  { icon: SparklesIcon, text: "Real-time GPS tracking" },
-                ].map((feature, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <feature.icon className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-neutral-700 font-medium">
-                      {feature.text}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Vehicle Types Info */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6">
-                <h3 className="font-bold text-lg text-neutral-900 mb-4">
-                  Vehicle Options
-                </h3>
-                <div className="space-y-3">
-                  {vehicleTypes.map((vehicle, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <div>
-                        <p className="font-semibold text-neutral-900">
-                          {vehicle.label}
-                        </p>
-                        <p className="text-neutral-600">{vehicle.capacity}</p>
-                      </div>
-                      <span className="font-bold text-green-600">
-                        {vehicle.price}+
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Estimated Price Display */}
-              {estimatedPrice && (
-                <div className="mt-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-2xl p-6 animate-fade-in">
-                  <div className="flex items-center gap-3 mb-2">
-                    <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
-                    <h3 className="font-bold text-lg text-neutral-900">
-                      Estimated Price
-                    </h3>
-                  </div>
-                  <p className="text-4xl font-bold text-blue-600 mb-2">
-                    ₦{estimatedPrice.toLocaleString()}
-                  </p>
-                  <p className="text-sm text-neutral-600">
-                    Base rate for local delivery. Final price depends on
-                    distance.
-                  </p>
-                </div>
-              )}
+      <div className="pt-24 pb-16">
+        <div className="max-w-5xl mx-auto px-6">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200 mb-6">
+              <TruckIcon className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-semibold text-green-700">
+                Book Delivery
+              </span>
             </div>
+            <h1 className="text-5xl font-bold text-neutral-900 mb-4">
+              Fast & Reliable{" "}
+              <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                Logistics
+              </span>
+            </h1>
+            <p className="text-xl text-neutral-600">
+              Get your auto parts delivered safely and on time
+            </p>
+          </div>
 
-            {/* Right Side - Form */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl blur-2xl opacity-30"></div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Package Details */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <CubeIcon className="h-6 w-6 text-green-600" />
+                Package Details
+              </h2>
 
-              <div className="relative bg-white rounded-3xl shadow-2xl border-2 border-neutral-200 p-8 lg:p-10">
-                <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                  Delivery Details
-                </h2>
-                <p className="text-neutral-600 mb-8">
-                  Fill in the information below to get started
-                </p>
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Package Type *
+                    </label>
+                    <select
+                      name="packageType"
+                      value={formData.packageType}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                      required
+                    >
+                      <option value="">Select package type</option>
+                      {PACKAGE_TYPES.map((pkg) => (
+                        <option key={pkg.value} value={pkg.value}>
+                          {pkg.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* Success Message */}
-                {submitSuccess && (
-                  <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-xl flex items-center gap-3">
-                    <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-green-900">
-                        Request Submitted!
-                      </p>
-                      <p className="text-sm text-green-700">
-                        We will send you a quote within 15 minutes.
-                      </p>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Delivery Speed *
+                    </label>
+                    <select
+                      name="deliverySpeed"
+                      value={formData.deliverySpeed}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                      required
+                    >
+                      <option value="">Select delivery speed</option>
+                      {DELIVERY_SPEEDS.map((speed) => (
+                        <option key={speed.value} value={speed.value}>
+                          {speed.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Package Description *
+                  </label>
+                  <input
+                    type="text"
+                    name="packageDescription"
+                    value={formData.packageDescription}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Brake pads, oil filter"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Package Value (₦)
+                  </label>
+                  <input
+                    type="number"
+                    name="packageValue"
+                    value={formData.packageValue}
+                    onChange={handleInputChange}
+                    placeholder="0"
+                    min="0"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                  />
+                  <p className="text-xs text-neutral-500 mt-1">
+                    For insurance purposes
+                  </p>
+                </div>
+
+                {estimatedPrice > 0 && (
+                  <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+                    <p className="text-sm text-green-700 font-semibold mb-1">
+                      Estimated Delivery Cost
+                    </p>
+                    <p className="text-3xl font-bold text-green-900">
+                      ₦{estimatedPrice.toLocaleString()}
+                    </p>
                   </div>
                 )}
+              </div>
+            </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* Name */}
+            {/* Pickup Location */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <MapPinIcon className="h-6 w-6 text-green-600" />
+                Pickup Location
+              </h2>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Pickup Address *
+                  </label>
+                  <input
+                    type="text"
+                    name="pickupAddress"
+                    value={formData.pickupAddress}
+                    onChange={handleInputChange}
+                    placeholder="123 Main Street"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Full Name *
+                      City *
                     </label>
-                    <div className="relative">
-                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                      <input
-                        name="name"
-                        placeholder="John Doe"
-                        value={form.name}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Email & Phone */}
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Email *
-                      </label>
-                      <div className="relative">
-                        <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="email"
-                          name="email"
-                          placeholder="you@example.com"
-                          value={form.email}
-                          onChange={handleChange}
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Phone *
-                      </label>
-                      <div className="relative">
-                        <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="tel"
-                          name="phone"
-                          placeholder="+234 800 000 0000"
-                          value={form.phone}
-                          onChange={handleChange}
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Pickup Location */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Pickup Location *
-                    </label>
-                    <div className="relative">
-                      <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                      <input
-                        name="pickup"
-                        placeholder="e.g., 123 Allen Avenue, Ikeja, Lagos"
-                        value={form.pickup}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dropoff Location */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Drop-off Location *
-                    </label>
-                    <div className="relative">
-                      <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-green-400" />
-                      <input
-                        name="dropoff"
-                        placeholder="e.g., 456 Victoria Island, Lagos"
-                        value={form.dropoff}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Vehicle Type & Weight */}
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Vehicle Type *
-                      </label>
-                      <div className="relative">
-                        <TruckIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400 pointer-events-none" />
-                        <select
-                          name="vehicle"
-                          value={form.vehicle}
-                          onChange={handleChange}
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all appearance-none"
-                          required
-                        >
-                          <option value="">Select vehicle</option>
-                          {vehicleTypes.map((vehicle) => (
-                            <option key={vehicle.value} value={vehicle.value}>
-                              {vehicle.label} - {vehicle.capacity}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Weight (kg)
-                      </label>
-                      <input
-                        type="number"
-                        name="weight"
-                        placeholder="e.g., 50"
-                        value={form.weight}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Delivery Date */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Preferred Delivery Date *
-                    </label>
-                    <div className="relative">
-                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400 pointer-events-none" />
-                      <input
-                        type="datetime-local"
-                        name="deliveryDate"
-                        value={form.deliveryDate}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Additional Notes
-                    </label>
-                    <textarea
-                      name="notes"
-                      placeholder="Special handling instructions, fragile items, etc..."
-                      value={form.notes}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-green-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-green-100 transition-all resize-none"
-                      rows={4}
+                    <input
+                      type="text"
+                      name="pickupCity"
+                      value={formData.pickupCity}
+                      onChange={handleInputChange}
+                      placeholder="Lagos"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                      required
                     />
                   </div>
 
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircleIcon className="h-5 w-5" />
-                        <span>Submit Request</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                <p className="mt-6 text-center text-sm text-neutral-600">
-                  Questions?{" "}
-                  <a
-                    href="tel:+2349025579441"
-                    className="font-semibold text-green-600 hover:text-green-700"
-                  >
-                    Call us
-                  </a>{" "}
-                  or{" "}
-                  <a
-                    href="mailto:edmichservices@gmail.com"
-                    className="font-semibold text-green-600 hover:text-green-700"
-                  >
-                    send an email
-                  </a>
-                </p>
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      State
+                    </label>
+                    <input
+                      type="text"
+                      name="pickupState"
+                      value={formData.pickupState}
+                      onChange={handleInputChange}
+                      placeholder="Lagos"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Delivery Location */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <MapPinIcon className="h-6 w-6 text-green-600" />
+                Delivery Location
+              </h2>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Delivery Address *
+                  </label>
+                  <input
+                    type="text"
+                    name="deliveryAddress"
+                    value={formData.deliveryAddress}
+                    onChange={handleInputChange}
+                    placeholder="456 Another Street"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      City *
+                    </label>
+                    <input
+                      type="text"
+                      name="deliveryCity"
+                      value={formData.deliveryCity}
+                      onChange={handleInputChange}
+                      placeholder="Abuja"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      State
+                    </label>
+                    <input
+                      type="text"
+                      name="deliveryState"
+                      value={formData.deliveryState}
+                      onChange={handleInputChange}
+                      placeholder="FCT"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recipient Info */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+                <PhoneIcon className="h-6 w-6 text-green-600" />
+                Contact Information
+              </h2>
+
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Your Phone *
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="+234 800 000 0000"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Recipient Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="recipientName"
+                      value={formData.recipientName}
+                      onChange={handleInputChange}
+                      placeholder="John Doe"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Recipient Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    name="recipientPhone"
+                    value={formData.recipientPhone}
+                    onChange={handleInputChange}
+                    placeholder="+234 800 000 0000"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Special Instructions
+                  </label>
+                  <textarea
+                    name="specialInstructions"
+                    value={formData.specialInstructions}
+                    onChange={handleInputChange}
+                    placeholder="Any special handling or delivery instructions..."
+                    rows={4}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:outline-none transition-colors resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex-1 px-6 py-4 bg-white border-2 border-neutral-200 text-neutral-700 rounded-xl font-bold hover:border-neutral-300 hover:shadow-md transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    Booking...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircleIcon className="h-5 w-5" />
+                    Confirm Booking
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
-      </section>
+      </div>
 
       <Footer />
-
-      <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-      `}</style>
     </main>
   );
 }

@@ -13,13 +13,11 @@
 // </SessionProvider>
 // );
 
-//}
-
+//}// app/ClientProvider.tsx
 "use client";
 
 import { SessionProvider } from "next-auth/react";
 import { CartProvider } from "@/app/context/CartContext";
-import ShoppingCartDrawer from "./components/ShoppingCartDrawer";
 import { Toaster } from "react-hot-toast";
 
 export default function ClientProvider({
@@ -31,7 +29,7 @@ export default function ClientProvider({
     <SessionProvider>
       <CartProvider>
         {children}
-        <ShoppingCartDrawer />
+
         <Toaster
           position="top-right"
           toastOptions={{

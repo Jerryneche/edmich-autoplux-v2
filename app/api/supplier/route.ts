@@ -1,4 +1,4 @@
-// app/api/suppliers/route.ts
+// app/api/supplier/route.ts
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +22,7 @@ export async function GET() {
 
     return NextResponse.json(suppliers);
   } catch (error) {
-    console.error("GET /api/suppliers error:", error);
+    console.error("❌ GET /api/supplier error:", error);
     return NextResponse.json(
       { error: "Failed to fetch suppliers" },
       { status: 500 }
@@ -32,37 +32,51 @@ export async function GET() {
 
 // POST new supplier (requires login)
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const data = await req.json();
-
-  const {
-    businessName,
-    businessAddress,
-    city,
-    state,
-    description,
-    cacNumber,
-    bankName,
-    accountNumber,
-    accountName,
-  } = data;
-
-  if (!businessName || !businessAddress || !city || !state) {
-    return NextResponse.json(
-      {
-        error:
-          "Missing required fields: businessName, businessAddress, city, state",
-      },
-      { status: 400 }
-    );
-  }
-
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const data = await req.json();
+
+    const {
+      businessName,
+      businessAddress,
+      city,
+      state,
+      description,
+      cacNumber,
+      bankName,
+      accountNumber,
+      accountName,
+    } = data;
+
+    // Validate required fields
+    if (!businessName || !businessAddress || !city || !state) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing required fields: businessName, businessAddress, city, state",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check for existing profile
+    const existing = await prisma.supplierProfile.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "You already have a supplier profile" },
+        { status: 409 }
+      );
+    }
+
+    // Create supplier profile
     const supplier = await prisma.supplierProfile.create({
       data: {
         userId: session.user.id,
@@ -75,13 +89,14 @@ export async function POST(req: Request) {
         bankName: bankName || null,
         accountNumber: accountNumber || null,
         accountName: accountName || null,
-        verified: false, // Admin must approve
+        verified: false,
+        approved: false, // Add this field
       },
     });
 
     return NextResponse.json(supplier, { status: 201 });
   } catch (error: any) {
-    console.error("POST /api/suppliers error:", error);
+    console.error("❌ POST /api/supplier error:", error);
     if (error.code === "P2002") {
       return NextResponse.json(
         { error: "You already have a supplier profile" },

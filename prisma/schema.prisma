@@ -57,6 +57,81 @@ model User {
   supplierProfile   SupplierProfile?
   tradeIns          TradeIn[]
   logisticsRequests LogisticsRequest[]
+  mechanicBookings  MechanicBooking[]
+  logisticsBookings LogisticsBooking[]
+  notifications     Notification[]
+}
+
+model MechanicProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  specialty      String
+  location       String
+  city           String
+  businessName   String
+  specialization String[]
+  experience     Int
+  address        String
+  phone          String
+  description    String?
+  approved       Boolean  @default(false)
+  rating         Float    @default(0)
+  completedJobs  Int      @default(0)
+  state          String
+  hourlyRate     Float
+  bio            String?
+  certifications String[]
+  verified       Boolean  @default(false)
+  available      Boolean  @default(true)
+  workingHours   String?
+  responseTime   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // ✅ Correct relation
+  bookings MechanicBooking[]
+  booking  Booking[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MechanicBooking {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Vehicle Info
+  vehicleMake  String
+  vehicleModel String
+  vehicleYear  String
+  plateNumber  String?
+
+  // Service Details
+  serviceType    String
+  customService  String?
+  estimatedPrice Float
+
+  // Schedule
+  date String
+  time String
+
+  // Location
+  location String
+  address  String
+  city     String
+  state    String?
+
+  // Contact
+  phone           String
+  additionalNotes String?
+
+  // Status & Assignment
+  status     BookingStatus    @default(PENDING)
+  mechanicId String?
+  mechanic   MechanicProfile? @relation(fields: [mechanicId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SupplierProfile {
@@ -67,60 +142,99 @@ model SupplierProfile {
   city            String
   state           String
   description     String?
-  verified        Boolean   @default(false)
   cacNumber       String?
   bankName        String?
   accountNumber   String?
   accountName     String?
+  verified        Boolean   @default(false)
+  approved        Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id])
   products        Product[]
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model MechanicProfile {
-  id             String    @id @default(cuid())
-  userId         String    @unique
-  specialty      String
-  experience     String
-  location       String
-  city           String
-  state          String
-  hourlyRate     Float
-  bio            String?
-  certifications String[]
-  verified       Boolean   @default(false)
-  available      Boolean   @default(true)
-  workingHours   String?
-  responseTime   String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  bookings       Booking[]
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model LogisticsProfile {
-  id            String             @id @default(cuid())
-  userId        String             @unique
-  companyName   String
-  vehicleTypes  String[]
-  coverageAreas String[]
-  verified      Boolean            @default(false)
-  available     Boolean            @default(true)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deliveries    LogisticsRequest[]
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  companyName         String
+  vehicleType         String
+  vehicleNumber       String
+  licenseNumber       String
+  address             String
+  city                String
+  state               String
+  phone               String
+  description         String?
+  vehicleTypes        String[]
+  coverageAreas       String[]
+  verified            Boolean            @default(false)
+  available           Boolean            @default(true)
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries          LogisticsRequest[]
+  approved            Boolean            @default(false)
+  rating              Float              @default(0)
+  completedDeliveries Int                @default(0)
+
+  bookings LogisticsBooking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LogisticsBooking {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Package Details
+  packageType        String
+  deliverySpeed      String
+  packageDescription String
+  packageValue       Float?
+  estimatedPrice     Float
+
+  // Pickup
+  pickupAddress String
+  pickupCity    String
+  pickupState   String?
+
+  // Delivery
+  deliveryAddress String
+  deliveryCity    String
+  deliveryState   String?
+
+  // Contact
+  phone               String
+  recipientName       String
+  recipientPhone      String
+  specialInstructions String?
+
+  // Status & Assignment
+  status   BookingStatus     @default(PENDING)
+  driverId String?
+  driver   LogisticsProfile? @relation(fields: [driverId], references: [id])
+
+  // Tracking
+  trackingNumber  String? @unique
+  currentLocation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Product {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
+  slug        String?  @unique
   description String?
   price       Float
   category    String
+  brand       String?
   image       String?
-  stock       Int     @default(0)
+  images      String[] @default([])
+  stock       Int      @default(0)
+  status      String   @default("ACTIVE")
   supplierId  String
 
   createdAt  DateTime        @default(now())
@@ -130,23 +244,34 @@ model Product {
   reviews    Review[]
 }
 
+// schema.prisma
 model Order {
-  id         String @id @default(cuid())
-  trackingId String @unique @default(dbgenerated("('EDM-' || gen_random_uuid())")) // PostgreSQL
-  // OR for SQLite/MySQL:
-  // trackingId      String   @unique
+  id            String   @id @default(cuid())
+  trackingId    String   @unique @default(dbgenerated("('EDM-' || gen_random_uuid())"))
+  userId        String
+  total         Float
+  status        String
+  paymentMethod String
+  deliveryNotes String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  userId          String
-  total           Float
-  status          String
-  paymentMethod   String
-  shippingAddress Json
-  deliveryNotes   String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  user            User             @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  shippingAddress ShippingAddress?
+}
 
-  user  User        @relation(fields: [userId], references: [id])
-  items OrderItem[]
+model ShippingAddress {
+  id       String  @id @default(cuid()) // ← String
+  orderId  String  @unique // ← String
+  fullName String
+  email    String
+  phone    String
+  address  String
+  city     String
+  state    String
+  zipCode  String?
+  order    Order   @relation(fields: [orderId], references: [id])
 }
 
 model OrderItem {
@@ -175,7 +300,7 @@ model Supplier {
 }
 
 model Booking {
-  id              String           @id @default(cuid())
+  id              String        @id @default(cuid())
   name            String?
   email           String?
   phone           String?
@@ -183,13 +308,15 @@ model Booking {
   service         String
   appointmentDate DateTime
   notes           String?
-  status          BookingStatus    @default(PENDING)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  userId          String
-  mechanicId      String?
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mechanic        MechanicProfile? @relation(fields: [mechanicId], references: [id])
+  status          BookingStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  userId     String
+  mechanicId String?
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mechanic MechanicProfile? @relation(fields: [mechanicId], references: [id])
 }
 
 model LogisticsRequest {
@@ -232,6 +359,33 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType
+  title   String
+  message String
+  link    String?
+
+  read Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  ORDER
+  BOOKING
+  PRODUCT
+  SYSTEM
+  PAYMENT
+  REVIEW
 }
 
 model TradeIn {

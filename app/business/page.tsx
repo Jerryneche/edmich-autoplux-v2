@@ -1,276 +1,250 @@
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import Hero from "../components/Hero";
+// app/business/page.tsx
+import Header from "@/app/components/Header";
+import Footer from "@/app/components/Footer";
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 import {
-  BuildingStorefrontIcon,
-  WrenchScrewdriverIcon,
+  ShoppingBagIcon,
+  UserGroupIcon,
   TruckIcon,
   CheckBadgeIcon,
-  SparklesIcon,
-  ArrowRightIcon,
+  MapPinIcon,
+  StarIcon,
+  WrenchScrewdriverIcon,
+  CalendarDaysIcon,
 } from "@heroicons/react/24/outline";
-import Link from "next/link";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface Supplier {
   id: string;
-  name: string;
-  location: string;
-  approved: string;
   businessName: string;
-  company: string;
-  product: string;
-  price: string;
+  city: string;
+  state: string;
+  description: string | null;
+  verified: boolean;
+  approved: boolean;
+  productCount: number;
 }
 
-export const dynamic = "force-dynamic";
-export async function getSuppliers(): Promise<Supplier[]> {
+async function getSuppliers(): Promise<Supplier[]> {
   try {
-    const res = await fetch("/api/suppliers", {
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
+    const suppliers = await prisma.supplierProfile.findMany({
+      where: {
+        approved: true,
       },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 50,
     });
 
-    if (!res.ok) {
-      console.error(`Fetch error: ${res.status} ${res.statusText}`);
-      return [];
-    }
-
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    return suppliers.map((s) => ({
+      id: s.id,
+      businessName: s.businessName,
+      city: s.city,
+      state: s.state,
+      description: s.description,
+      verified: s.verified,
+      approved: s.approved,
+      productCount: s._count.products,
+    }));
   } catch (error) {
-    console.error("Error fetching suppliers:", error);
+    console.error("❌ Failed to fetch suppliers from database:", error);
     return [];
   }
 }
 
+async function getStats() {
+  try {
+    const [totalProducts, approvedSuppliers, mechanics, logistics] =
+      await Promise.all([
+        prisma.product.count(),
+        prisma.supplierProfile.count({ where: { approved: true } }),
+        prisma.mechanicProfile.count({ where: { approved: true } }),
+        prisma.logisticsProfile.count({ where: { approved: true } }),
+      ]);
+
+    return {
+      totalProducts,
+      approvedSuppliers,
+      mechanics,
+      logistics,
+    };
+  } catch (error) {
+    console.error("❌ Failed to fetch stats:", error);
+    return {
+      totalProducts: 500,
+      approvedSuppliers: 0,
+      mechanics: 0,
+      logistics: 0,
+    };
+  }
+}
+
 export default async function BusinessPage() {
-  const suppliers: Supplier[] = await getSuppliers();
+  const [suppliers, stats] = await Promise.all([getSuppliers(), getStats()]);
 
   return (
-    <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
+    <main className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white">
       <Header />
 
       {/* Hero Section */}
-      <Hero
-        image="/hero-business.jpg"
-        title="Business Hub"
-        subtitle="Market, mechanics, and logistics in one place."
-        primaryCta={{ label: "Enter Market", href: "/business/market" }}
-        secondaryCta={{
-          label: "Request Mechanics",
-          href: "/business/mechanics/booking",
-        }}
-      />
+      <section className="pt-32 pb-16">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <CheckBadgeIcon className="h-4 w-4" />
+            <span>Trusted Business Network</span>
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold text-neutral-900 mb-4">
+            Connect with{" "}
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Verified Suppliers
+            </span>
+          </h1>
+          <p className="text-lg md:text-xl text-neutral-600 max-w-2xl mx-auto mb-10">
+            Discover trusted auto parts suppliers, mechanics, and logistics
+            providers across Nigeria. Quality products, reliable service.
+          </p>
 
-      {/* Quick Access Cards */}
-      <section className="relative -mt-20 z-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Market Card */}
-            <Link href="/business/market" className="group">
-              <div className="relative bg-white rounded-2xl p-8 shadow-xl border-2 border-neutral-200 hover:border-blue-300 hover:shadow-2xl transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                    <BuildingStorefrontIcon className="h-7 w-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-2">
-                    Marketplace
-                  </h3>
-                  <p className="text-neutral-600 mb-4">
-                    Browse verified suppliers and source genuine auto parts
-                    instantly
-                  </p>
-                  <div className="flex items-center gap-2 text-blue-600 font-semibold group-hover:gap-3 transition-all">
-                    <span>Enter Market</span>
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto mb-12">
+            <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 shadow-lg">
+              <ShoppingBagIcon className="h-10 w-10 text-blue-600 mx-auto mb-3" />
+              <p className="text-3xl font-bold text-neutral-900 mb-1">
+                {stats.totalProducts}+
+              </p>
+              <p className="text-neutral-600 text-sm">Products</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 shadow-lg">
+              <UserGroupIcon className="h-10 w-10 text-green-600 mx-auto mb-3" />
+              <p className="text-3xl font-bold text-neutral-900 mb-1">
+                {stats.approvedSuppliers}+
+              </p>
+              <p className="text-neutral-600 text-sm">Suppliers</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 shadow-lg">
+              <WrenchScrewdriverIcon className="h-10 w-10 text-purple-600 mx-auto mb-3" />
+              <p className="text-3xl font-bold text-neutral-900 mb-1">
+                {stats.mechanics}+
+              </p>
+              <p className="text-neutral-600 text-sm">Mechanics</p>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 shadow-lg">
+              <TruckIcon className="h-10 w-10 text-orange-600 mx-auto mb-3" />
+              <p className="text-3xl font-bold text-neutral-900 mb-1">
+                {stats.logistics}+
+              </p>
+              <p className="text-neutral-600 text-sm">Logistics</p>
+            </div>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/business/market"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all"
+            >
+              <ShoppingBagIcon className="h-6 w-6" />
+              Browse Marketplace
             </Link>
 
-            {/* Mechanics Card */}
-            <Link href="/business/mechanics/booking" className="group">
-              <div className="relative bg-white rounded-2xl p-8 shadow-xl border-2 border-neutral-200 hover:border-purple-300 hover:shadow-2xl transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative">
-                  <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                    <WrenchScrewdriverIcon className="h-7 w-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-2">
-                    Mechanics
-                  </h3>
-                  <p className="text-neutral-600 mb-4">
-                    Book certified mechanics with flexible scheduling and
-                    transparent pricing
-                  </p>
-                  <div className="flex items-center gap-2 text-purple-600 font-semibold group-hover:gap-3 transition-all">
-                    <span>Book Service</span>
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
-            </Link>
-
-            {/* Logistics Card */}
-            <Link href="/business/logistics" className="group">
-              <div className="relative bg-white rounded-2xl p-8 shadow-xl border-2 border-neutral-200 hover:border-green-300 hover:shadow-2xl transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative">
-                  <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                    <TruckIcon className="h-7 w-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-2">
-                    Logistics
-                  </h3>
-                  <p className="text-neutral-600 mb-4">
-                    Track deliveries in real-time with our trusted logistics
-                    network
-                  </p>
-                  <div className="flex items-center gap-2 text-green-600 font-semibold group-hover:gap-3 transition-all">
-                    <span>Request Delivery</span>
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
+            <Link
+              href="/business/services"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all"
+            >
+              <CalendarDaysIcon className="h-6 w-6" />
+              Book Services
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Featured Suppliers Section */}
-      <section className="relative py-24">
+      {/* Suppliers Grid */}
+      <section className="pb-20">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Section Header */}
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200 mb-4">
-                <SparklesIcon className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-700">
-                  Live from our database
-                </span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-neutral-900">
-                Featured{" "}
-                <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                  Suppliers
-                </span>
-              </h2>
-              <p className="text-lg text-neutral-600 mt-3">
-                Verified businesses ready to serve you
-              </p>
-            </div>
-            <Link
-              href="/business/market"
-              className="hidden md:inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all"
-            >
-              View All
-              <ArrowRightIcon className="h-4 w-4" />
-            </Link>
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-neutral-900 mb-3">
+              Featured Suppliers
+            </h2>
+            <p className="text-lg text-neutral-600">
+              Trusted partners providing quality auto parts
+            </p>
           </div>
 
-          {/* Suppliers Grid */}
-          {suppliers &&
-          suppliers.filter((s: Supplier) => s.approved).length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {suppliers
-                ?.filter((s: Supplier) => s.approved)
-                .slice(0, 6)
-                .map((s: Supplier) => (
-                  <div key={s.id} className="group relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
-                    <div className="relative bg-white border-2 border-neutral-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-xl transition-all">
-                      {/* Verified Badge */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 border border-green-200 rounded-full">
-                          <CheckBadgeIcon className="h-4 w-4 text-green-600" />
-                          <span className="text-xs font-semibold text-green-700">
-                            Verified
-                          </span>
-                        </div>
-                        <div className="text-xs text-neutral-500">
-                          #{s.id.slice(0, 8)}
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <h3 className="text-xl font-bold text-neutral-900 mb-2 group-hover:text-blue-600 transition-colors">
-                        {s.product || s.businessName || "Premium Parts"}
-                      </h3>
-                      <p className="text-sm text-neutral-600 mb-3">
-                        {s.company || s.location || "Lagos, Nigeria"}
-                      </p>
-
-                      {/* Price */}
-                      <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
-                        <div>
-                          <p className="text-xs text-neutral-500">
-                            Starting from
-                          </p>
-                          <p className="text-2xl font-bold text-blue-600">
-                            {s.price || "₦25,000"}
-                          </p>
-                        </div>
-                        <button className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition-colors">
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-neutral-200">
-              <BuildingStorefrontIcon className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
-              <p className="text-xl font-semibold text-neutral-900 mb-2">
-                No suppliers yet
-              </p>
-              <p className="text-neutral-600 mb-6">
-                Be the first to join our verified supplier network
+          {suppliers.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <UserGroupIcon className="h-12 w-12 text-neutral-400" />
+              </div>
+              <h3 className="text-2xl font-bold text-neutral-900 mb-3">
+                No Suppliers Yet
+              </h3>
+              <p className="text-lg text-neutral-600 mb-8">
+                We're onboarding quality suppliers. Check back soon!
               </p>
               <Link
-                href="/business/market"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                href="/signup"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all"
               >
                 Become a Supplier
-                <ArrowRightIcon className="h-4 w-4" />
               </Link>
             </div>
-          )}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {suppliers.map((supplier) => (
+                <div
+                  key={supplier.id}
+                  className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:border-blue-300 hover:shadow-xl transition-all"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-neutral-900 mb-2 line-clamp-1">
+                        {supplier.businessName}
+                      </h3>
+                      <div className="flex items-center gap-2 text-sm text-neutral-600 mb-2">
+                        <MapPinIcon className="h-4 w-4" />
+                        <span>
+                          {supplier.city}, {supplier.state}
+                        </span>
+                      </div>
+                    </div>
+                    {supplier.verified && (
+                      <CheckBadgeIcon className="h-6 w-6 text-blue-600 flex-shrink-0" />
+                    )}
+                  </div>
 
-          {/* Mobile View All Button */}
-          <div className="md:hidden mt-8 text-center">
-            <Link
-              href="/business/market"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold"
-            >
-              View All Suppliers
-              <ArrowRightIcon className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
+                  <p className="text-neutral-600 mb-4 line-clamp-2">
+                    {supplier.description || "Quality auto parts supplier"}
+                  </p>
 
-      {/* Stats Section */}
-      <section className="relative py-16 bg-gradient-to-b from-blue-50 to-neutral-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { number: "500+", label: "Active Suppliers" },
-              { number: "10K+", label: "Parts Listed" },
-              { number: "1K+", label: "Happy Customers" },
-              { number: "99.9%", label: "Uptime" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                  {stat.number}
+                  <div className="flex items-center justify-between pt-4 border-t-2 border-neutral-100">
+                    <div className="flex items-center gap-1">
+                      <StarIcon className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                      <span className="text-sm font-bold text-neutral-900">
+                        4.5
+                      </span>
+                      <span className="text-sm text-neutral-500">(12)</span>
+                    </div>
+                    <div className="text-sm text-neutral-600">
+                      <span className="font-bold text-neutral-900">
+                        {supplier.productCount}
+                      </span>{" "}
+                      products
+                    </div>
+                  </div>
                 </div>
-                <p className="text-neutral-600 font-medium">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

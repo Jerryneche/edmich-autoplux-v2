@@ -1,4 +1,3 @@
-// app/checkout/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,14 +16,18 @@ import {
   UserIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
+  ClipboardDocumentIcon,
+  BanknotesIcon,
+  BuildingLibraryIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, total, clearCart } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showBankDetails, setShowBankDetails] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -36,8 +39,15 @@ export default function CheckoutPage() {
     state: "",
     zipCode: "",
     deliveryNotes: "",
-    paymentMethod: "card",
+    paymentMethod: "bank_transfer",
   });
+
+  // Bank details
+  const bankDetails = {
+    bankName: "Access Bank",
+    accountNumber: "0084142864",
+    accountName: "Chinecherem Michael Edeh",
+  };
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -86,21 +96,36 @@ export default function CheckoutPage() {
     return `${prefix}-${timestamp}-${random}`;
   };
 
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard!`);
+  };
+
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
+    // Show bank details modal for bank transfer
+    if (formData.paymentMethod === "bank_transfer") {
+      setShowBankDetails(true);
+      return;
+    }
+
+    // Process other payment methods
+    await processOrder();
+  };
+
+  const processOrder = async () => {
     try {
       setIsProcessing(true);
 
       const shipping = 2500;
-      const tax = Math.round(totalPrice * 0.075);
-      const grandTotal = totalPrice + shipping + tax;
-
-      const trackingId = generateTrackingId(); // ← TRACKING ID
+      const tax = Math.round(total * 0.075);
+      const grandTotal = total + shipping + tax;
+      const trackingId = generateTrackingId();
 
       const payload = {
         items: items.map((item) => ({
-          productId: Number(item.id),
+          productId: item.id,
           quantity: item.quantity,
           price: item.price,
         })),
@@ -115,11 +140,9 @@ export default function CheckoutPage() {
           zipCode: formData.zipCode,
         },
         deliveryNotes: formData.deliveryNotes,
-        paymentMethod: formData.paymentMethod,
-        trackingId, // ← SEND TRACKING ID
+        paymentMethod: formData.paymentMethod.toUpperCase().replace("_", " "),
+        trackingId,
       };
-
-      console.log("Placing order:", payload);
 
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -127,7 +150,16 @@ export default function CheckoutPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Invalid JSON:", text);
+        toast.error("Server error");
+        return;
+      }
 
       if (!response.ok) {
         toast.error(data.error || "Failed to place order");
@@ -137,21 +169,20 @@ export default function CheckoutPage() {
       clearCart();
       toast.success("Order placed successfully!");
 
-      // ← REDIRECT TO SUCCESS + RECEIPT + TRACKING ID
       router.push(
-        `/checkout/success?orderId=${data.orderId}&trackingId=${trackingId}&total=${grandTotal}`
+        `/checkout/success?orderId=${data.orderId}&trackingId=${data.trackingId}&total=${grandTotal}`
       );
-    } catch (error: any) {
-      console.error("Checkout error:", error);
-      toast.error("Network error. Please try again.");
+    } catch (error) {
+      console.error("Network error:", error);
+      toast.error("Network error");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const shipping = 2500;
-  const tax = Math.round(totalPrice * 0.075);
-  const grandTotal = totalPrice + shipping + tax;
+  const tax = Math.round(total * 0.075);
+  const grandTotal = total + shipping + tax;
 
   if (status === "loading" || items.length === 0) {
     return (
@@ -346,38 +377,72 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {["card", "bank_transfer", "cash_on_delivery"].map(
-                    (method) => (
-                      <label
-                        key={method}
-                        className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-500 transition-colors"
-                      >
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value={method}
-                          checked={formData.paymentMethod === method}
-                          onChange={handleInputChange}
-                          className="w-5 h-5 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <p className="font-semibold text-neutral-900">
-                            {method === "card" && "Card Payment"}
-                            {method === "bank_transfer" && "Bank Transfer"}
-                            {method === "cash_on_delivery" &&
-                              "Cash on Delivery"}
-                          </p>
-                          <p className="text-sm text-neutral-600">
-                            {method === "card" && "Pay securely with your card"}
-                            {method === "bank_transfer" &&
-                              "Transfer to our bank account"}
-                            {method === "cash_on_delivery" &&
-                              "Pay when you receive your order"}
-                          </p>
-                        </div>
-                      </label>
-                    )
-                  )}
+                  <label className="flex items-start gap-4 p-4 border-2 border-blue-500 bg-blue-50 rounded-xl cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="bank_transfer"
+                      checked={formData.paymentMethod === "bank_transfer"}
+                      onChange={handleInputChange}
+                      className="w-5 h-5 text-blue-600 mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <BuildingLibraryIcon className="h-5 w-5 text-blue-600" />
+                        <p className="font-bold text-neutral-900">
+                          Bank Transfer (Recommended)
+                        </p>
+                      </div>
+                      <p className="text-sm text-neutral-600 mb-2">
+                        Transfer directly to our bank account
+                      </p>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
+                        <BanknotesIcon className="h-4 w-4 text-green-600" />
+                        <span className="text-xs font-semibold text-green-700">
+                          Instant confirmation • Secure • No fees
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-300 transition-colors opacity-60">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="card"
+                      checked={formData.paymentMethod === "card"}
+                      onChange={handleInputChange}
+                      className="w-5 h-5 text-blue-600"
+                      disabled
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-neutral-900">
+                        Card Payment
+                      </p>
+                      <p className="text-sm text-neutral-600">
+                        Coming soon - Online payment gateway
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-300 transition-colors">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cash_on_delivery"
+                      checked={formData.paymentMethod === "cash_on_delivery"}
+                      onChange={handleInputChange}
+                      className="w-5 h-5 text-blue-600"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-neutral-900">
+                        Cash on Delivery
+                      </p>
+                      <p className="text-sm text-neutral-600">
+                        Pay when you receive your order
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
             </div>
@@ -425,7 +490,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-neutral-700">
                     <span>Subtotal</span>
                     <span className="font-semibold">
-                      ₦{totalPrice.toLocaleString()}
+                      ₦{total.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-700">
@@ -463,7 +528,9 @@ export default function CheckoutPage() {
                   ) : (
                     <>
                       <CheckCircleIcon className="h-6 w-6" />
-                      Place Order
+                      {formData.paymentMethod === "bank_transfer"
+                        ? "Continue to Payment"
+                        : "Place Order"}
                     </>
                   )}
                 </button>
@@ -476,6 +543,127 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {/* Bank Details Modal */}
+      {showBankDetails && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <BuildingLibraryIcon className="h-8 w-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+                Complete Your Payment
+              </h2>
+              <p className="text-neutral-600">
+                Transfer ₦{grandTotal.toLocaleString()} to the account below
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-200 mb-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">
+                    Bank Name
+                  </label>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-lg font-bold text-neutral-900">
+                      {bankDetails.bankName}
+                    </p>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(bankDetails.bankName, "Bank name")
+                      }
+                      className="p-2 hover:bg-white rounded-lg transition-colors"
+                    >
+                      <ClipboardDocumentIcon className="h-5 w-5 text-blue-600" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">
+                    Account Number
+                  </label>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-2xl font-bold text-blue-600 tracking-wider">
+                      {bankDetails.accountNumber}
+                    </p>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(
+                          bankDetails.accountNumber,
+                          "Account number"
+                        )
+                      }
+                      className="p-2 hover:bg-white rounded-lg transition-colors"
+                    >
+                      <ClipboardDocumentIcon className="h-5 w-5 text-blue-600" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">
+                    Account Name
+                  </label>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-lg font-bold text-neutral-900">
+                      {bankDetails.accountName}
+                    </p>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(bankDetails.accountName, "Account name")
+                      }
+                      className="p-2 hover:bg-white rounded-lg transition-colors"
+                    >
+                      <ClipboardDocumentIcon className="h-5 w-5 text-blue-600" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mb-6">
+              <p className="text-sm text-yellow-800 font-medium">
+                ⚠️ Please use your order reference when making the transfer
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={processOrder}
+                disabled={isProcessing}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    Confirming Order...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircleIcon className="h-6 w-6" />
+                    I've Made the Transfer
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowBankDetails(false)}
+                className="w-full px-6 py-3 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-center text-neutral-600 mt-4">
+              Your order will be confirmed once payment is received (usually
+              within 5-10 minutes)
+            </p>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
@@ -8,85 +8,138 @@ import {
   TruckIcon,
   MapPinIcon,
   CheckCircleIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
 
+const VEHICLE_TYPES = [
+  "Motorcycle/Bike",
+  "Van",
+  "Pickup Truck",
+  "Truck",
+  "Mini Truck",
+  "Container Truck",
+];
+
+const NIGERIAN_STATES = [
+  "Abia",
+  "Adamawa",
+  "Akwa Ibom",
+  "Anambra",
+  "Bauchi",
+  "Bayelsa",
+  "Benue",
+  "Borno",
+  "Cross River",
+  "Delta",
+  "Ebonyi",
+  "Edo",
+  "Ekiti",
+  "Enugu",
+  "FCT",
+  "Gombe",
+  "Imo",
+  "Jigawa",
+  "Kaduna",
+  "Kano",
+  "Katsina",
+  "Kebbi",
+  "Kogi",
+  "Kwara",
+  "Lagos",
+  "Nasarawa",
+  "Niger",
+  "Ogun",
+  "Ondo",
+  "Osun",
+  "Oyo",
+  "Plateau",
+  "Rivers",
+  "Sokoto",
+  "Taraba",
+  "Yobe",
+  "Zamfara",
+];
+
 export default function LogisticsOnboarding() {
-  const { data: session } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [vehicleTypes, setVehicleTypes] = useState<string[]>([]);
-  const [coverageAreas, setCoverageAreas] = useState<string[]>([]);
+  const [checkingProfile, setCheckingProfile] = useState(true);
   const [formData, setFormData] = useState({
     companyName: "",
+    vehicleType: "",
+    vehicleNumber: "",
+    licenseNumber: "",
+    address: "",
+    city: "",
+    state: "",
+    phone: "",
+    description: "",
   });
+  const [vehicleTypes, setVehicleTypes] = useState<string[]>([]);
+  const [coverageAreas, setCoverageAreas] = useState<string[]>([]);
 
-  const availableVehicles = [
-    "Motorcycle/Bike",
-    "Van",
-    "Pickup Truck",
-    "Truck",
-    "Mini Truck",
-  ];
+  // Check if user already has a profile
+  useEffect(() => {
+    if (status === "loading") return;
 
-  const nigerianStates = [
-    "Abia",
-    "Adamawa",
-    "Akwa Ibom",
-    "Anambra",
-    "Bauchi",
-    "Bayelsa",
-    "Benue",
-    "Borno",
-    "Cross River",
-    "Delta",
-    "Ebonyi",
-    "Edo",
-    "Ekiti",
-    "Enugu",
-    "FCT",
-    "Gombe",
-    "Imo",
-    "Jigawa",
-    "Kaduna",
-    "Kano",
-    "Katsina",
-    "Kebbi",
-    "Kogi",
-    "Kwara",
-    "Lagos",
-    "Nasarawa",
-    "Niger",
-    "Ogun",
-    "Ondo",
-    "Osun",
-    "Oyo",
-    "Plateau",
-    "Rivers",
-    "Sokoto",
-    "Taraba",
-    "Yobe",
-    "Zamfara",
-  ];
+    if (!session) {
+      router.push("/login");
+      return;
+    }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (session.user.role !== "LOGISTICS") {
+      router.push("/dashboard");
+      return;
+    }
+
+    checkExistingProfile();
+  }, [session, status, router]);
+
+  const checkExistingProfile = async () => {
+    try {
+      const response = await fetch("/api/onboarding/logistics");
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // If profile exists, redirect to dashboard
+        if (data.hasProfile && data.logisticsProfile) {
+          toast.success("Welcome back!");
+          router.push("/dashboard/logistics");
+          return;
+        }
+      }
+
+      // No profile found, allow onboarding
+      setCheckingProfile(false);
+    } catch (error) {
+      console.error("Profile check error:", error);
+      setCheckingProfile(false);
+    }
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const toggleVehicleType = (vehicle: string) => {
-    if (vehicleTypes.includes(vehicle)) {
-      setVehicleTypes(vehicleTypes.filter((v) => v !== vehicle));
-    } else {
-      setVehicleTypes([...vehicleTypes, vehicle]);
-    }
+    setVehicleTypes((prev) =>
+      prev.includes(vehicle)
+        ? prev.filter((v) => v !== vehicle)
+        : [...prev, vehicle]
+    );
   };
 
   const toggleCoverageArea = (state: string) => {
-    if (coverageAreas.includes(state)) {
-      setCoverageAreas(coverageAreas.filter((s) => s !== state));
-    } else {
-      setCoverageAreas([...coverageAreas, state]);
-    }
+    setCoverageAreas((prev) =>
+      prev.includes(state) ? prev.filter((s) => s !== state) : [...prev, state]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,17 +155,41 @@ export default function LogisticsOnboarding() {
       return;
     }
 
+    if (
+      !formData.companyName ||
+      !formData.vehicleType ||
+      !formData.vehicleNumber ||
+      !formData.licenseNumber ||
+      !formData.address ||
+      !formData.city ||
+      !formData.state ||
+      !formData.phone
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      const profileData = {
+        companyName: formData.companyName.trim(),
+        vehicleType: formData.vehicleType.trim(),
+        vehicleNumber: formData.vehicleNumber.trim(),
+        licenseNumber: formData.licenseNumber.trim(),
+        address: formData.address.trim(),
+        city: formData.city.trim(),
+        state: formData.state,
+        phone: formData.phone.trim(),
+        description: formData.description.trim() || null,
+        vehicleTypes: vehicleTypes,
+        coverageAreas: coverageAreas,
+      };
+
       const response = await fetch("/api/onboarding/logistics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          vehicleTypes,
-          coverageAreas,
-        }),
+        body: JSON.stringify(profileData),
       });
 
       const data = await response.json();
@@ -121,21 +198,38 @@ export default function LogisticsOnboarding() {
         throw new Error(data.error || "Failed to complete onboarding");
       }
 
-      // Force session refresh to reflect DB update
-      await fetch("/api/auth/session", { method: "GET" });
+      toast.success("Profile created successfully! Redirecting...");
 
-      toast.success("Profile created successfully!");
+      // 🔥 CRITICAL FIX: Update the session to reflect the new profile
+      await update();
 
+      // Small delay to ensure session update completes
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Force navigation with replace to prevent back button issues
+      router.replace("/dashboard/logistics");
+
+      // Force a hard refresh if soft navigation doesn't work
       setTimeout(() => {
-        router.push("/dashboard/logistics");
-        router.refresh();
-      }, 1200);
+        window.location.href = "/dashboard/logistics";
+      }, 1000);
     } catch (error: any) {
       toast.error(error.message || "Something went wrong");
-    } finally {
       setIsLoading(false);
     }
+    // Note: Don't set isLoading to false on success - let the redirect happen
   };
+
+  if (status === "loading" || checkingProfile) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-neutral-600">Loading...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
@@ -158,7 +252,7 @@ export default function LogisticsOnboarding() {
             </span>
           </h1>
           <p className="text-xl text-neutral-600">
-            Complete your profile to start accepting delivery requests on EDMICH
+            Join our network of trusted delivery partners
           </p>
         </div>
 
@@ -172,33 +266,109 @@ export default function LogisticsOnboarding() {
               <TruckIcon className="h-6 w-6 text-green-600" />
               Company Information
             </h3>
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                Company Name *
-              </label>
-              <input
-                type="text"
-                name="companyName"
-                value={formData.companyName}
-                onChange={handleChange}
-                placeholder="e.g., Fast Logistics Nigeria"
-                className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
-                required
-              />
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  name="companyName"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  placeholder="e.g., Fast Logistics Nigeria"
+                  className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  placeholder="Tell us about your logistics services..."
+                  rows={4}
+                  className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all resize-none"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Vehicle Types */}
+          {/* Vehicle Details */}
           <div>
             <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-              <TruckIcon className="h-6 w-6 text-blue-600" />
-              Vehicle Types *
+              <DocumentTextIcon className="h-6 w-6 text-blue-600" />
+              Primary Vehicle Details
             </h3>
-            <p className="text-sm text-neutral-600 mb-4">
-              Select all vehicle types you have available
+            <div className="space-y-5">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Vehicle Type *
+                  </label>
+                  <select
+                    name="vehicleType"
+                    value={formData.vehicleType}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                    required
+                  >
+                    <option value="">Select Vehicle Type</option>
+                    {VEHICLE_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Vehicle Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="vehicleNumber"
+                    value={formData.vehicleNumber}
+                    onChange={handleChange}
+                    placeholder="e.g., ABC-123-XY"
+                    className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Driver's License Number *
+                </label>
+                <input
+                  type="text"
+                  name="licenseNumber"
+                  value={formData.licenseNumber}
+                  onChange={handleChange}
+                  placeholder="e.g., LAG12345678"
+                  className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* All Vehicle Types */}
+          <div>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4">
+              Available Vehicle Types *
+            </h3>
+            <p className="text-sm text-neutral-600 mb-3">
+              Select all vehicle types you have
             </p>
             <div className="grid md:grid-cols-2 gap-3">
-              {availableVehicles.map((vehicle) => (
+              {VEHICLE_TYPES.map((vehicle) => (
                 <button
                   key={vehicle}
                   type="button"
@@ -227,31 +397,103 @@ export default function LogisticsOnboarding() {
             )}
           </div>
 
-          {/* Coverage Areas */}
+          {/* Location */}
           <div>
             <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
               <MapPinIcon className="h-6 w-6 text-purple-600" />
+              Location
+            </h3>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Office/Garage Address *
+                </label>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="e.g., 456 Transport Avenue, Ikeja"
+                  className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    placeholder="e.g., Lagos"
+                    className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    State *
+                  </label>
+                  <select
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                    required
+                  >
+                    <option value="">Select State</option>
+                    {NIGERIAN_STATES.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="+234 800 000 0000"
+                  className="w-full px-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl focus:border-green-500 focus:bg-white focus:outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Coverage Areas */}
+          <div>
+            <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
+              <MapPinIcon className="h-6 w-6 text-orange-600" />
               Coverage Areas *
             </h3>
             <p className="text-sm text-neutral-600 mb-4">
               Select all states where you provide delivery services
             </p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-96 overflow-y-auto p-4 bg-neutral-50 rounded-xl border-2 border-neutral-200">
-              {nigerianStates.map((state) => (
+              {NIGERIAN_STATES.map((state) => (
                 <button
                   key={state}
                   type="button"
                   onClick={() => toggleCoverageArea(state)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     coverageAreas.includes(state)
-                      ? "bg-green-600 text-white"
+                      ? "bg-green-600 text-white shadow-lg"
                       : "bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200"
                   }`}
                 >
                   {state}
-                  {coverageAreas.includes(state) && (
-                    <CheckCircleIcon className="h-4 w-4 inline ml-1" />
-                  )}
                 </button>
               ))}
             </div>
@@ -266,7 +508,7 @@ export default function LogisticsOnboarding() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-xl font-bold hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-xl font-bold hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100"
           >
             {isLoading ? (
               <>

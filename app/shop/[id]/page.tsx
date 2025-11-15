@@ -1,275 +1,225 @@
+// app/shop/[id]/page.tsx — ELITE EDITION
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
+import { prisma } from "@/lib/prisma";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import AddToCartButton from "@/app/components/AddToCartButton";
 import {
-  ArrowLeftIcon,
-  StarIcon,
-  TruckIcon,
-  ShieldCheckIcon,
+  Star,
   Package,
+  MapPin,
+  Building2,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
-import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 
-const PLACEHOLDER_PRODUCTS = [
-  {
-    id: "1",
-    name: "Premium Brake Pads Set",
-    description: "High-quality brake pads for optimal stopping power",
-    price: 15000,
-    category: "Brakes",
-    image:
-      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=300&fit=crop",
-    stock: 25,
-    supplierId: "supplier-1",
-    supplier: "AutoParts Nigeria",
-  },
-  {
-    id: "2",
-    name: "Engine Oil Filter",
-    description: "Premium oil filter for engine protection",
-    price: 8500,
-    category: "Filters",
-    image:
-      "https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=400&h=300&fit=crop",
-    stock: 40,
-    supplierId: "supplier-2",
-    supplier: "Quality Motors Ltd",
-  },
-  {
-    id: "3",
-    name: "Air Filter Assembly",
-    description: "High-flow air filter for better engine performance",
-    price: 12000,
-    category: "Filters",
-    image:
-      "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&h=300&fit=crop",
-    stock: 30,
-    supplierId: "supplier-3",
-    supplier: "Parts Express",
-  },
-  {
-    id: "4",
-    name: "Spark Plugs (Set of 4)",
-    description: "OEM quality spark plugs for smooth ignition",
-    price: 18000,
-    category: "Engine",
-    image:
-      "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&h=300&fit=crop",
-    stock: 50,
-    supplierId: "supplier-1",
-    supplier: "AutoParts Nigeria",
-  },
-  {
-    id: "5",
-    name: "LED Headlight Assembly",
-    description: "Bright LED headlights for better visibility",
-    price: 45000,
-    category: "Lighting",
-    image:
-      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&h=300&fit=crop",
-    stock: 0,
-    supplierId: "supplier-4",
-    supplier: "Lightning Auto Parts",
-  },
-  {
-    id: "6",
-    name: "Wiper Blades (Pair)",
-    description: "All-weather wiper blades for clear visibility",
-    price: 6500,
-    category: "Accessories",
-    image:
-      "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=400&h=300&fit=crop",
-    stock: 60,
-    supplierId: "supplier-5",
-    supplier: "ClearView Auto",
-  },
-  {
-    id: "7",
-    name: "Car Battery 12V 70Ah",
-    description: "Long-lasting maintenance-free battery",
-    price: 35000,
-    category: "Electrical",
-    image:
-      "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=400&h=300&fit=crop",
-    stock: 15,
-    supplierId: "supplier-6",
-    supplier: "Power Auto",
-  },
-  {
-    id: "8",
-    name: "Radiator Assembly",
-    description: "Efficient cooling radiator for your engine",
-    price: 28000,
-    category: "Cooling",
-    image:
-      "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400&h=300&fit=crop",
-    stock: 12,
-    supplierId: "supplier-7",
-    supplier: "Cool Parts Ltd",
-  },
-  {
-    id: "9",
-    name: "Shock Absorbers (Pair)",
-    description: "Heavy-duty shock absorbers for smooth ride",
-    price: 22000,
-    category: "Suspension",
-    image:
-      "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=400&h=300&fit=crop",
-    stock: 20,
-    supplierId: "supplier-8",
-    supplier: "Suspension Pro",
-  },
-];
+export const dynamic = "force-dynamic";
 
-async function getProduct(id: string) {
-  // FORCE USE PLACEHOLDER — IGNORE API FOR NOW
-  const product = PLACEHOLDER_PRODUCTS.find((p) => p.id === id);
-  if (!product) {
-    console.log("Product not found in placeholder:", id);
-    return null;
-  }
-  console.log("Found product:", product.name);
-  return product;
-}
-
-export default async function ProductDetailPage({
+export default async function ShopProductDetail({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params; // ← AWAIT THE PROMISE
-  const product = await getProduct(id);
+  const { id } = await params;
 
-  if (!product) {
-    notFound();
+  let product;
+  try {
+    product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        supplier: {
+          select: {
+            businessName: true,
+            businessAddress: true,
+            city: true,
+            state: true,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Database error:", error);
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-white via-neutral-50 to-white">
+        <Header />
+        <div className="pt-32 pb-16 max-w-7xl mx-auto px-6 text-center">
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-10 shadow-lg">
+            <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-red-800 mb-2">
+              Service Unavailable
+            </h1>
+            <p className="text-red-600 mb-6">
+              We're having trouble connecting. Please try again later.
+            </p>
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all"
+            >
+              Back to Shop
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </main>
+    );
   }
+
+  if (!product) notFound();
+
+  const inStock = product.stock > 0;
+  const lowStock = product.stock <= 10 && product.stock > 0;
+
   return (
-    <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
+    <main className="min-h-screen bg-gradient-to-b from-white via-neutral-50 to-white">
       <Header />
 
-      <div className="pt-24 pb-16">
-        <div className="max-w-7xl mx-auto px-6">
-          {/* Back Button */}
-          <Link
-            href="/shop" // ← Change this line
-            className="inline-flex items-center gap-2 text-neutral-600 hover:text-blue-600 mb-8 transition-colors"
-          >
-            <ArrowLeftIcon className="h-5 w-5" />
-            Back to Marketplace
-          </Link>
+      {/* Hero Section */}
+      <div className="pt-28 pb-16 max-w-7xl mx-auto px-6">
+        <Link
+          href="/shop"
+          className="inline-flex items-center gap-2 text-neutral-600 hover:text-blue-600 mb-10 font-medium transition-colors group"
+        >
+          <div className="w-5 h-5 border border-neutral-300 rounded-full flex items-center justify-center group-hover:border-blue-600 transition-colors">
+            <div className="w-2 h-2 bg-neutral-400 rounded-full group-hover:bg-blue-600 transition-colors"></div>
+          </div>
+          Back to Shop
+        </Link>
 
-          <div className="grid lg:grid-cols-2 gap-12">
-            {/* Product Images */}
-            <div className="space-y-4">
-              <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-neutral-100 to-neutral-200 shadow-xl">
-                {product.image ? (
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                    priority
-                  />
+        <div className="grid lg:grid-cols-2 gap-12 xl:gap-16">
+          {/* Image Gallery */}
+          <div className="space-y-4">
+            <div className="relative aspect-square bg-gradient-to-br from-neutral-50 to-neutral-100 rounded-3xl overflow-hidden shadow-2xl border border-neutral-200">
+              <Image
+                src={product.image || "/placeholder.png"}
+                alt={product.name}
+                fill
+                className="object-cover hover:scale-105 transition-transform duration-500"
+                priority
+              />
+              <div className="absolute top-4 left-4">
+                {inStock ? (
+                  <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-bold text-green-700 shadow-md">
+                    <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+                    {product.stock} in stock
+                  </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Package className="w-32 h-32 text-neutral-400" />
+                  <div className="bg-red-100 text-red-700 px-3 py-1.5 rounded-full text-sm font-bold shadow-md">
+                    Out of stock
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Product Info */}
-            <div className="space-y-6">
-              {/* Category Badge */}
-              <div className="inline-block px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">
-                {product.category}
-              </div>
+            {/* Mini thumbnails (future) */}
+            <div className="grid grid-cols-4 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="aspect-square bg-neutral-100 rounded-xl border-2 border-neutral-200 hover:border-blue-500 transition-colors cursor-pointer"
+                />
+              ))}
+            </div>
+          </div>
 
-              {/* Product Name */}
-              <h1 className="text-4xl font-bold text-neutral-900">
+          {/* Product Info */}
+          <div className="space-y-8">
+            {/* Title & Rating */}
+            <div>
+              <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-3">
                 {product.name}
               </h1>
-
-              {/* Rating */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <StarSolid
-                      key={star}
-                      className="h-5 w-5 fill-yellow-400 text-yellow-400"
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-5 w-5 ${
+                        i < 4
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "fill-neutral-200 text-neutral-200"
+                      }`}
                     />
                   ))}
                 </div>
-                <span className="text-neutral-600">4.8 (124 reviews)</span>
+                <span className="text-sm font-medium text-neutral-600">
+                  4.5 (124 reviews)
+                </span>
               </div>
+            </div>
 
-              {/* Price */}
-              <div className="py-6 border-y border-neutral-200">
-                <div className="flex items-baseline gap-3">
-                  <span className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    ₦{product.price.toLocaleString()}
+            {/* Price */}
+            <div className="py-6 border-y border-neutral-200">
+              <div className="flex items-baseline gap-3">
+                <span className="text-5xl lg:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  ₦{product.price.toLocaleString()}
+                </span>
+                {lowStock && (
+                  <span className="text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                    Low stock — order soon!
                   </span>
+                )}
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <h3 className="font-bold text-neutral-900 mb-2">Description</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                {product.description ||
+                  "Premium quality auto part designed for Nigerian roads. Built to last with superior materials and engineering."}
+              </p>
+            </div>
+
+            {/* Supplier Badge */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-5 border border-blue-200">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Building2 className="h-6 w-6 text-white" />
                 </div>
-                <p className="text-neutral-600 mt-2">
-                  {product.stock > 0 ? (
-                    <span className="text-green-600 font-medium">
-                      ✓ In Stock ({product.stock} available)
-                    </span>
-                  ) : (
-                    <span className="text-red-600 font-medium">
-                      Out of Stock
-                    </span>
-                  )}
-                </p>
-              </div>
-
-              {/* Description */}
-              <div>
-                <h2 className="text-xl font-bold text-neutral-900 mb-3">
-                  Product Description
-                </h2>
-                <p className="text-neutral-600 leading-relaxed">
-                  {product.description ||
-                    "High-quality auto part designed for optimal performance and durability."}
-                </p>
-              </div>
-
-              {/* Supplier */}
-              <div className="bg-neutral-50 rounded-xl p-4">
-                <p className="text-sm text-neutral-600">Sold by</p>
-                <p className="text-lg font-semibold text-neutral-900">
-                  {product.supplier}
-                </p>
-              </div>
-
-              {/* Add to Cart Button */}
-              <div className="space-y-4">
-                <AddToCartButton
-                  product={product}
-                  variant="default"
-
-                  // ← CHANGE FROM "primary"
-                />
-
-                {/* Trust Badges */}
-                <div className="grid grid-cols-3 gap-4 pt-4">
-                  <div className="flex flex-col items-center text-center">
-                    <TruckIcon className="h-8 w-8 text-blue-600 mb-2" />
-                    <p className="text-xs text-neutral-600">Fast Delivery</p>
-                  </div>
-                  <div className="flex flex-col items-center text-center">
-                    <ShieldCheckIcon className="h-8 w-8 text-green-600 mb-2" />
-                    <p className="text-xs text-neutral-600">Verified Quality</p>
-                  </div>
-                  <div className="flex flex-col items-center text-center">
-                    <StarIcon className="h-8 w-8 text-yellow-500 mb-2" />
-                    <p className="text-xs text-neutral-600">Top Rated</p>
-                  </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-neutral-600">
+                    Sold by
+                  </p>
+                  <p className="font-bold text-neutral-900">
+                    {product.supplier?.businessName || "AutoParts Ltd"}
+                  </p>
+                  <p className="text-sm text-neutral-600 flex items-center gap-1 mt-1">
+                    <MapPin className="h-4 w-4" />
+                    {product.supplier?.city}, {product.supplier?.state}
+                  </p>
                 </div>
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+
+            {/* Add to Cart */}
+            <div className="pt-4">
+              <AddToCartButton
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  price: product.price,
+                  image: product.image || "/placeholder.png",
+                  stock: product.stock,
+                }}
+              />
+            </div>
+
+            {/* Trust Badges */}
+            <div className="flex items-center justify-center gap-8 pt-8 border-t border-neutral-200">
+              <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                Genuine Product
+              </div>
+              <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                Fast Delivery
+              </div>
+              <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                Secure Payment
               </div>
             </div>
           </div>

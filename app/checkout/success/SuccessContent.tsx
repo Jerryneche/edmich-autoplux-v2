@@ -39,7 +39,7 @@ export default function SuccessContent() {
           </div>
           <div className="flex justify-between">
             <span className="text-neutral-600 flex items-center gap-2">
-              <TruckIcon className="h-4 w-4" /> Tracking ID
+              Truck Tracking ID
             </span>
             <span className="font-mono font-bold text-blue-600">
               {trackingId || "Generating..."}
@@ -51,12 +51,19 @@ export default function SuccessContent() {
               ₦{(total ? Number(total) : 0).toLocaleString()}
             </span>
           </div>
+
+          {/* VENDOR NAME */}
+          <div className="flex justify-between pt-4 border-t border-neutral-200">
+            <span className="text-neutral-600">Purchased From</span>
+            <span className="font-semibold text-purple-600">
+              AutoParts Nigeria
+            </span>
+          </div>
         </div>
 
         <div className="mt-8 p-4 bg-green-50 rounded-xl">
           <p className="text-sm text-green-800">
-            <MapPinIcon className="inline h-4 w-4" /> Your order is being
-            prepared and will be shipped soon.
+            Map Your order is being prepared and will be shipped soon.
           </p>
         </div>
 

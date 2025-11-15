@@ -1,6 +1,8 @@
+// app/business/logistics/page.tsx
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import Hero from "../../components/Hero";
+import { prisma } from "@/lib/prisma";
 import {
   TruckIcon,
   MapPinIcon,
@@ -10,10 +12,83 @@ import {
   CurrencyDollarIcon,
   ArrowRightIcon,
   PhoneIcon,
+  StarIcon,
+  CheckBadgeIcon,
+  CalendarDaysIcon,
 } from "@heroicons/react/24/outline";
+import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import Link from "next/link";
 
-export default function LogisticsPage() {
+export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+async function getFeaturedProviders() {
+  try {
+    const providers = await prisma.logisticsProfile.findMany({
+      where: {
+        approved: true,
+        available: true,
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        rating: "desc",
+      },
+      take: 6,
+    });
+
+    return providers;
+  } catch (error) {
+    console.error("Failed to fetch logistics providers:", error);
+    return [];
+  }
+}
+
+async function getStats() {
+  try {
+    const [totalProviders, verifiedProviders, totalDeliveries] =
+      await Promise.all([
+        prisma.logisticsProfile.count({ where: { approved: true } }),
+        prisma.logisticsProfile.count({
+          where: { approved: true, verified: true },
+        }),
+        prisma.logisticsBooking.count(),
+      ]);
+
+    const avgRating = await prisma.logisticsProfile.aggregate({
+      where: { approved: true },
+      _avg: { rating: true },
+    });
+
+    return {
+      totalProviders,
+      verifiedProviders,
+      totalDeliveries,
+      avgRating: avgRating._avg.rating || 0,
+    };
+  } catch (error) {
+    console.error("Failed to fetch stats:", error);
+    return {
+      totalProviders: 0,
+      verifiedProviders: 0,
+      totalDeliveries: 0,
+      avgRating: 0,
+    };
+  }
+}
+
+export default async function LogisticsPage() {
+  const [providers, stats] = await Promise.all([
+    getFeaturedProviders(),
+    getStats(),
+  ]);
+
   return (
     <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
       <Header />
@@ -24,11 +99,11 @@ export default function LogisticsPage() {
         subtitle="Arrange delivery and transport for parts anywhere in Nigeria."
         primaryCta={{
           label: "Request Delivery",
-          href: "/business/logistics/request",
+          href: "/business/services",
         }}
         secondaryCta={{
-          label: "Track Order",
-          href: "/business/logistics/track",
+          label: "View Providers",
+          href: "#providers",
         }}
       />
 
@@ -118,8 +193,190 @@ export default function LogisticsPage() {
         </div>
       </section>
 
+      {/* Featured Providers Section */}
+      {providers.length > 0 && (
+        <section
+          id="providers"
+          className="relative py-24 bg-gradient-to-b from-green-50/30 to-white"
+        >
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex items-center justify-between mb-12">
+              <div>
+                <h2 className="text-4xl font-bold text-neutral-900 mb-2">
+                  Featured{" "}
+                  <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    Logistics Providers
+                  </span>
+                </h2>
+                <p className="text-lg text-neutral-600">
+                  {providers.length} trusted delivery partners ready to help
+                </p>
+              </div>
+              <Link
+                href="/business/services"
+                className="hidden md:inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all"
+              >
+                View All
+                <ArrowRightIcon className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {providers.map((provider) => (
+                <div key={provider.id} className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
+
+                  <div className="relative bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden hover:border-green-300 hover:shadow-xl transition-all p-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-xl font-bold text-neutral-900">
+                            {provider.companyName}
+                          </h3>
+                          {provider.verified && (
+                            <CheckBadgeIcon className="h-5 w-5 text-green-600" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-neutral-600">
+                          <MapPinIcon className="h-4 w-4" />
+                          <span>
+                            {provider.city}, {provider.state}
+                          </span>
+                        </div>
+                      </div>
+                      {provider.available ? (
+                        <div className="px-2 py-1 bg-green-500 rounded-full flex items-center gap-1">
+                          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                          <span className="text-xs font-semibold text-white">
+                            Available
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="px-2 py-1 bg-neutral-500 rounded-full">
+                          <span className="text-xs font-semibold text-white">
+                            Busy
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rating */}
+                    <div className="flex items-center gap-1 mb-4">
+                      <StarSolid className="h-4 w-4 text-yellow-400" />
+                      <span className="text-sm font-bold text-neutral-900">
+                        {provider.rating.toFixed(1)}
+                      </span>
+                      <span className="text-sm text-neutral-500">
+                        ({provider.completedDeliveries} deliveries)
+                      </span>
+                    </div>
+
+                    {/* Vehicle Types */}
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-neutral-600 mb-2">
+                        Vehicle Types
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {provider.vehicleTypes
+                          .slice(0, 3)
+                          .map((type: string) => (
+                            <span
+                              key={type}
+                              className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium"
+                            >
+                              {type}
+                            </span>
+                          ))}
+                        {provider.vehicleTypes.length > 3 && (
+                          <span className="px-3 py-1 bg-neutral-100 text-neutral-600 rounded-lg text-xs font-medium">
+                            +{provider.vehicleTypes.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Coverage */}
+                    <div className="mb-4 pb-4 border-b border-neutral-100">
+                      <p className="text-xs font-semibold text-neutral-600 mb-1">
+                        Coverage Areas
+                      </p>
+                      <p className="text-sm text-neutral-700">
+                        {provider.coverageAreas.length} states covered
+                      </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/booking/logistics/${provider.id}`}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:shadow-lg transition-all text-sm"
+                      >
+                        <CalendarDaysIcon className="h-4 w-4" />
+                        Book Now
+                      </Link>
+                      <a
+                        href={`tel:${provider.phone}`}
+                        className="p-2.5 bg-neutral-100 rounded-xl hover:bg-neutral-200 transition-colors"
+                      >
+                        <PhoneIcon className="h-5 w-5 text-neutral-600" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Mobile View All Button */}
+            <div className="md:hidden mt-8 text-center">
+              <Link
+                href="/business/services"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold"
+              >
+                View All Providers
+                <ArrowRightIcon className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Stats Section */}
+      {providers.length > 0 && (
+        <section className="relative py-16 bg-gradient-to-br from-green-600 to-emerald-600">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid md:grid-cols-4 gap-8 text-center">
+              <div>
+                <p className="text-5xl font-bold text-white mb-2">
+                  {stats.totalProviders}+
+                </p>
+                <p className="text-white/90 text-lg">Logistics Partners</p>
+              </div>
+              <div>
+                <p className="text-5xl font-bold text-white mb-2">
+                  {stats.verifiedProviders}+
+                </p>
+                <p className="text-white/90 text-lg">Verified Providers</p>
+              </div>
+              <div>
+                <p className="text-5xl font-bold text-white mb-2">
+                  {stats.totalDeliveries}+
+                </p>
+                <p className="text-white/90 text-lg">Successful Deliveries</p>
+              </div>
+              <div>
+                <p className="text-5xl font-bold text-white mb-2">
+                  {stats.avgRating.toFixed(1)}★
+                </p>
+                <p className="text-white/90 text-lg">Average Rating</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features Grid */}
-      <section className="relative py-24 bg-gradient-to-b from-green-50/50 to-white">
+      <section className="relative py-24">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="text-4xl font-bold text-center text-neutral-900 mb-16">
             Why Choose Our{" "}
@@ -195,7 +452,7 @@ export default function LogisticsPage() {
       </section>
 
       {/* Pricing Section */}
-      <section className="relative py-24">
+      <section className="relative py-24 bg-gradient-to-b from-neutral-50 to-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-neutral-900 mb-4">
@@ -281,7 +538,7 @@ export default function LogisticsPage() {
                   </ul>
 
                   <Link
-                    href="/business/logistics/request"
+                    href="/business/services"
                     className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition-all ${
                       plan.popular
                         ? "bg-gradient-to-r from-green-600 to-green-700 text-white hover:shadow-lg"
@@ -322,17 +579,18 @@ export default function LogisticsPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/business/logistics/request"
+              href="/business/services"
               className="inline-flex items-center gap-2 px-8 py-4 bg-white text-green-700 rounded-xl font-bold hover:shadow-2xl hover:scale-105 transition-all"
             >
-              Request Delivery Now
-              <ArrowRightIcon className="h-5 w-5" />
+              <CalendarDaysIcon className="h-5 w-5" />
+              Book Delivery Now
             </Link>
             <Link
-              href="/business/logistics/track"
+              href="tel:+2349025579441"
               className="inline-flex items-center gap-2 px-8 py-4 bg-green-800/50 border-2 border-white/30 text-white rounded-xl font-bold hover:bg-green-800/70 transition-all"
             >
-              Track Existing Order
+              <PhoneIcon className="h-5 w-5" />
+              Call Us Now
             </Link>
           </div>
         </div>

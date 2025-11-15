@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding Edmich Autoplux — FULL PLATFORM DATA...");
 
-  // === 1. USERS (BUYERS, MECHANICS, LOGISTICS, SUPPLIERS) ===
+  // === 1. USERS ===
   const buyer1 = await prisma.user.upsert({
     where: { email: "buyer1@example.com" },
     update: {},
@@ -83,10 +83,9 @@ async function main() {
     },
   });
 
-  // === 3. PRODUCTS (50+ REALISTIC ITEMS) ===
+  // === 3. PRODUCTS ===
   const products = [
     {
-      id: "prod_wiper_001",
       name: "Wiper Blades (Pair)",
       price: 6500.0,
       stock: 120,
@@ -94,7 +93,6 @@ async function main() {
       image: "/wiper.jpg",
     },
     {
-      id: "prod_spark_001",
       name: "Spark Plugs (Set of 4)",
       price: 18000.0,
       stock: 80,
@@ -102,7 +100,6 @@ async function main() {
       image: "/spark.jpg",
     },
     {
-      id: "prod_oil_001",
       name: "5W-30 Synthetic Oil (4L)",
       price: 28500.0,
       stock: 200,
@@ -110,7 +107,6 @@ async function main() {
       image: "/oil.jpg",
     },
     {
-      id: "prod_brake_001",
       name: "Front Brake Pads (Toyota)",
       price: 15000.0,
       stock: 90,
@@ -118,7 +114,6 @@ async function main() {
       image: "/brake.jpg",
     },
     {
-      id: "prod_filter_001",
       name: "Air Filter (Honda Civic)",
       price: 8500.0,
       stock: 110,
@@ -126,7 +121,6 @@ async function main() {
       image: "/filter.jpg",
     },
     {
-      id: "prod_battery_001",
       name: "Car Battery 65Ah",
       price: 75000.0,
       stock: 40,
@@ -134,7 +128,6 @@ async function main() {
       image: "/battery.jpg",
     },
     {
-      id: "prod_tire_001",
       name: "Bridgestone Tire 195/65R15",
       price: 68000.0,
       stock: 60,
@@ -142,7 +135,6 @@ async function main() {
       image: "/tire.jpg",
     },
     {
-      id: "prod_bulb_001",
       name: "Headlight Bulb H4 (Pair)",
       price: 12000.0,
       stock: 150,
@@ -150,7 +142,6 @@ async function main() {
       image: "/bulb.jpg",
     },
     {
-      id: "prod_belt_001",
       name: "Timing Belt Kit",
       price: 42000.0,
       stock: 35,
@@ -158,44 +149,183 @@ async function main() {
       image: "/belt.jpg",
     },
     {
-      id: "prod_shock_001",
       name: "Shock Absorber (Rear)",
       price: 38000.0,
       stock: 70,
       category: "Suspension",
       image: "/shock.jpg",
     },
+    {
+      name: "Wiper Blades (Pair)",
+      price: 6500,
+      stock: 120,
+      category: "Accessories",
+      image: "/wiper.jpg",
+    },
+    {
+      name: "Spark Plugs (Set of 4)",
+      price: 18000,
+      stock: 80,
+      category: "Engine",
+      image: "/spark.jpg",
+    },
+    {
+      name: "5W-30 Synthetic Oil (4L)",
+      price: 28500,
+      stock: 200,
+      category: "Lubricants",
+      image: "/oil.jpg",
+    },
+    {
+      name: "Front Brake Pads (Toyota)",
+      price: 15000,
+      stock: 90,
+      category: "Brakes",
+      image: "/brake.jpg",
+    },
+    {
+      name: "Air Filter (Honda Civic)",
+      price: 8500,
+      stock: 110,
+      category: "Filters",
+      image: "/filter.jpg",
+    },
+    {
+      name: "Car Battery 65Ah",
+      price: 75000,
+      stock: 40,
+      category: "Electrical",
+      image: "/battery.jpg",
+    },
+    {
+      name: "Bridgestone Tire 195/65R15",
+      price: 68000,
+      stock: 60,
+      category: "Tires",
+      image: "/tire.jpg",
+    },
+    {
+      name: "Headlight Bulb H4 (Pair)",
+      price: 12000,
+      stock: 150,
+      category: "Lighting",
+      image: "/bulb.jpg",
+    },
+    {
+      name: "Timing Belt Kit",
+      price: 42000,
+      stock: 35,
+      category: "Engine",
+      image: "/belt.jpg",
+    },
+    {
+      name: "Shock Absorber (Rear)",
+      price: 38000,
+      stock: 70,
+      category: "Suspension",
+      image: "/shock.jpg",
+    },
+    // ... ADD 40 MORE (see below)
+    {
+      name: "Engine Oil Filter",
+      price: 4500,
+      stock: 180,
+      category: "Filters",
+      image: "/oilfilter.jpg",
+    },
+    {
+      name: "Fuel Pump (Toyota)",
+      price: 85000,
+      stock: 25,
+      category: "Engine",
+      image: "/fuelpump.jpg",
+    },
+    {
+      name: "Radiator Fan",
+      price: 55000,
+      stock: 45,
+      category: "Cooling",
+      image: "/fan.jpg",
+    },
+    {
+      name: "Alternator 90A",
+      price: 125000,
+      stock: 30,
+      category: "Electrical",
+      image: "/alternator.jpg",
+    },
+    {
+      name: "Clutch Kit (Manual)",
+      price: 95000,
+      stock: 20,
+      category: "Transmission",
+      image: "/clutch.jpg",
+    },
+    {
+      name: "Side Mirror (Powered)",
+      price: 22000,
+      stock: 65,
+      category: "Accessories",
+      image: "/mirror.jpg",
+    },
+    {
+      name: "AC Compressor",
+      price: 180000,
+      stock: 15,
+      category: "Cooling",
+      image: "/compressor.jpg",
+    },
+    {
+      name: "Brake Disc (Front)",
+      price: 28000,
+      stock: 55,
+      category: "Brakes",
+      image: "/disc.jpg",
+    },
+    {
+      name: "Fog Light LED",
+      price: 15000,
+      stock: 90,
+      category: "Lighting",
+      image: "/fog.jpg",
+    },
+    {
+      name: "Suspension Spring",
+      price: 32000,
+      stock: 60,
+      category: "Suspension",
+      image: "/spring.jpg",
+    },
   ];
 
   await prisma.product.createMany({
     data: products.map((p) => ({
-      ...p,
+      name: p.name,
+      price: p.price,
+      stock: p.stock,
+      category: p.category,
+      image: p.image,
       description: `Premium ${p.name.toLowerCase()} for Nigerian roads.`,
       supplierId: supplierProfile.id,
     })),
     skipDuplicates: true,
   });
 
-  // === 4. ORDERS (20 REALISTIC ORDERS) ===
+  // === 4. ORDERS (20) — FIXED: `i` in scope ===
   const orderItems = await prisma.product.findMany({ take: 10 });
+
   const orders = Array.from({ length: 20 }, (_, i) => ({
     id: `order_${String(i + 1).padStart(3, "0")}`,
     userId: i % 2 === 0 ? buyer1.id : buyer2.id,
     status: ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED"][
       Math.floor(Math.random() * 4)
     ],
-    total: 0, // ← CHANGED FROM totalAmount
     paymentMethod: "CARD",
-    shippingAddress: {
-      street: `${100 + i} Auto Street`,
-      city: "Lagos",
-      state: "Lagos",
-      zip: "100001",
-    },
     createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
   }));
 
-  for (const order of orders) {
+  for (let i = 0; i < orders.length; i++) {
+    const order = orders[i];
     const items = orderItems
       .slice(0, Math.floor(Math.random() * 3) + 1)
       .map((item) => ({
@@ -211,18 +341,32 @@ async function main() {
 
     await prisma.order.create({
       data: {
-        id: order.id,
         userId: order.userId,
         status: order.status,
-        total: total, // ← CHANGED FROM totalAmount
+        total,
         paymentMethod: order.paymentMethod,
-        shippingAddress: order.shippingAddress,
-        createdAt: order.createdAt,
+        trackingId: `EDM-${Math.random()
+          .toString(36)
+          .substr(2, 9)
+          .toUpperCase()}`,
+        deliveryNotes: "Handle with care",
+        shippingAddress: {
+          create: {
+            fullName: `Customer ${i + 1}`,
+            email: `cust${i + 1}@example.com`,
+            phone: `080${String(1000000 + i).padStart(7, "0")}`,
+            address: `${100 + i} Auto Street`,
+            city: "Lagos",
+            state: "Lagos",
+            zipCode: "100001",
+          },
+        },
         items: { create: items },
       },
     });
   }
-  // === 5. BOOKINGS (15 MECHANIC APPOINTMENTS) ===
+
+  // === 5. BOOKINGS (15) ===
   const bookingDates = [
     "2025-11-12T09:00:00Z",
     "2025-11-13T14:00:00Z",
@@ -253,7 +397,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // === 6. LOGISTICS REQUESTS (10 ACTIVE REQUESTS) ===
+  // === 6. LOGISTICS REQUESTS (10) ===
   const pickupLocations = ["Lagos", "Abuja", "Port Harcourt", "Kano", "Ibadan"];
   const dropoffLocations = ["Enugu", "Calabar", "Benin", "Owerri", "Jos"];
 
@@ -275,15 +419,10 @@ async function main() {
 
   console.log("EDMICH AUTOPLUX FULLY SEEDED!");
   console.log(
-    `Users: ${[buyer1, buyer2, mechanic, logistics, supplierUser]
-      .map((u) => u.email)
-      .join(", ")}`
+    `Users: 5 | Products: ${products.length} | Orders: 20 | Bookings: 15 | Logistics: 10`
   );
-  console.log(`Products: ${products.length} items`);
-  console.log(`Orders: 20 | Bookings: 15 | Logistics: 10`);
 }
 
-// === ESM: Run only when executed directly ===
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main()
     .catch((e) => {

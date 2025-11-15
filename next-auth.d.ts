@@ -1,4 +1,4 @@
-// types/next-auth.d.ts
+/// types/next-auth.d.ts
 import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT } from "next-auth/jwt";
 
@@ -10,6 +10,7 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       onboardingStatus: string;
+      hasSupplierProfile?: boolean; // 🔥 Added
     } & DefaultSession["user"];
   }
 
@@ -25,5 +26,6 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: UserRole;
     onboardingStatus?: string;
+    hasSupplierProfile?: boolean; // 🔥 Added
   }
 }
