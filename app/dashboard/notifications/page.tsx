@@ -269,7 +269,7 @@ export default function NotificationsPage() {
                         {notification.message}
                       </p>
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <p className="text-sm text-neutral-500">
                           {formatDistanceToNow(
                             new Date(notification.createdAt),
@@ -278,7 +278,7 @@ export default function NotificationsPage() {
                         </p>
 
                         {/* Actions */}
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           {notification.link && (
                             <Link
                               href={notification.link}

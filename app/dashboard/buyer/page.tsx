@@ -456,7 +456,7 @@ export default function BuyerDashboard() {
               </p>
               <div className="flex justify-center gap-4">
                 <Link
-                  href="/business/market"
+                  href="/shop"
                   className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:shadow-xl transition-all"
                 >
                   <ShoppingBagIcon className="h-5 w-5" />
