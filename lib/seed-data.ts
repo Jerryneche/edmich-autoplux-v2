@@ -1,6 +1,6 @@
 // lib/seed-data.ts
 import { prisma } from "@/lib/prisma";
-import { ProductCardData } from "@/app/types/product"; // ← ADD THIS
+import { ProductCardData } from "@/types/product"; // ← ADD THIS
 
 let cachedProducts: ProductCardData[] | null = null;
 
