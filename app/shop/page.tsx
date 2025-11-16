@@ -1,7 +1,7 @@
 // app/shop/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
@@ -53,7 +53,7 @@ interface Product {
   };
 }
 
-export default function ShopPage() {
+function ShopContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addItem, items } = useCart();
@@ -383,7 +383,7 @@ export default function ShopPage() {
           </div>
         ) : products.length === 0 ? (
           <div className="bg-white rounded-2xl border-2 border-neutral-200 p-12 text-center">
-            <div className="text-6xl mb-4">Search</div>
+            <div className="text-6xl mb-4">🔍</div>
             <p className="text-2xl font-bold text-neutral-900 mb-2">
               No products found
             </p>
@@ -416,7 +416,7 @@ export default function ShopPage() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <div className="text-6xl">Box</div>
+                              <div className="text-6xl">📦</div>
                             </div>
                           )}
                           <div className="absolute top-3 left-3">
@@ -432,7 +432,7 @@ export default function ShopPage() {
                           </div>
                           {product.supplier.verified && (
                             <div className="absolute top-3 right-3 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1">
-                              Verified
+                              ✓ Verified
                             </div>
                           )}
                         </div>
@@ -533,5 +533,25 @@ export default function ShopPage() {
 
       <Footer />
     </main>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-white">
+          <Header />
+          <div className="pt-32 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+              <p className="text-neutral-600">Loading products...</p>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <ShopContent />
+    </Suspense>
   );
 }
