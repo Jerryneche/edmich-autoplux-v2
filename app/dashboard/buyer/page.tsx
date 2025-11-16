@@ -364,7 +364,9 @@ export default function BuyerDashboard() {
                           {item.type === "ORDER" &&
                           (item as Order).items[0]?.product?.image ? (
                             <Image
-                              src={(item as Order).items[0].product.image}
+                              src={
+                                item.items[0].product.image || "/fallback.png"
+                              }
                               alt={(item as Order).items[0].product.name}
                               fill
                               className="object-cover"
