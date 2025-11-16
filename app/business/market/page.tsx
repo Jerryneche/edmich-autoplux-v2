@@ -1,7 +1,6 @@
 // app/business/market/page.tsx
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
-
 import ClientMarket from "./ClientMarket";
 import { prisma } from "@/lib/prisma";
 import {
@@ -168,24 +167,6 @@ export default async function MarketPage() {
               Browse thousands of verified spare parts from trusted suppliers
               across Nigeria. Quality guaranteed, delivered to your doorstep.
             </p>
-
-            {/* Search Bar */}
-            <div className="max-w-3xl mx-auto">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur-xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
-                <div className="relative bg-white rounded-2xl shadow-2xl border-2 border-neutral-200 hover:border-blue-300 transition-all">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-neutral-400" />
-                  <input
-                    type="text"
-                    placeholder="Search for brake pads, filters, engine parts..."
-                    className="w-full pl-16 pr-32 py-6 text-lg rounded-2xl focus:outline-none bg-transparent"
-                  />
-                  <button className="absolute right-2 top-1/2 -translate-y-1/2 px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all">
-                    Search
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Category Pills */}
@@ -210,50 +191,7 @@ export default async function MarketPage() {
         </div>
       </section>
 
-      {/* Filter Section */}
-      <section className="pb-8 sticky top-20 bg-white/80 backdrop-blur-lg border-b-2 border-neutral-200 shadow-lg z-30">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Filter Button */}
-            <button className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all">
-              <Filter className="h-5 w-5" />
-              Filters
-            </button>
-
-            {/* Category Filters */}
-            <div className="flex-1 flex flex-wrap items-center gap-3">
-              <button className="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium shadow-md">
-                All Parts
-              </button>
-              {categories.slice(0, 6).map((cat) => (
-                <button
-                  key={cat.name}
-                  className="px-5 py-3 bg-white border-2 border-neutral-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all font-medium"
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Sort & Count */}
-            <div className="flex items-center gap-4">
-              <span className="text-neutral-600 font-medium">
-                {productCount} Products
-              </span>
-              <select className="px-5 py-3 bg-white border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none font-medium cursor-pointer hover:border-blue-300 transition-all">
-                <option>Sort: Recommended</option>
-                <option>Price: Low to High</option>
-                <option>Price: High to Low</option>
-                <option>Newest First</option>
-                <option>Top Rated</option>
-                <option>Best Selling</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Products Grid */}
+      {/* Products Grid with Client-Side Filtering */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-6">
           {productCount > 0 ? (
