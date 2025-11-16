@@ -30,6 +30,7 @@ export default function AddToCartButton({ product }: { product: Product }) {
       name: product.name,
       price: product.price,
       image: product.image,
+      stock: product.stock,
     });
 
     toast.success("Added to cart!"); // ONLY HERE
