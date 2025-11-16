@@ -1,27 +1,92 @@
+// Product type matching your Prisma schema app/types/product.ts
+export interface Product {
+  id: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  category: string;
+  image?: string | null;
+  stock: number;
+  supplierId: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+
+  // Relations (optional - for when you include them)
+  supplier?: {
+    id: string;
+    businessName?: string | null;
+    user?: {
+      name?: string | null;
+    };
+  };
+  reviews?: Review[];
+  orderItems?: OrderItem[];
+}
+
+// Simplified Product for cards/lists
+
 // app/types/product.ts
-export type Product = {
+export type ProductCardData = {
   id: string;
   name: string;
   description: string;
   price: number;
-  images: string[];
-  category: string;
-  inStock: boolean;
+  image?: string;
+  stock: number;
+  supplier?: string;
   supplierId: string;
+  category: string; // REQUIRED
   rating?: number;
-  reviewsCount?: number;
-  brand?: string;
-  partNumber?: string;
-  compatibility?: string[];
-  warranty?: string;
-  createdAt: string;
-  updatedAt: string;
 };
 
-export type CartItem = {
-  product: Product;
+// Review type
+export interface Review {
+  id: string;
+  rating: number;
+  comment?: string | null;
+  userId: string;
+  productId: string;
+  createdAt: Date;
+}
+
+// Order Item type
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  productId: string;
   quantity: number;
-};
+  price: number;
+}
+
+export interface MarketProduct {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  brand: string | null;
+  image: string;
+  images: string[];
+  stock: number;
+  supplier: string;
+  supplierVerified: boolean;
+  supplierLocation: string;
+  rating: number;
+  reviews: number;
+}
+
+// Cart Item type (re-exported from CartContext for convenience)
+export interface CartItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  image?: string;
+  quantity: number;
+  stock: number;
+  supplierId: string;
+}
 
 export type AddToCartPayload = {
   productId: string;

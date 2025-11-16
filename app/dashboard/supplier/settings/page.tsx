@@ -35,7 +35,7 @@ export default function SupplierSettings() {
             <input
               type="text"
               placeholder="Business Name"
-              defaultValue={session.user.name}
+              defaultValue={session.user.name || ""}
               className="w-full mb-3 px-4 py-2 border-2 border-neutral-200 rounded-xl"
             />
             <input

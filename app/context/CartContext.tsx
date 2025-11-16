@@ -9,6 +9,7 @@ interface CartItem {
   price: number;
   image: string;
   quantity: number;
+  stock: number; // Add stock property
 }
 
 interface CartContextType {
@@ -18,13 +19,19 @@ interface CartContextType {
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   total: number;
+  totalPrice: number; // Alias for total
   itemCount: number;
+  totalItems: number; // Alias for itemCount
+  isOpen: boolean; // Add cart open state
+  openCart: () => void; // Add open function
+  closeCart: () => void; // Add close function
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
 
   const addItem = (item: Omit<CartItem, "quantity">) => {
     setItems((prev) => {
@@ -52,6 +59,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => setItems([]);
 
+  const openCart = () => setIsOpen(true);
+  const closeCart = () => setIsOpen(false);
+
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -67,7 +77,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         updateQuantity,
         clearCart,
         total,
+        totalPrice: total, // Alias
         itemCount,
+        totalItems: itemCount, // Alias
+        isOpen,
+        openCart,
+        closeCart,
       }}
     >
       {children}

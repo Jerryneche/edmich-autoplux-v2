@@ -3,18 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Star, Package } from "lucide-react";
 import AddToCartButton from "./AddToCartButton";
+import type { MarketProduct } from "@/types/product"; // ← Fixed import path
 
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image: string | null;
-  stock: number;
-  supplier: { businessName: string } | null;
-}
-
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({ product }: { product: MarketProduct }) {
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-neutral-200 hover:border-blue-400 hover:shadow-2xl transition-all duration-300">
       {/* Image + Link */}
@@ -60,7 +51,7 @@ export default function ProductCard({ product }: { product: Product }) {
         <p className="text-xs text-neutral-500">
           By:{" "}
           <span className="font-medium text-neutral-700">
-            {product.supplier?.businessName || "AutoParts Ltd"}
+            {product.supplier}
           </span>
         </p>
 
@@ -73,7 +64,7 @@ export default function ProductCard({ product }: { product: Product }) {
               id: product.id,
               name: product.name,
               price: product.price,
-              image: product.image || "/placeholder.png",
+              image: product.image || "/placeholder.jpg",
               stock: product.stock,
             }}
           />

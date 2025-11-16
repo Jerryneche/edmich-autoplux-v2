@@ -14,7 +14,7 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ open, onClose }: CartDrawerProps) {
-  const { items, total, clearCart, removeFromCart } = useCart();
+  const { items, total, clearCart, removeItem } = useCart();
 
   if (!open) return null;
 
@@ -108,7 +108,7 @@ export default function CartDrawer({ open, onClose }: CartDrawerProps) {
 
                   {/* Remove */}
                   <button
-                    onClick={() => removeFromCart(item.id)}
+                    onClick={() => removeItem(item.id)}
                     className="self-start p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />

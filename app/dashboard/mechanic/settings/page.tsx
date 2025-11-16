@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { useState } from "react";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function MechanicSettings() {
   const { data: session, status } = useSession();
@@ -21,7 +21,7 @@ export default function MechanicSettings() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-neutral-50">
-      <toast.Toaster />
+      <Toaster />
       <Header />
       <div className="pt-32 pb-20 max-w-3xl mx-auto px-6">
         <h1 className="text-4xl font-bold text-neutral-900 mb-2">
@@ -40,7 +40,7 @@ export default function MechanicSettings() {
               <input
                 type="text"
                 placeholder="Company Name"
-                defaultValue={session.user.name}
+                defaultValue={session.user.name || ""}
                 className="w-full px-4 py-2 border-2 border-neutral-200 rounded-xl"
               />
               <input

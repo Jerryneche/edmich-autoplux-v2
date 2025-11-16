@@ -42,7 +42,14 @@ export const authOptions: NextAuthOptions = {
 
         if (!isPasswordValid) throw new Error("Invalid credentials");
 
-        return user;
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+          role: user.role,
+          onboardingStatus: user.onboardingStatus,
+        };
       },
     }),
   ],
