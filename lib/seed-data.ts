@@ -18,6 +18,7 @@ export async function getSeedProducts(): Promise<ProductCardData[]> {
       stock: true,
       supplier: {
         select: {
+          id: true,
           businessName: true,
         },
       },
