@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import {
@@ -15,16 +15,12 @@ import {
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
 
-interface LogisticsBookingPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function LogisticsBookingPage({
-  params,
-}: LogisticsBookingPageProps) {
+export default function LogisticsBookingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [providerId, setProviderId] = useState<string>("");
+  const params = useParams();
+  const providerId = params.id as string;
+
   const [provider, setProvider] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,13 +36,6 @@ export default function LogisticsBookingPage({
     recipientPhone: "",
     specialInstructions: "",
   });
-
-  // Unwrap params
-  useEffect(() => {
-    params.then((resolvedParams) => {
-      setProviderId(resolvedParams.id);
-    });
-  }, [params]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -105,10 +94,10 @@ export default function LogisticsBookingPage({
       packageDescription: formData.dimensions || "No description provided",
       weight: parseFloat(formData.weight) || 0,
       pickupAddress: formData.pickupLocation,
-      pickupCity: "Lagos", // You can improve with location parsing later
+      pickupCity: "Lagos",
       deliveryAddress: formData.deliveryLocation,
       deliveryCity: "Lagos",
-      phone: formData.recipientPhone, // Sender's phone (you can add separate field later)
+      phone: session?.user?.email || formData.recipientPhone,
       recipientName: formData.recipientName,
       recipientPhone: formData.recipientPhone,
       specialInstructions: formData.specialInstructions || null,
@@ -124,7 +113,10 @@ export default function LogisticsBookingPage({
 
       if (response.ok) {
         toast.success("Booking submitted successfully!");
-        setTimeout(() => router.push("/dashboard"), 2000);
+        setTimeout(
+          () => router.push("/dashboard/buyer/bookings?type=logistics"),
+          2000
+        );
       } else {
         const error = await response.json();
         toast.error(error.error || "Failed to submit booking");
@@ -224,7 +216,7 @@ export default function LogisticsBookingPage({
                             Suspension system
                           </option>
                           <option value="Car Body Parts">Car body Parts</option>
-                          <option value="Accesories">Accessories</option>
+                          <option value="Accessories">Accessories</option>
                           <option value="Other">Other</option>
                         </select>
                       </div>
@@ -436,7 +428,7 @@ export default function LogisticsBookingPage({
                   <div>
                     <p className="text-sm text-gray-500">Vehicle Types</p>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {provider.vehicleTypes.map(
+                      {provider.vehicleTypes?.map(
                         (type: string, idx: number) => (
                           <span
                             key={idx}
@@ -452,7 +444,7 @@ export default function LogisticsBookingPage({
                   <div>
                     <p className="text-sm text-gray-500">Coverage Areas</p>
                     <p className="text-gray-900">
-                      {provider.coverageAreas.length} locations
+                      {provider.coverageAreas?.length || 0} locations
                     </p>
                   </div>
 
@@ -466,15 +458,17 @@ export default function LogisticsBookingPage({
                     </p>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-200">
-                    <a
-                      href={`tel:${provider.phone}`}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                    >
-                      <CheckCircleIcon className="h-5 w-5" />
-                      Call Provider
-                    </a>
-                  </div>
+                  {provider.phone && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <a
+                        href={`tel:${provider.phone}`}
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                      >
+                        <CheckCircleIcon className="h-5 w-5" />
+                        Call Provider
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

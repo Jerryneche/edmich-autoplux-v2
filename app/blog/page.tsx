@@ -167,22 +167,7 @@ export default function BlogPage() {
 
         <section className="py-16 bg-gradient-to-br from-blue-600 via-purple-600 to-blue-600">
           <div className="max-w-4xl mx-auto px-6 text-center text-white">
-            <h2 className="text-3xl font-bold mb-4">
-              Subscribe to Our Newsletter
-            </h2>
-            <p className="text-xl text-blue-100 mb-8">
-              Get latest articles delivered to your inbox
-            </p>
-            <div className="flex gap-4 max-w-2xl mx-auto">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-6 py-4 rounded-xl text-gray-900"
-              />
-              <button className="px-8 py-4 bg-white text-blue-600 rounded-xl font-bold hover:shadow-2xl">
-                Subscribe
-              </button>
-            </div>
+            <div className="flex gap-4 max-w-2xl mx-auto"></div>
           </div>
         </section>
       </main>

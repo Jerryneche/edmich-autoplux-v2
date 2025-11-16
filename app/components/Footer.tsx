@@ -119,7 +119,7 @@ export default function Footer() {
               <li className="flex items-center gap-2">
                 <EnvelopeIcon className="h-5 w-5 text-gray-400" />
                 <a
-                  href="mailto:info@edmich.com"
+                  href="mailto:edmichservices@gmail.com"
                   className="text-gray-600 hover:text-blue-600 transition-colors"
                 >
                   info@edmich.com
@@ -183,8 +183,8 @@ export default function Footer() {
               { href: "/blog", label: "blog" },
               { href: "/careers", label: "careers" },
               { href: "/legal", label: "Privacy" },
-              { href: "/help", label: "Help" },
-              { href: "/contact", label: "Contact" },
+              { href: "/support", label: "Help" },
+              { href: "tel:+2349025579441", label: "Contact" },
             ].map((link) => (
               <Link
                 key={link.href}

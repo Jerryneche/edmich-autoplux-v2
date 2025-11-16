@@ -53,13 +53,14 @@ interface MechanicBooking {
   serviceType: string;
   vehicleMake: string;
   vehicleModel: string;
-  pickupAddress: string;
-  pickupCity: string;
-  pickupState: string;
+  pickupAddress?: string;
+  pickupCity?: string;
+  pickupState?: string;
   status: string;
   createdAt: string;
-  mechanic: {
-    companyName: string;
+  mechanic?: {
+    companyName?: string;
+    businessName?: string;
   };
   type: "MECHANIC";
 }
@@ -68,13 +69,13 @@ interface LogisticsBooking {
   id: string;
   trackingNumber: string;
   packageType: string;
-  pickupAddress: string;
-  pickupCity: string;
-  deliveryCity: string;
+  pickupAddress?: string;
+  pickupCity?: string;
+  deliveryCity?: string;
   status: string;
   createdAt: string;
-  driver: {
-    companyName: string;
+  driver?: {
+    companyName?: string;
   };
   type: "LOGISTICS";
 }
@@ -124,8 +125,8 @@ export default function BuyerDashboard() {
     try {
       const [ordersRes, mechanicRes, logisticsRes] = await Promise.all([
         fetch("/api/orders/user"),
-        fetch("/api/bookings/mechanic?view=buyer"),
-        fetch("/api/bookings/logistics?view=buyer"),
+        fetch("/api/bookings/mechanics?view=customer"),
+        fetch("/api/bookings/logistics?view=customer"),
       ]);
 
       const orders: Order[] = ordersRes.ok ? await ordersRes.json() : [];
@@ -222,23 +223,26 @@ export default function BuyerDashboard() {
 
   const getActivityTitle = (item: ActivityItem) => {
     if (item.type === "ORDER") {
-      return `${item.items.length} item(s) ordered`;
+      return `${item.items?.length || 0} item(s) ordered`;
     }
     if (item.type === "MECHANIC") {
-      return `${(item as MechanicBooking).serviceType} for ${
-        (item as MechanicBooking).vehicleMake
+      const booking = item as MechanicBooking;
+      return `${booking.serviceType || "Service"} for ${
+        booking.vehicleMake || "Vehicle"
       }`;
     }
     if (item.type === "LOGISTICS") {
-      return `Delivery: ${(item as LogisticsBooking).packageType}`;
+      return `Delivery: ${(item as LogisticsBooking).packageType || "Package"}`;
     }
     return "Activity";
   };
 
   const getActivityLink = (item: ActivityItem) => {
-    if (item.type === "ORDER") return `/track/${(item as Order).trackingId}`;
-    if (item.type === "MECHANIC") return `/booking/mechanic/${item.id}`;
-    if (item.type === "LOGISTICS") return `/booking/logistics/${item.id}`;
+    if (item.type === "ORDER") return `/dashboard/buyer/orders`;
+    if (item.type === "MECHANIC")
+      return `/dashboard/buyer/bookings?type=mechanics`;
+    if (item.type === "LOGISTICS")
+      return `/dashboard/buyer/bookings?type=logistics`;
     return "#";
   };
 
@@ -255,21 +259,21 @@ export default function BuyerDashboard() {
       value: stats.mechanicBookings,
       icon: WrenchScrewdriverIcon,
       color: "purple",
-      link: "/dashboard/buyer/mechanic",
+      link: "/dashboard/buyer/bookings?type=mechanics",
     },
     {
       label: "Logistics Deliveries",
       value: stats.logisticsBookings,
       icon: TruckIcon,
       color: "green",
-      link: "/dashboard/buyer/logistics",
+      link: "/dashboard/buyer/bookings?type=logistics",
     },
     {
       label: "Pending Actions",
       value: stats.pendingOrders,
       icon: ClockIcon,
       color: "orange",
-      link: "/dashboard/buyer/orders?status=pending",
+      link: "/dashboard/buyer/orders",
     },
   ];
 
@@ -362,12 +366,10 @@ export default function BuyerDashboard() {
                       <div className="flex items-center gap-4 flex-1">
                         <div className="relative w-16 h-16 bg-neutral-200 rounded-lg overflow-hidden flex-shrink-0">
                           {item.type === "ORDER" &&
-                          (item as Order).items[0]?.product?.image ? (
+                          item.items?.[0]?.product?.image ? (
                             <Image
-                              src={
-                                item.items[0].product.image || "/fallback.png"
-                              }
-                              alt={(item as Order).items[0].product.name}
+                              src={item.items[0].product.image}
+                              alt={item.items[0].product.name}
                               fill
                               className="object-cover"
                             />
@@ -381,9 +383,11 @@ export default function BuyerDashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-2">
                             <span className="font-mono text-sm font-bold text-blue-600">
-                              {(item as any).trackingId ||
-                                (item as any).trackingNumber ||
-                                item.id.slice(-6)}
+                              {(item.type === "ORDER" &&
+                                (item as Order).trackingId) ||
+                                (item.type === "LOGISTICS" &&
+                                  (item as LogisticsBooking).trackingNumber) ||
+                                item.id.slice(-8).toUpperCase()}
                             </span>
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusColor(
@@ -397,18 +401,25 @@ export default function BuyerDashboard() {
                             {getActivityTitle(item)}
                           </h3>
                           <div className="flex items-center gap-4 text-sm text-neutral-600">
-                            {item.type === "MECHANIC" && (
-                              <span className="flex items-center gap-1">
-                                <WrenchScrewdriverIcon className="h-4 w-4" />
-                                {(item as MechanicBooking).mechanic.companyName}
-                              </span>
-                            )}
-                            {item.type === "LOGISTICS" && (
-                              <span className="flex items-center gap-1">
-                                <TruckIcon className="h-4 w-4" />
-                                {(item as LogisticsBooking).driver.companyName}
-                              </span>
-                            )}
+                            {item.type === "MECHANIC" &&
+                              (item as MechanicBooking).mechanic && (
+                                <span className="flex items-center gap-1">
+                                  <WrenchScrewdriverIcon className="h-4 w-4" />
+                                  {(item as MechanicBooking).mechanic
+                                    ?.companyName ||
+                                    (item as MechanicBooking).mechanic
+                                      ?.businessName ||
+                                    "Mechanic"}
+                                </span>
+                              )}
+                            {item.type === "LOGISTICS" &&
+                              (item as LogisticsBooking).driver && (
+                                <span className="flex items-center gap-1">
+                                  <TruckIcon className="h-4 w-4" />
+                                  {(item as LogisticsBooking).driver
+                                    ?.companyName || "Driver"}
+                                </span>
+                              )}
                             <span className="flex items-center gap-1">
                               <CalendarIcon className="h-4 w-4" />
                               {new Date(item.createdAt).toLocaleDateString(
@@ -477,7 +488,7 @@ export default function BuyerDashboard() {
         {/* Quick Links */}
         <div className="mt-8 grid md:grid-cols-3 gap-6">
           <Link
-            href="/dashboard/buyer/mechanic"
+            href="/dashboard/buyer/bookings?type=mechanics"
             className="group bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 border-2 border-purple-200 hover:shadow-xl transition-all"
           >
             <WrenchScrewdriverIcon className="h-10 w-10 text-purple-600 mb-3" />
@@ -490,7 +501,7 @@ export default function BuyerDashboard() {
           </Link>
 
           <Link
-            href="/dashboard/buyer/logistics"
+            href="/dashboard/buyer/bookings?type=logistics"
             className="group bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200 hover:shadow-xl transition-all"
           >
             <TruckIcon className="h-10 w-10 text-green-600 mb-3" />

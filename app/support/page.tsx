@@ -65,16 +65,16 @@ export default function SupportPage() {
     {
       icon: PhoneIcon,
       title: "Call Us",
-      description: "+234 XXX XXX XXXX",
-      action: "tel:+234XXXXXXXXXX",
+      description: "+234 9025579441",
+      action: "tel:+2349025579441",
       actionText: "Call Now",
       color: "blue",
     },
     {
       icon: EnvelopeIcon,
       title: "Email Us",
-      description: "support@edmichautoplux.com",
-      action: "mailto:support@edmichautoplux.com",
+      description: "Edmichservices",
+      action: "mailto:edmichservices@gmail.com",
       actionText: "Send Email",
       color: "purple",
     },
@@ -82,7 +82,7 @@ export default function SupportPage() {
       icon: ChatBubbleLeftRightIcon,
       title: "WhatsApp",
       description: "Chat with our team",
-      action: "https://wa.me/234XXXXXXXXXX",
+      action: "https://wa.me/2349025579441",
       actionText: "Start Chat",
       color: "green",
     },
@@ -201,9 +201,9 @@ export default function SupportPage() {
                   </p>
                   <p className="text-neutral-600">Lagos, Nigeria</p>
                   <p className="text-neutral-600">
-                    Email: support@edmichautoplux.com
+                    Email: edmichservices@gmail.com
                   </p>
-                  <p className="text-neutral-600">Phone: +234 XXX XXX XXXX</p>
+                  <p className="text-neutral-600">Phone: +234 9025579441</p>
                 </div>
               </div>
             </div>
@@ -246,7 +246,7 @@ export default function SupportPage() {
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <a
-                href="mailto:support@edmichautoplux.com"
+                href="mailto:edmichservices@gmail.com"
                 className="px-8 py-4 bg-white text-blue-600 rounded-xl font-bold hover:shadow-2xl hover:scale-105 transition-all"
               >
                 Email Support

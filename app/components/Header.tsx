@@ -37,12 +37,31 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative w-11 h-11">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <div className="absolute inset-0 flex items-center justify-center"></div>
-              </div>
+              {/* Clean halved E logo - no background */}
+              <svg
+                viewBox="0 0 100 100"
+                className="w-11 h-11 text-gray-900 group-hover:text-blue-600 transition-colors duration-300"
+                fill="currentColor"
+              >
+                {/* Top horizontal bar */}
+                <rect x="25" y="15" width="50" height="12" />
+
+                {/* Left vertical bar */}
+                <rect x="25" y="15" width="12" height="70" />
+
+                {/* Middle horizontal bar (split) */}
+                <rect x="25" y="44" width="35" height="12" />
+
+                {/* Bottom horizontal bar */}
+                <rect x="25" y="73" width="50" height="12" />
+
+                {/* Cut/split effect - white rectangles to create the halved look */}
+                <rect x="60" y="27" width="4" height="17" fill="white" />
+                <rect x="60" y="56" width="4" height="17" fill="white" />
+              </svg>
             </div>
 
-            <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:to-purple-700 transition-all duration-300">
+            <span className="font-bold text-2xl text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
               EDMICH
             </span>
           </Link>

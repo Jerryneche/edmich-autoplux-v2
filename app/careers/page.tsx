@@ -195,7 +195,7 @@ export default function CareersPage() {
                     </ul>
                   </div>
                   <a
-                    href={`mailto:careers@edmichautoplux.com?subject=Application for ${job.title}`}
+                    href={`mailto:edmichservices@gmail.com?subject=Application for ${job.title}`}
                     className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all text-center"
                   >
                     Apply Now
@@ -217,7 +217,7 @@ export default function CareersPage() {
               Send us your resume and tell us how you can contribute!
             </p>
             <a
-              href="mailto:careers@edmichautoplux.com"
+              href="mailto:edmichservices@gmail.com"
               className="inline-block px-8 py-4 bg-white text-blue-600 rounded-xl font-bold hover:shadow-2xl transition-all"
             >
               Send Your Resume
