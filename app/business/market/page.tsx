@@ -150,7 +150,9 @@ export default async function MarketPage() {
           </div>
 
           {/* Main Heading */}
-          <div className="text-center mb-12">
+          {/* Main Heading */}
+          {/* Main Heading */}
+          <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 px-6 py-3 rounded-full text-sm font-bold mb-6 shadow-lg">
               <Zap className="h-4 w-4" />
               <span>Fast Delivery • Genuine Parts • Best Prices</span>
@@ -163,31 +165,33 @@ export default async function MarketPage() {
               </span>
             </h1>
 
-            <p className="text-xl text-neutral-600 max-w-3xl mx-auto mb-10 leading-relaxed">
+            <p className="text-xl text-neutral-600 max-w-3xl mx-auto mb-8 leading-relaxed">
               Browse thousands of verified spare parts from trusted suppliers
               across Nigeria. Quality guaranteed, delivered to your doorstep.
             </p>
-          </div>
 
-          {/* Category Pills */}
-          {categories.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-              <span className="text-sm font-semibold text-neutral-600">
-                Popular:
-              </span>
-              {categories.slice(0, 8).map((cat) => (
-                <button
-                  key={cat.name}
-                  className="px-4 py-2 bg-white border-2 border-neutral-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all font-medium text-neutral-700 hover:text-blue-600"
-                >
-                  {cat.name}
-                  <span className="ml-2 text-xs text-neutral-500">
-                    ({cat.count})
-                  </span>
-                </button>
-              ))}
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-neutral-600">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="font-medium">
+                  {productCount}+ Parts Available
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-blue-600" />
+                <span className="font-medium">100% Verified Suppliers</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Award className="h-4 w-4 text-purple-600" />
+                <span className="font-medium">Quality Guaranteed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-orange-600" />
+                <span className="font-medium">Same-Day Dispatch</span>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </section>
 
