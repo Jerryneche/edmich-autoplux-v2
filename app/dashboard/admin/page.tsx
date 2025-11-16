@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -10,8 +11,8 @@ import {
   ShoppingBagIcon,
   WrenchScrewdriverIcon,
   TruckIcon,
-  PlusIcon,
   ChartBarIcon,
+  PlusIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
   MagnifyingGlassIcon,
@@ -34,8 +35,8 @@ interface Supplier {
   state: string;
   verified: boolean;
   approved: boolean;
-  createdAt: string;
-  user: { email: string };
+  createdAt?: string;
+  user?: { email: string };
 }
 
 interface Order {
@@ -567,14 +568,18 @@ export default function AdminDashboard() {
                             <p>
                               📍 {supplier.city}, {supplier.state}
                             </p>
-                            <p>✉️ {supplier.user.email}</p>
-                            <p className="text-xs">
-                              Joined{" "}
-                              {format(
-                                new Date(supplier.createdAt),
-                                "MMM d, yyyy"
-                              )}
-                            </p>
+                            {supplier.user?.email && (
+                              <p>✉️ {supplier.user.email}</p>
+                            )}
+                            {supplier.createdAt && (
+                              <p className="text-xs">
+                                Joined{" "}
+                                {format(
+                                  new Date(supplier.createdAt),
+                                  "MMM d, yyyy"
+                                )}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-col gap-2">
