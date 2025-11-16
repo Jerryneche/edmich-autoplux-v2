@@ -10,7 +10,9 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       onboardingStatus: string;
-      hasSupplierProfile?: boolean; // 🔥 Added
+      hasSupplierProfile?: boolean;
+      hasMechanicProfile?: boolean;
+      hasLogisticsProfile?: boolean;
     } & DefaultSession["user"];
   }
 
@@ -26,6 +28,8 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: UserRole;
     onboardingStatus?: string;
-    hasSupplierProfile?: boolean; // 🔥 Added
+    hasSupplierProfile?: boolean;
+    hasMechanicProfile?: boolean;
+    hasLogisticsProfile?: boolean;
   }
 }
