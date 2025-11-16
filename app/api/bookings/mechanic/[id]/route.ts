@@ -31,8 +31,10 @@ export async function GET(
         },
         mechanic: {
           select: {
-            name: true,
-            email: true,
+            businessName: true,
+            phone: true,
+            city: true,
+            state: true,
           },
         },
       },

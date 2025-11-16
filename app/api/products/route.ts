@@ -1,5 +1,4 @@
 // app/api/products/route.ts
-// app/api/products/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSeedProducts } from "@/lib/seed-data";
@@ -15,7 +14,12 @@ export async function GET() {
         category: true,
         image: true,
         stock: true,
-        supplier: { select: { businessName: true } },
+        supplier: {
+          select: {
+            id: true, // ← ADD THIS
+            businessName: true, // ← Keep this
+          },
+        },
       },
     });
 
@@ -32,7 +36,7 @@ export async function GET() {
       category: p.category,
       image: p.image || "/placeholder.jpg",
       stock: p.stock,
-      supplierId: p.supplier?.id || "",
+      supplierId: p.supplier?.id || "", // ← Now safe
       supplier: p.supplier?.businessName || "AutoParts Ltd",
     }));
 

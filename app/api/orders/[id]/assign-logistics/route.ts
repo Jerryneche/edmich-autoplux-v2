@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> } // Next.js 16 fix
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id: raw } = await params;
+    const params = await context.params;
+    const { id: raw } = params;
     const orderIdOrTracking = raw?.trim();
     if (!orderIdOrTracking) {
       return NextResponse.json(
@@ -23,7 +24,6 @@ export async function POST(
       );
     }
 
-    // Expect body: { logisticsId: string, providerMessage?: string }
     const body = await request.json();
     const { logisticsId, providerMessage } = body || {};
 
@@ -34,23 +34,21 @@ export async function POST(
       );
     }
 
-    // Find order by id or trackingId
     const order = await prisma.order.findFirst({
       where: {
         OR: [{ id: orderIdOrTracking }, { trackingId: orderIdOrTracking }],
       },
+      include: { shippingAddress: true }, // ← Include full address
     });
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Ensure caller owns the order (buyer) OR is admin/logistics — simple policy: only owner or admin can assign
     if (order.userId !== session.user.id && session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Validate logistics provider exists and is approved
     const provider = await prisma.logisticsProfile.findUnique({
       where: { id: logisticsId },
       select: {
@@ -69,17 +67,21 @@ export async function POST(
       );
     }
 
-    // Generate a unique tracking for logistics request (keep correlation to order)
     const trackingNumber = order.trackingId || order.id;
 
-    // Create LogisticsRequest linking user and logistics provider
+    // BUILD FULL ADDRESS STRING
+    const formatAddress = (addr: typeof order.shippingAddress) => {
+      if (!addr) return "Address not provided";
+      return `${addr.city}, ${addr.state} ${addr.zipCode}`;
+    };
+
     const logisticsRequest = await prisma.logisticsRequest.create({
       data: {
         name: session.user.name ?? "Buyer",
         email: session.user.email ?? "",
         phone: "",
-        pickup: order.shippingAddress?.address ?? "Seller pickup",
-        dropoff: order.shippingAddress?.address ?? "Buyer address",
+        pickup: formatAddress(order.shippingAddress), // Full pickup
+        dropoff: formatAddress(order.shippingAddress), // Same for now (or use seller address later)
         vehicle: "Standard",
         deliveryDate: new Date(),
         notes: providerMessage ?? `Assigned for order ${trackingNumber}`,
@@ -90,14 +92,11 @@ export async function POST(
       },
     });
 
-    // (Optional) Update order status to SHIPPED or IN_TRANSIT according to your flow
-    // Here we set to SHIPPED when a provider is assigned
     await prisma.order.update({
       where: { id: order.id },
-      data: { status: "SHIPPED" }, // ensure this matches allowed values in your app code
+      data: { status: "SHIPPED" },
     });
 
-    // Notify provider & user (simple Notification table)
     await prisma.notification.createMany({
       data: [
         {

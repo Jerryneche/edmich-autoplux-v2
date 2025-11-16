@@ -3,18 +3,7 @@
 
 import { useState } from "react";
 import ProductCard from "@/app/components/ProductCard";
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  image: string;
-  stock: number;
-  supplier: string;
-  rating: number;
-}
+import { Product } from "@/types/product"; // ← YOUR TYPE
 
 export default function ClientMarket({
   initialProducts,
@@ -28,6 +17,7 @@ export default function ClientMarket({
     "All",
     ...Array.from(new Set(initialProducts.map((p) => p.category))),
   ];
+
   const filtered = initialProducts.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||

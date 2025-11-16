@@ -1,6 +1,7 @@
 // app/business/market/page.tsx
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+
 import ClientMarket from "./ClientMarket";
 import { prisma } from "@/lib/prisma";
 import {
@@ -11,6 +12,7 @@ import {
   ShieldCheck,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60; // Revalidate every 60 seconds
@@ -268,12 +270,12 @@ export default async function MarketPage() {
                 We're working hard to bring you the best auto parts. Check back
                 soon!
               </p>
-              <a
+              <Link
                 href="/"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all"
               >
                 Back to Home
-              </a>
+              </Link>
             </div>
           )}
         </div>

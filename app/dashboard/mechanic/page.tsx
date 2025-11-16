@@ -252,7 +252,9 @@ export default function MechanicDashboard() {
                     </div>
                     <span
                       className={`px-4 py-2 rounded-full text-sm font-bold border-2 ${
-                        STATUS_COLORS[booking.status]
+                        STATUS_COLORS[
+                          booking.status as keyof typeof STATUS_COLORS
+                        ]
                       }`}
                     >
                       {booking.status.replace("_", " ")}

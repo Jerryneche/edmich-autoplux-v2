@@ -9,6 +9,7 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+// Match exactly what Prisma returns
 interface Product {
   id: string;
   name: string;
@@ -19,6 +20,7 @@ interface Product {
   stock: number;
   supplier: {
     businessName: string;
+    supplierId: string;
     businessAddress: string;
     city: string;
     state: string;
@@ -34,6 +36,7 @@ async function getProduct(id: string): Promise<Product | null> {
       include: {
         supplier: {
           select: {
+            id: true,
             businessName: true,
             businessAddress: true,
             city: true,
@@ -43,7 +46,7 @@ async function getProduct(id: string): Promise<Product | null> {
       },
     });
 
-    if (!product) return null;
+    if (!product || !product.supplier) return null;
 
     return {
       id: product.id,
@@ -54,10 +57,11 @@ async function getProduct(id: string): Promise<Product | null> {
       image: product.image || "/placeholder.png",
       stock: product.stock,
       supplier: {
-        businessName: product.supplier?.businessName || "AutoParts Ltd",
-        businessAddress: product.supplier?.businessAddress || "",
-        city: product.supplier?.city || "",
-        state: product.supplier?.state || "",
+        businessName: product.supplier.businessName,
+        supplierId: product.supplier.id, // ← FROM Prisma
+        businessAddress: product.supplier.businessAddress || "",
+        city: product.supplier.city,
+        state: product.supplier.state,
       },
     };
   } catch (error) {
