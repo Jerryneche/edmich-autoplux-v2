@@ -6,6 +6,8 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+type UserRole = "BUYER" | "SUPPLIER" | "MECHANIC" | "LOGISTICS" | "ADMIN";
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -24,35 +26,23 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.email || !credentials?.password)
           throw new Error("Invalid credentials");
-        }
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials");
-        }
+        if (!user || !user.password) throw new Error("Invalid credentials");
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password
         );
 
-        if (!isPasswordValid) {
-          throw new Error("Invalid credentials");
-        }
+        if (!isPasswordValid) throw new Error("Invalid credentials");
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role || "BUYER",
-          onboardingStatus: user.onboardingStatus || "PENDING",
-        };
+        return user;
       },
     }),
   ],
@@ -67,29 +57,54 @@ export const authOptions: NextAuthOptions = {
       const dbUser = await prisma.user.findUnique({ where: { email } });
       if (!dbUser) return true;
 
-      // Set default role if not set
       if (!dbUser.role) {
-        await prisma.user.update({
-          where: { id: dbUser.id },
-          data: { role: "BUYER", onboardingStatus: "PENDING" },
+        setImmediate(async () => {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { role: "BUYER", onboardingStatus: "PENDING" },
+          });
         });
       }
 
       return true;
     },
 
-    async jwt({ token, user }) {
-      // Initial sign in
+    async jwt({ token, user, trigger, session }) {
+      // Initial login
       if (user) {
         token.id = user.id;
-        token.role = user.role || "BUYER";
-        token.onboardingStatus = user.onboardingStatus || "PENDING";
+        token.role = (user.role ?? "BUYER") as UserRole;
+        token.onboardingStatus = user.onboardingStatus ?? "PENDING";
+
+        // 🔥 Check for supplier profile on initial login
+        if (user.role === "SUPPLIER") {
+          const supplierProfile = await prisma.supplierProfile.findUnique({
+            where: { userId: user.id },
+          });
+          token.hasSupplierProfile = !!supplierProfile;
+        }
+
+        // 🔥 Check for mechanic profile on initial login
+        if (user.role === "MECHANIC") {
+          const mechanicProfile = await prisma.mechanicProfile.findUnique({
+            where: { userId: user.id },
+          });
+          token.hasMechanicProfile = !!mechanicProfile;
+        }
+
+        // 🔥 Check for logistics profile on initial login
+        if (user.role === "LOGISTICS") {
+          const logisticsProfile = await prisma.logisticsProfile.findUnique({
+            where: { userId: user.id },
+          });
+          token.hasLogisticsProfile = !!logisticsProfile;
+        }
       }
 
-      // Always fetch fresh profile data
-      if (token.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id },
+      // Explicit refresh or update
+      if (trigger === "update" || session) {
+        const refreshedUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
           include: {
             supplierProfile: true,
             mechanicProfile: true,
@@ -97,12 +112,24 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        if (dbUser) {
-          token.role = dbUser.role || "BUYER";
-          token.onboardingStatus = dbUser.onboardingStatus || "PENDING";
-          token.hasSupplierProfile = dbUser.supplierProfile !== null;
-          token.hasMechanicProfile = dbUser.mechanicProfile !== null;
-          token.hasLogisticsProfile = dbUser.logisticsProfile !== null;
+        if (refreshedUser) {
+          token.role = (refreshedUser.role ?? "BUYER") as UserRole;
+          token.onboardingStatus = refreshedUser.onboardingStatus ?? "PENDING";
+
+          // 🔥 Update supplier profile status
+          if (refreshedUser.role === "SUPPLIER") {
+            token.hasSupplierProfile = !!refreshedUser.supplierProfile;
+          }
+
+          // 🔥 Update mechanic profile status
+          if (refreshedUser.role === "MECHANIC") {
+            token.hasMechanicProfile = !!refreshedUser.mechanicProfile;
+          }
+
+          // 🔥 Update logistics profile status
+          if (refreshedUser.role === "LOGISTICS") {
+            token.hasLogisticsProfile = !!refreshedUser.logisticsProfile;
+          }
         }
       }
 
@@ -112,19 +139,19 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.onboardingStatus = token.onboardingStatus as string;
+        session.user.role = (token.role || "BUYER") as any;
+        session.user.onboardingStatus = (token.onboardingStatus ||
+          "PENDING") as string;
 
         // Add profile flags if they exist
         if (token.hasSupplierProfile !== undefined) {
-          session.user.hasSupplierProfile = token.hasSupplierProfile as boolean;
+          session.user.hasSupplierProfile = token.hasSupplierProfile;
         }
         if (token.hasMechanicProfile !== undefined) {
-          session.user.hasMechanicProfile = token.hasMechanicProfile as boolean;
+          session.user.hasMechanicProfile = token.hasMechanicProfile;
         }
         if (token.hasLogisticsProfile !== undefined) {
-          session.user.hasLogisticsProfile =
-            token.hasLogisticsProfile as boolean;
+          session.user.hasLogisticsProfile = token.hasLogisticsProfile;
         }
       }
       return session;
