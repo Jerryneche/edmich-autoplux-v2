@@ -126,11 +126,18 @@ export default function AdminDashboard() {
       ]);
 
       if (supRes.ok) setSuppliers(await supRes.json());
-      if (ordRes.ok) setOrders(await ordRes.json());
+      if (ordRes.ok) {
+        const ordersData = await ordRes.json();
+        console.log("ORDERS FETCHED:", ordersData); // ADD THIS
+        setOrders(ordersData);
+      } else {
+        console.error("Orders API failed:", ordRes.status); // ADD THIS
+      }
       if (bookRes.ok) setBookings(await bookRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (anaRes.ok) setAnalytics(await anaRes.json());
     } catch (err) {
+      console.error("Fetch error:", err);
       toast.error("Failed to load data");
       console.error(err);
     } finally {
@@ -171,19 +178,39 @@ export default function AdminDashboard() {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}`, {
+      console.log("Updating order:", orderId, "to status:", newStatus); // DEBUG
+
+      const response = await fetch(`/api/admin/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) {
-        toast.success("Order status updated");
-        fetchAllData();
+
+      console.log("Response status:", response.status); // DEBUG
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error response:", errorData); // DEBUG
+        throw new Error(errorData.error || "Failed to update status");
       }
-    } catch (err) {
-      toast.error("Failed to update order");
+
+      const updatedOrder = await response.json();
+
+      // Update local state
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId ? { ...order, status: newStatus } : order
+        )
+      );
+
+      toast.success("Order status updated successfully");
+    } catch (error) {
+      console.error("Status update error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update order status"
+      );
     }
   };
 
@@ -204,23 +231,31 @@ export default function AdminDashboard() {
 
   // Filter functions
   const filteredOrders = orders.filter((order) => {
+    // If no search query, consider it a match
     const matchesSearch =
+      !searchQuery ||
       order.trackingId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
+
     const matchesStatus =
       statusFilter === "all" ||
-      order.status.toUpperCase() === statusFilter.toUpperCase();
+      order.status?.toUpperCase() === statusFilter.toUpperCase();
+
     return matchesSearch && matchesStatus;
   });
 
   const filteredProducts = products.filter((product) => {
+    // If no search query, consider it a match
     const matchesSearch =
+      !searchQuery ||
       product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.category?.toLowerCase().includes(searchQuery.toLowerCase());
+
     const matchesStatus =
       statusFilter === "all" ||
-      product.status.toUpperCase() === statusFilter.toUpperCase();
+      product.status?.toUpperCase() === statusFilter.toUpperCase();
+
     return matchesSearch && matchesStatus;
   });
 
@@ -704,12 +739,12 @@ export default function AdminDashboard() {
                         <select
                           value={order.status}
                           onChange={(e) =>
-                            updateOrderStatus(order.id, e.target.value)
+                            handleStatusUpdate(order.id, e.target.value)
                           }
                           className="px-4 py-2 border-2 border-neutral-200 rounded-xl font-semibold text-sm focus:border-blue-500 focus:outline-none"
                         >
                           <option value="PENDING">Pending</option>
-                          <option value="CONFIRMED">Confirmed</option>
+                          <option value="PROCESSING">Processing</option>
                           <option value="SHIPPED">Shipped</option>
                           <option value="DELIVERED">Delivered</option>
                           <option value="CANCELLED">Cancelled</option>
