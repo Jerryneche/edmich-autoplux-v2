@@ -5,12 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> } // ← Next.js 16: params is Promise
+  _request: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const { id } = params;
+    const { id } = await context.params;
 
     const booking = await prisma.logisticsBooking.findUnique({
       where: { id },
@@ -26,8 +25,11 @@ export async function GET(
 
     return NextResponse.json(booking);
   } catch (error) {
-    console.error("Error fetching booking:", error);
-    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 });
+    console.error("Error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch booking" },
+      { status: 500 }
+    );
   }
 }
 
@@ -41,8 +43,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const params = await context.params;
-    const { id } = params;
+    const { id } = await context.params;
     const { status } = await request.json();
 
     const validStatuses = [
@@ -52,7 +53,6 @@ export async function PATCH(
       "COMPLETED",
       "CANCELLED",
     ];
-
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
@@ -83,10 +83,7 @@ export async function PATCH(
     }
 
     if (booking.driverId !== profile.id) {
-      return NextResponse.json(
-        { error: "You can only update your own bookings" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Not your booking" }, { status: 403 });
     }
 
     if (
@@ -94,7 +91,7 @@ export async function PATCH(
       !["COMPLETED", "CANCELLED"].includes(status)
     ) {
       return NextResponse.json(
-        { error: "Cannot change completed/cancelled booking" },
+        { error: "Cannot revert completed/cancelled" },
         { status: 400 }
       );
     }
@@ -104,9 +101,11 @@ export async function PATCH(
       data: { status },
       include: {
         user: { select: { name: true } },
+        driver: { select: { companyName: true, phone: true } },
       },
     });
 
+    // Notification logic (unchanged)
     const messages: Record<string, string> = {
       CONFIRMED: `Your delivery with ${profile.companyName} is confirmed!`,
       IN_PROGRESS: `Your package is in transit. Tracking: ${booking.trackingNumber}`,
@@ -118,7 +117,7 @@ export async function PATCH(
       await prisma.notification.create({
         data: {
           userId: booking.userId,
-          type: "BOOKING", // ← Matches your Prisma enum
+          type: "BOOKING",
           title: "Delivery Update",
           message: messages[status],
           link: `/booking/logistics/${id}`,
@@ -129,7 +128,7 @@ export async function PATCH(
 
     return NextResponse.json(updated);
   } catch (error: any) {
-    console.error("Error updating logistics booking:", error);
+    console.error("PATCH error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to update" },
       { status: 500 }

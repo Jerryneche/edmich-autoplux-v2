@@ -118,8 +118,26 @@ export default function LogisticsBookingPage() {
           2000
         );
       } else {
-        const error = await response.json();
-        toast.error(error.error || "Failed to submit booking");
+        let errorMessage = "Failed to submit booking";
+
+        try {
+          const text = await response.text();
+          if (text) {
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData.error || errorMessage;
+            } catch {
+              errorMessage = text;
+            }
+          } else {
+            errorMessage = response.statusText || errorMessage;
+          }
+        } catch (jsonError) {
+          console.error("JSON parse failed:", jsonError);
+          errorMessage = "Server error. Please try again.";
+        }
+
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error("Submission error:", error);

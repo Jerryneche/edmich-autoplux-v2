@@ -5,63 +5,101 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
-  // ... your existing POST code (unchanged, it's perfect)
-}
-
-export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const view = searchParams.get("view");
+    const body = await request.json();
+    const {
+      providerId,
+      packageType,
+      deliverySpeed,
+      packageDescription,
+      weight,
+      pickupAddress,
+      pickupCity,
+      deliveryAddress,
+      deliveryCity,
+      recipientName,
+      recipientPhone,
+      specialInstructions,
+      estimatedPrice,
+    } = body;
 
-    let bookings;
-
-    if (view === "provider") {
-      // ← THIS IS CORRECT
-      const profile = await prisma.logisticsProfile.findUnique({
-        where: { userId: session.user.id },
-      });
-
-      if (!profile) {
-        return NextResponse.json(
-          { error: "Logistics profile not found" },
-          { status: 404 }
-        );
-      }
-
-      bookings = await prisma.logisticsBooking.findMany({
-        where: { driverId: profile.id },
-        include: {
-          user: { select: { name: true, email: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-    } else {
-      bookings = await prisma.logisticsBooking.findMany({
-        where: { userId: session.user.id },
-        include: {
-          driver: {
-            select: {
-              companyName: true,
-              phone: true,
-              city: true,
-              state: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      });
+    // Validate required fields
+    if (
+      !providerId ||
+      !packageType ||
+      !weight ||
+      !pickupAddress ||
+      !deliveryAddress ||
+      !recipientName ||
+      !recipientPhone
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(bookings);
+    // Validate provider exists
+    const provider = await prisma.logisticsProfile.findUnique({
+      where: { id: providerId },
+    });
+
+    if (!provider) {
+      return NextResponse.json(
+        { error: "Logistics provider not found" },
+        { status: 404 }
+      );
+    }
+
+    // Create booking
+    const booking = await prisma.logisticsBooking.create({
+      data: {
+        userId: session.user.id,
+        driverId: providerId,
+        packageType,
+        deliverySpeed,
+        packageDescription,
+        pickupAddress,
+        pickupCity,
+        deliveryAddress,
+        deliveryCity,
+        recipientName,
+        recipientPhone,
+        phone: session.user.email || recipientPhone,
+        specialInstructions: specialInstructions || null,
+        estimatedPrice: parseFloat(estimatedPrice),
+        status: "PENDING",
+        trackingNumber: `TRK-${Date.now().toString(36).toUpperCase()}`,
+      },
+      include: {
+        driver: {
+          select: { companyName: true, phone: true },
+        },
+      },
+    });
+
+    // Send notification to provider
+    await prisma.notification.create({
+      data: {
+        userId: provider.userId,
+        type: "BOOKING",
+        title: "New Delivery Request",
+        message: `New booking from ${session.user.name || "Customer"}`,
+        link: `/dashboard/provider/bookings/logistics/${booking.id}`,
+        read: false,
+      },
+    });
+
+    return NextResponse.json({ success: true, booking }, { status: 201 });
   } catch (error: any) {
-    console.error("Error fetching logistics bookings:", error);
+    console.error("Booking creation error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch bookings" },
+      { error: error.message || "Failed to create booking" },
       { status: 500 }
     );
   }
