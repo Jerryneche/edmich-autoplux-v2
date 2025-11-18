@@ -36,17 +36,21 @@ export default function Header() {
       <header className="fixed inset-x-0 top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
-            <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+          <Link href="/" className="flex items-center gap-1.5 sm:gap-3 group">
+            {/* Logo – BIG on mobile */}
+            <div className="relative w-11 h-11 sm:w-14 sm:h-14 lg:w-16 lg:h-16">
               <Image
                 src="/Untitled design (1).svg"
                 alt="EDMICH Logo"
                 fill
-                className="object-contain group-hover:scale-105 transition-transform duration-300"
+                className="object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
                 priority
+                sizes="(max-width: 640px) 44px, (max-width: 1024px) 56px, 64px"
               />
             </div>
-            <span className="font-bold text-xl sm:text-2xl text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+
+            {/* Text – Tiny but visible on mobile, normal on desktop */}
+            <span className="font-black text-lg sm:text-2xl lg:text-3xl text-gray-900 tracking-tighter group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
               EDMICH
             </span>
           </Link>
