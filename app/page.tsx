@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import SmartCTA from "./components/SmartCTA";
 import {
   ShieldCheck,
   Truck,
@@ -45,7 +46,7 @@ export default function HomePage() {
     const steps = 60;
     const increment = duration / steps;
 
-    let current = { suppliers: 0, orders: 0, mechanics: 0, cities: 0 };
+    const current = { suppliers: 0, orders: 0, mechanics: 0, cities: 0 };
 
     const timer = setInterval(() => {
       let allReached = true;
@@ -247,15 +248,13 @@ export default function HomePage() {
                 Explore Marketplace
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-white border-2 border-gray-200 text-gray-900 rounded-2xl font-bold text-lg hover:border-gray-300 hover:shadow-lg transition-all"
-              >
+
+              <SmartCTA className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-white border-2 border-gray-200 text-gray-900 rounded-2xl font-bold text-lg hover:border-gray-300 hover:shadow-lg transition-all">
                 Start Free Trial
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
                   14 days
                 </span>
-              </Link>
+              </SmartCTA>
             </div>
 
             {/* Social Proof */}
@@ -428,13 +427,13 @@ export default function HomePage() {
                     </ul>
 
                     {/* CTA */}
-                    <Link
+                    <SmartCTA
                       href={useCase.link}
                       className={`group/btn inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-gradient-to-r ${useCase.gradient} text-white rounded-xl font-bold hover:shadow-lg transition-all`}
                     >
                       {useCase.cta}
                       <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </Link>
+                    </SmartCTA>
                   </div>
                 </div>
               ))}
@@ -544,7 +543,7 @@ export default function HomePage() {
         </section>
 
         {/* Final CTA - Conversion Focused */}
-        <section className="relative py-32 px-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white overflow-hidden">
+        <section className="relative py-32 px-6 bg-gradient-to-br from-gray-400 via-blue-500 to-purple-300 text-white overflow-hidden">
           {/* Animated background */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse" />
@@ -561,13 +560,10 @@ export default function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link
-                href="/signup"
-                className="group inline-flex items-center justify-center gap-3 px-10 py-5 bg-white text-gray-900 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-white/20 hover:scale-105 transition-all"
-              >
+              <SmartCTA className="group inline-flex items-center justify-center gap-3 px-10 py-5 bg-white text-gray-900 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-white/20 hover:scale-105 transition-all">
                 Start Free Trial
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </SmartCTA>
 
               <Link
                 href="https://wa.me/2349025579441"
