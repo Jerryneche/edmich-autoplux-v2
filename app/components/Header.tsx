@@ -45,11 +45,10 @@ export default function Header() {
                 className="object-contain group-hover:scale-105 transition-transform duration-300"
                 priority
               />
+              <span className="font-bold text-2xl text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+                EDMICH
+              </span>
             </div>
-
-            <span className="font-bold text-2xl text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
-              EDMICH
-            </span>
           </Link>
 
           {/* Desktop Nav */}
