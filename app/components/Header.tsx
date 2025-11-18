@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
@@ -36,29 +37,14 @@ export default function Header() {
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-11 h-11">
-              {/* Clean halved E logo - no background */}
-              <svg
-                viewBox="0 0 100 100"
-                className="w-11 h-11 text-gray-900 group-hover:text-blue-600 transition-colors duration-300"
-                fill="currentColor"
-              >
-                {/* Top horizontal bar */}
-                <rect x="25" y="15" width="50" height="12" />
-
-                {/* Left vertical bar */}
-                <rect x="25" y="15" width="12" height="70" />
-
-                {/* Middle horizontal bar (split) */}
-                <rect x="25" y="44" width="35" height="12" />
-
-                {/* Bottom horizontal bar */}
-                <rect x="25" y="73" width="50" height="12" />
-
-                {/* Cut/split effect - white rectangles to create the halved look */}
-                <rect x="60" y="27" width="4" height="17" fill="white" />
-                <rect x="60" y="56" width="4" height="17" fill="white" />
-              </svg>
+            <div className="relative w-30 h-30">
+              <Image
+                src="/Untitled design (1).svg" // Place your logo in public/logo.png
+                alt="EDMICH Logo"
+                fill
+                className="object-contain group-hover:scale-105 transition-transform duration-300"
+                priority
+              />
             </div>
 
             <span className="font-bold text-2xl text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">

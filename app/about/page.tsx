@@ -61,7 +61,7 @@ export default function AboutPage() {
             className="text-2xl text-neutral-700 max-w-3xl leading-relaxed animate-fade-in-up"
             style={{ animationDelay: "0.2s" }}
           >
-            EDMICH is not just a company—it&aposs a vision to revolutionize how
+            EDMICH is not just a company, its a vision to revolutionize how
             Africa connects with automotive excellence.
           </p>
         </div>
