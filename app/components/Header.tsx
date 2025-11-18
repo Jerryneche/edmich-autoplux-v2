@@ -36,19 +36,19 @@ export default function Header() {
       <header className="fixed inset-x-0 top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-30 h-30">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12">
               <Image
-                src="/Untitled design (1).svg" // Place your logo in public/logo.png
+                src="/Untitled design (1).svg"
                 alt="EDMICH Logo"
                 fill
                 className="object-contain group-hover:scale-105 transition-transform duration-300"
                 priority
               />
-              <span className="font-bold text-2xl text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
-                EDMICH
-              </span>
             </div>
+            <span className="font-bold text-xl sm:text-2xl text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+              EDMICH
+            </span>
           </Link>
 
           {/* Desktop Nav */}
