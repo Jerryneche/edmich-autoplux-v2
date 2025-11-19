@@ -1,27 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
-import { createNotification } from "@/lib/notifications";
 
-// GET - Fetch supplier's products
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    if (!session || session.user.role !== "SUPPLIER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "SUPPLIER") {
-      return NextResponse.json(
-        { error: "Only suppliers can access this" },
-        { status: 403 }
-      );
-    }
-
-    // Get supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: session.user.id },
     });
@@ -33,18 +22,13 @@ export async function GET() {
       );
     }
 
-    // Fetch products
     const products = await prisma.product.findMany({
-      where: {
-        supplierId: supplierProfile.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      where: { supplierId: supplierProfile.id },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(products);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching products:", error);
     return NextResponse.json(
       { error: "Failed to fetch products" },
@@ -53,34 +37,14 @@ export async function GET() {
   }
 }
 
-// POST - Create new product
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    if (!session || session.user.role !== "SUPPLIER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "SUPPLIER") {
-      return NextResponse.json(
-        { error: "Only suppliers can create products" },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const { name, description, price, category, stock, image } = body;
-
-    // Validation
-    if (!name || !price || !category || stock === undefined) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Get supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: session.user.id },
     });
@@ -92,51 +56,60 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create product
+    const body = await req.json();
+    const { name, description, price, category, brand, stock, image, images } =
+      body;
+
+    // Create slug from name
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
     const product = await prisma.product.create({
       data: {
         name,
+        slug,
         description,
         price: parseFloat(price),
         category,
+        brand,
         stock: parseInt(stock),
         image,
+        images: images || [],
+        status: "ACTIVE",
         supplierId: supplierProfile.id,
       },
     });
 
-    // Revalidate pages to show new product immediately
-    try {
-      revalidatePath("/shop");
-      revalidatePath("/business/market");
-      revalidatePath("/dashboard/supplier");
-    } catch (revalidateError) {
-      console.error("Revalidation error:", revalidateError);
-      // Don't fail the request if revalidation fails
-    }
-
-    // Send notification to supplier
-    await createNotification({
-      userId: session.user.id,
-      type: "PRODUCT",
-      title: "Product Published",
-      message: `${name} is now live in the marketplace!`,
-      link: `/shop/${product.id}`,
+    // 🔥 NOTIFY SUPPLIER ABOUT NEW PRODUCT
+    await prisma.notification.create({
+      data: {
+        userId: session.user.id,
+        type: "PRODUCT_CREATED",
+        title: "Product Listed Successfully",
+        message: `Your product "${name}" has been added to the marketplace. ${
+          stock < 5 ? "⚠️ Stock is low, consider restocking." : ""
+        }`,
+        link: `/dashboard/supplier`,
+      },
     });
 
-    // Check for low stock on creation
-    if (parseInt(stock) <= 5 && parseInt(stock) > 0) {
-      await createNotification({
-        userId: session.user.id,
-        type: "PRODUCT",
-        title: "Low Stock Alert",
-        message: `${name} has only ${stock} units in stock`,
-        link: `/dashboard/supplier`,
+    // 🔥 CHECK IF STOCK IS LOW IMMEDIATELY
+    if (stock < 5) {
+      await prisma.notification.create({
+        data: {
+          userId: session.user.id,
+          type: "LOW_INVENTORY",
+          title: "Low Stock Alert",
+          message: `${name} was added with only ${stock} units. Consider increasing stock for better sales.`,
+          link: `/dashboard/supplier/products/${product.id}/edit`,
+        },
       });
     }
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating product:", error);
     return NextResponse.json(
       { error: "Failed to create product" },

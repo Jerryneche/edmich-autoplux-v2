@@ -386,6 +386,9 @@ enum NotificationType {
   SYSTEM
   PAYMENT
   REVIEW
+  PRODUCT_CREATED
+  LOW_INVENTORY
+  ORDER_STATUS_UPDATED
 }
 
 model TradeIn {

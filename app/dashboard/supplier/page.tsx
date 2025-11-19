@@ -1,4 +1,3 @@
-// app/dashboard/supplier/page.tsx (with orders management)
 "use client";
 
 import { useEffect, useState } from "react";
@@ -22,6 +21,7 @@ import {
   XCircleIcon,
   TruckIcon,
   ClockIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import Image from "next/image";
@@ -57,7 +57,8 @@ interface Order {
 const STATUS_COLORS: any = {
   PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
   CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
-  SHIPPED: "bg-purple-100 text-purple-800 border-purple-200",
+  PROCESSING: "bg-purple-100 text-purple-800 border-purple-200",
+  SHIPPED: "bg-indigo-100 text-indigo-800 border-indigo-200",
   DELIVERED: "bg-green-100 text-green-800 border-green-200",
   CANCELLED: "bg-red-100 text-red-800 border-red-200",
 };
@@ -85,6 +86,7 @@ export default function SupplierDashboard() {
     }
 
     checkAndFetchProfile();
+    checkInventory();
   }, [session, status, router]);
 
   const checkAndFetchProfile = async () => {
@@ -104,6 +106,14 @@ export default function SupplierDashboard() {
       console.error("Profile fetch error:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkInventory = async () => {
+    try {
+      await fetch("/api/supplier/check-inventory");
+    } catch (error) {
+      console.error("Error checking inventory:", error);
     }
   };
 
@@ -146,36 +156,28 @@ export default function SupplierDashboard() {
     }
   };
 
-  const handleOrderStatusUpdate = async (
-    orderId: string,
-    newStatus: string
-  ) => {
-    try {
-      const res = await fetch(`/api/supplier/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update status");
-
-      toast.success("Order status updated successfully");
-      fetchOrders();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update status");
-    }
-  };
-
   const orderStats = {
     pending: orders.filter((o) => o.status === "PENDING").length,
     confirmed: orders.filter((o) => o.status === "CONFIRMED").length,
+    processing: orders.filter((o) => o.status === "PROCESSING").length,
     shipped: orders.filter((o) => o.status === "SHIPPED").length,
     delivered: orders.filter((o) => o.status === "DELIVERED").length,
+    cancelled: orders.filter((o) => o.status === "CANCELLED").length,
   };
 
   const totalRevenue = orders
     .filter((o) => o.status === "DELIVERED")
-    .reduce((sum, o) => sum + o.supplierTotal, 0);
+    .reduce((sum, o) => sum + (o.supplierTotal || 0), 0);
+
+  const totalOrders = orders.length;
+
+  const pendingActions =
+    orderStats.pending +
+    orderStats.confirmed +
+    orderStats.processing +
+    orderStats.shipped;
+
+  const lowStockProducts = products.filter((p) => p.stock < 5).length;
 
   const stats = [
     {
@@ -183,24 +185,33 @@ export default function SupplierDashboard() {
       value: products.length,
       icon: ShoppingBagIcon,
       color: "blue",
+      sublabel:
+        lowStockProducts > 0 ? `${lowStockProducts} low stock` : "All stocked",
+      showAlert: lowStockProducts > 0,
     },
     {
       label: "Total Orders",
-      value: orders.length,
+      value: totalOrders,
       icon: ChartBarIcon,
       color: "green",
+      sublabel: `${orderStats.delivered} completed`,
+      showAlert: false,
     },
     {
-      label: "Revenue",
+      label: "Total Revenue",
       value: `₦${totalRevenue.toLocaleString()}`,
       icon: CurrencyDollarIcon,
       color: "purple",
+      sublabel: "From delivered orders",
+      showAlert: false,
     },
     {
-      label: "Pending Orders",
-      value: orderStats.pending,
+      label: "Pending Actions",
+      value: pendingActions,
       icon: ClockIcon,
       color: "orange",
+      sublabel: "Requires attention",
+      showAlert: pendingActions > 0,
     },
   ];
 
@@ -279,14 +290,72 @@ export default function SupplierDashboard() {
                 >
                   <stat.icon className={`h-7 w-7 text-${stat.color}-600`} />
                 </div>
+                {stat.showAlert && (
+                  <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full flex items-center gap-1">
+                    <ExclamationTriangleIcon className="h-3 w-3" />
+                    {stat.label === "Total Products"
+                      ? lowStockProducts
+                      : pendingActions}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-neutral-600 mb-1">{stat.label}</p>
               <p className="text-3xl font-bold text-neutral-900">
                 {stat.value}
               </p>
+              {stat.sublabel && (
+                <p className="text-xs text-neutral-500 mt-2">{stat.sublabel}</p>
+              )}
             </div>
           ))}
         </div>
+
+        {/* Order Status Breakdown */}
+        {orders.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 shadow-lg mb-8">
+            <h3 className="text-lg font-bold text-neutral-900 mb-4">
+              Order Status Breakdown
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {orderStats.pending}
+                </div>
+                <div className="text-xs text-neutral-600">Pending</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {orderStats.confirmed}
+                </div>
+                <div className="text-xs text-neutral-600">Confirmed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {orderStats.processing}
+                </div>
+                <div className="text-xs text-neutral-600">Processing</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">
+                  {orderStats.shipped}
+                </div>
+                <div className="text-xs text-neutral-600">Shipped</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {orderStats.delivered}
+                </div>
+                <div className="text-xs text-neutral-600">Delivered</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">
+                  {orderStats.cancelled}
+                </div>
+                <div className="text-xs text-neutral-600">Cancelled</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
@@ -356,48 +425,49 @@ export default function SupplierDashboard() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-bold text-neutral-900 mb-1 line-clamp-1">
+                      <h3 className="text-xl font-bold text-neutral-900 mb-1 truncate">
                         {product.name}
                       </h3>
-                      <p className="text-sm text-neutral-600 mb-2 line-clamp-2">
-                        {product.description || "No description"}
+                      <p className="text-sm text-neutral-600 mb-2">
+                        {product.category} • {product.description || "Generic"}
                       </p>
-                      <div className="flex flex-wrap items-center gap-3 text-sm">
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg font-semibold">
-                          {product.category}
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <span className="text-lg font-bold text-blue-600">
+                          ₦{product.price.toLocaleString()}
                         </span>
-                        <span className="text-neutral-600">
-                          Stock:{" "}
-                          <span className="font-bold">{product.stock}</span>
-                        </span>
-                        <span className="text-neutral-600">
-                          Price:{" "}
-                          <span className="font-bold text-green-600">
-                            ₦{product.price.toLocaleString()}
-                          </span>
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm font-bold ${
+                            product.stock < 5
+                              ? "bg-red-100 text-red-700"
+                              : product.stock < 20
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-green-100 text-green-700"
+                          }`}
+                        >
+                          {product.stock} in stock
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <Link
-                        href={`/shop/${product.slug}`}
-                        className="p-2.5 bg-white border-2 border-neutral-200 text-neutral-600 rounded-xl hover:border-blue-300 hover:text-blue-600 transition-all"
-                        title="View Product"
+                        href={`/products/${product.slug}`}
+                        className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                        title="View"
                       >
                         <EyeIcon className="h-5 w-5" />
                       </Link>
                       <Link
                         href={`/dashboard/supplier/products/${product.id}/edit`}
-                        className="p-2.5 bg-white border-2 border-neutral-200 text-neutral-600 rounded-xl hover:border-green-300 hover:text-green-600 transition-all"
-                        title="Edit Product"
+                        className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors"
+                        title="Edit"
                       >
                         <PencilSquareIcon className="h-5 w-5" />
                       </Link>
                       <button
                         onClick={() => setDeleteModal(product.id)}
-                        className="p-2.5 bg-white border-2 border-neutral-200 text-neutral-600 rounded-xl hover:border-red-300 hover:text-red-600 transition-all"
-                        title="Delete Product"
+                        className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                        title="Delete"
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -407,16 +477,16 @@ export default function SupplierDashboard() {
               </div>
             ) : (
               <div className="text-center py-16">
-                <CubeIcon className="h-20 w-20 text-neutral-300 mx-auto mb-4" />
-                <p className="text-2xl font-bold text-neutral-900 mb-2">
+                <CubeIcon className="h-24 w-24 text-neutral-300 mx-auto mb-6" />
+                <h3 className="text-2xl font-bold text-neutral-900 mb-2">
                   No products yet
-                </p>
-                <p className="text-neutral-600 mb-8 max-w-md mx-auto">
-                  Start growing your business by adding your first product
+                </h3>
+                <p className="text-neutral-600 mb-6">
+                  Start by adding your first product to the marketplace
                 </p>
                 <Link
                   href="/dashboard/supplier/products/new"
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-2xl hover:scale-105 transition-all"
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl hover:scale-105 transition-all"
                 >
                   <PlusIcon className="h-6 w-6" />
                   Add Your First Product
@@ -429,127 +499,121 @@ export default function SupplierDashboard() {
         {/* Orders Tab */}
         {activeTab === "orders" && (
           <div className="bg-white rounded-2xl p-8 border-2 border-neutral-200 shadow-lg">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-6">
-              Customer Orders
-            </h2>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-neutral-900 mb-1">
+                Order Management
+              </h2>
+              <p className="text-neutral-600">
+                Track orders containing your products
+              </p>
+            </div>
 
             {orders.length > 0 ? (
               <div className="space-y-4">
                 {orders.map((order) => (
                   <div
                     key={order.id}
-                    className="p-6 bg-neutral-50 border-2 border-neutral-200 rounded-xl hover:shadow-lg transition-all"
+                    className="p-6 bg-gradient-to-r from-neutral-50 to-white border-2 border-neutral-200 rounded-2xl hover:border-blue-300 hover:shadow-lg transition-all"
                   >
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                       <div>
-                        <h3 className="text-lg font-bold text-neutral-900 mb-1">
-                          Order #{order.trackingId}
-                        </h3>
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-bold text-neutral-900">
+                            Order #{order.trackingId}
+                          </h3>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                              STATUS_COLORS[order.status]
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        </div>
                         <p className="text-sm text-neutral-600">
-                          Customer: {order.user.name}
+                          Customer: {order.user.name} • {order.user.email}
                         </p>
-                        <p className="text-sm text-neutral-600">
-                          {order.items.length} item(s) • ₦
-                          {order.supplierTotal.toLocaleString()}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-4 py-2 rounded-full text-sm font-bold border-2 ${
-                          STATUS_COLORS[order.status]
-                        }`}
-                      >
-                        {order.status}
-                      </span>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm font-semibold text-neutral-600">
-                          Delivery Address
-                        </p>
-                        <p className="text-neutral-900">
-                          {order.shippingAddress.city},{" "}
-                          {order.shippingAddress.state}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-neutral-600">
-                          Order Date
-                        </p>
-                        <p className="text-neutral-900">
+                        <p className="text-xs text-neutral-500 mt-1">
+                          Placed on:{" "}
                           {new Date(order.createdAt).toLocaleDateString()}
                         </p>
                       </div>
+                      <div className="text-right">
+                        <p className="text-sm text-neutral-600 mb-1">
+                          Your Revenue
+                        </p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          ₦{order.supplierTotal.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-3">
-                      {order.status === "PENDING" && (
-                        <>
-                          <button
-                            onClick={() =>
-                              handleOrderStatusUpdate(order.id, "CONFIRMED")
-                            }
-                            className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    <div className="border-t border-neutral-200 pt-4 mt-4">
+                      <p className="text-sm font-semibold text-neutral-700 mb-3">
+                        Your Products in This Order:
+                      </p>
+                      <div className="space-y-2">
+                        {order.items.map((item: any, idx: number) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between bg-white p-3 rounded-lg border border-neutral-200"
                           >
-                            <CheckCircleIcon className="h-5 w-5" />
-                            Confirm Order
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleOrderStatusUpdate(order.id, "CANCELLED")
-                            }
-                            className="px-4 py-2 bg-red-100 text-red-700 rounded-xl font-semibold hover:bg-red-200 transition-colors flex items-center gap-2"
-                          >
-                            <XCircleIcon className="h-5 w-5" />
-                            Cancel
-                          </button>
-                        </>
-                      )}
-
-                      {order.status === "CONFIRMED" && (
-                        <button
-                          onClick={() =>
-                            handleOrderStatusUpdate(order.id, "SHIPPED")
-                          }
-                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
-                        >
-                          <TruckIcon className="h-5 w-5" />
-                          Mark as Shipped
-                        </button>
-                      )}
-
-                      {order.status === "SHIPPED" && (
-                        <button
-                          onClick={() =>
-                            handleOrderStatusUpdate(order.id, "DELIVERED")
-                          }
-                          className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2"
-                        >
-                          <CheckCircleIcon className="h-5 w-5" />
-                          Mark as Delivered
-                        </button>
-                      )}
-
-                      <Link
-                        href={`/track/${order.trackingId}`}
-                        className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors flex items-center gap-2"
-                      >
-                        <EyeIcon className="h-5 w-5" />
-                        View Details
-                      </Link>
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-12 h-12 bg-neutral-200 rounded-lg overflow-hidden flex-shrink-0">
+                                {item.product.image ? (
+                                  <Image
+                                    src={item.product.image}
+                                    alt={item.product.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <CubeIcon className="h-6 w-6 text-neutral-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-neutral-900">
+                                  {item.product.name}
+                                </p>
+                                <p className="text-sm text-neutral-600">
+                                  Qty: {item.quantity} × ₦
+                                  {item.price.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="font-bold text-neutral-900">
+                              ₦{(item.price * item.quantity).toLocaleString()}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+
+                    {order.shippingAddress && (
+                      <div className="border-t border-neutral-200 pt-4 mt-4">
+                        <p className="text-sm font-semibold text-neutral-700 mb-2">
+                          Shipping Address:
+                        </p>
+                        <p className="text-sm text-neutral-600">
+                          {order.shippingAddress.address},{" "}
+                          {order.shippingAddress.city},{" "}
+                          {order.shippingAddress.state},{" "}
+                          {order.shippingAddress.country}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-16">
-                <ShoppingBagIcon className="h-20 w-20 text-neutral-300 mx-auto mb-4" />
-                <p className="text-2xl font-bold text-neutral-900 mb-2">
+                <TruckIcon className="h-24 w-24 text-neutral-300 mx-auto mb-6" />
+                <h3 className="text-2xl font-bold text-neutral-900 mb-2">
                   No orders yet
-                </p>
-                <p className="text-neutral-600">
-                  Orders from customers will appear here
+                </h3>
+                <p className="text-neutral-600 mb-6">
+                  Orders containing your products will appear here
                 </p>
               </div>
             )}
@@ -557,29 +621,32 @@ export default function SupplierDashboard() {
         )}
       </section>
 
-      {/* Delete Modal */}
+      <Footer />
+
+      {/* Delete Confirmation Modal */}
       {deleteModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <TrashIcon className="h-8 w-8 text-red-600" />
             </div>
-            <h3 className="text-2xl font-bold text-neutral-900 text-center mb-2">
+            <h3 className="text-2xl font-bold text-neutral-900 mb-2 text-center">
               Delete Product?
             </h3>
-            <p className="text-neutral-600 text-center mb-6">
-              This action cannot be undone.
+            <p className="text-neutral-600 mb-8 text-center">
+              This action cannot be undone. The product will be permanently
+              removed from the marketplace.
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={() => setDeleteModal(null)}
-                className="flex-1 px-6 py-3 bg-neutral-100 text-neutral-700 rounded-xl font-bold hover:bg-neutral-200 transition-all"
+                className="flex-1 px-6 py-3 bg-neutral-200 text-neutral-700 rounded-xl font-bold hover:bg-neutral-300 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteProduct(deleteModal)}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold hover:shadow-xl transition-all"
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
               >
                 Delete
               </button>
@@ -587,8 +654,6 @@ export default function SupplierDashboard() {
           </div>
         </div>
       )}
-
-      <Footer />
     </main>
   );
 }

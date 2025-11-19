@@ -2,7 +2,16 @@ import { prisma } from "@/lib/prisma";
 
 interface CreateNotificationParams {
   userId: string;
-  type: "ORDER" | "BOOKING" | "PRODUCT" | "SYSTEM" | "PAYMENT" | "REVIEW";
+  type:
+    | "ORDER"
+    | "BOOKING"
+    | "PRODUCT"
+    | "SYSTEM"
+    | "PAYMENT"
+    | "REVIEW"
+    | "PRODUCT_CREATED"
+    | "LOW_INVENTORY"
+    | "ORDER_STATUS_UPDATED";
   title: string;
   message: string;
   link?: string;
@@ -63,6 +72,14 @@ export const NotificationTemplates = {
     link: `/dashboard/buyer/orders/${orderId}`,
   }),
 
+  // Order status update notification
+  orderStatusUpdated: (trackingId: string, status: string) => ({
+    type: "ORDER_STATUS_UPDATED" as const,
+    title: "Order Status Updated",
+    message: `Order #${trackingId} status has been updated to ${status}`,
+    link: `/dashboard/supplier`,
+  }),
+
   // Booking notifications
   mechanicBookingCreated: (bookingId: string) => ({
     type: "BOOKING" as const,
@@ -93,6 +110,13 @@ export const NotificationTemplates = {
   }),
 
   // Product notifications
+  productCreated: (productName: string) => ({
+    type: "PRODUCT_CREATED" as const,
+    title: "Product Listed Successfully",
+    message: `Your product "${productName}" has been added to the marketplace`,
+    link: `/dashboard/supplier`,
+  }),
+
   productOutOfStock: (productName: string) => ({
     type: "PRODUCT" as const,
     title: "Product Out of Stock",
@@ -101,7 +125,7 @@ export const NotificationTemplates = {
   }),
 
   productLowStock: (productName: string, stock: number) => ({
-    type: "PRODUCT" as const,
+    type: "LOW_INVENTORY" as const,
     title: "Low Stock Alert",
     message: `${productName} has only ${stock} units left`,
     link: `/dashboard/supplier`,

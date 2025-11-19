@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     // Validate provider exists
     const provider = await prisma.logisticsProfile.findUnique({
       where: { id: providerId },
+      select: { userId: true, companyName: true },
     });
 
     if (!provider) {
@@ -55,6 +56,14 @@ export async function POST(request: Request) {
         { status: 404 }
       );
     }
+
+    // Get buyer's name
+    const buyer = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true },
+    });
+
+    const trackingNumber = `TRK-${Date.now().toString(36).toUpperCase()}`;
 
     // Create booking
     const booking = await prisma.logisticsBooking.create({
@@ -74,7 +83,7 @@ export async function POST(request: Request) {
         specialInstructions: specialInstructions || null,
         estimatedPrice: parseFloat(estimatedPrice),
         status: "PENDING",
-        trackingNumber: `TRK-${Date.now().toString(36).toUpperCase()}`,
+        trackingNumber,
       },
       include: {
         driver: {
@@ -83,14 +92,28 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send notification to provider
+    // 🔥 NOTIFY BUYER - Booking Confirmation
+    await prisma.notification.create({
+      data: {
+        userId: session.user.id,
+        type: "BOOKING",
+        title: "Delivery Booking Confirmed",
+        message: `Your ${packageType} delivery from ${pickupCity} to ${deliveryCity} has been booked. Tracking: ${trackingNumber}. The driver will confirm shortly.`,
+        link: `/dashboard/buyer/bookings?type=logistics`,
+        read: false,
+      },
+    });
+
+    // 🔥 NOTIFY LOGISTICS PROVIDER - New Booking
     await prisma.notification.create({
       data: {
         userId: provider.userId,
         type: "BOOKING",
         title: "New Delivery Request",
-        message: `New booking from ${session.user.name || "Customer"}`,
-        link: `/dashboard/provider/bookings/logistics/${booking.id}`,
+        message: `New ${packageType} delivery request from ${
+          buyer?.name || "Customer"
+        }. Route: ${pickupCity} → ${deliveryCity}. Tracking: ${trackingNumber}`,
+        link: `/dashboard/logistics/bookings/${booking.id}`,
         read: false,
       },
     });
@@ -100,6 +123,84 @@ export async function POST(request: Request) {
     console.error("Booking creation error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create booking" },
+      { status: 500 }
+    );
+  }
+}
+
+// GET - Fetch bookings based on view
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const view = searchParams.get("view");
+
+    let bookings;
+
+    if (view === "driver") {
+      const profile = await prisma.logisticsProfile.findUnique({
+        where: { userId: session.user.id },
+      });
+
+      if (!profile) {
+        return NextResponse.json(
+          { error: "Logistics profile not found" },
+          { status: 404 }
+        );
+      }
+
+      bookings = await prisma.logisticsBooking.findMany({
+        where: { driverId: profile.id },
+        include: {
+          user: {
+            select: { name: true, email: true, image: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } else if (view === "customer") {
+      bookings = await prisma.logisticsBooking.findMany({
+        where: { userId: session.user.id },
+        include: {
+          driver: {
+            select: {
+              companyName: true,
+              phone: true,
+              vehicleType: true,
+              city: true,
+              state: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    } else {
+      bookings = await prisma.logisticsBooking.findMany({
+        where: { userId: session.user.id },
+        include: {
+          driver: {
+            select: {
+              companyName: true,
+              phone: true,
+              vehicleType: true,
+              city: true,
+              state: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    return NextResponse.json(bookings);
+  } catch (error: any) {
+    console.error("Error fetching logistics bookings:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch bookings" },
       { status: 500 }
     );
   }

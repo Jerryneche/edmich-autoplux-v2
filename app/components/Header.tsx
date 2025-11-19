@@ -38,7 +38,7 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-1.5 sm:gap-3 group">
             {/* Logo – BIG on mobile */}
-            <div className="relative w-20 h-20 sm:w-20 sm:h-20 lg:w-16 lg:h-16">
+            <div className="relative w-20 h-20 sm:w-20 sm:h-20 lg:w-30 lg:h-30">
               <Image
                 src="/Untitled design (1).svg"
                 alt="EDMICH Logo"
@@ -50,7 +50,7 @@ export default function Header() {
             </div>
 
             {/* Text – Tiny but visible on mobile, normal on desktop */}
-            <span className="font-black text-lg sm:text-1.5xl lg:text-3xl text-gray-700 tracking-tighter group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+            <span className="font-black text-lg sm:text-1.5xl lg:text-2xl text-gray-700 tracking-tighter group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
               EDMICH
             </span>
           </Link>

@@ -1,4 +1,3 @@
-// app/api/admin/orders/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // AWAIT params first!
+    const { id } = await params;
 
     const session = await getServerSession(authOptions);
 
@@ -55,13 +54,12 @@ export async function GET(
   }
 }
 
-// PATCH - Update order status
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // AWAIT params first!
+    const { id } = await params;
     console.log("PATCH called with orderId:", id);
 
     const session = await getServerSession(authOptions);
@@ -91,14 +89,91 @@ export async function PATCH(
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             email: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              include: {
+                supplier: {
+                  select: {
+                    userId: true,
+                    businessName: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
 
     console.log("Order updated successfully:", updatedOrder.id);
+
+    // Status messages
+    const statusMessages: Record<string, string> = {
+      PENDING: "is awaiting confirmation",
+      PROCESSING: "is being processed",
+      SHIPPED: "has been shipped and is on the way",
+      DELIVERED: "has been delivered successfully",
+      CANCELLED: "has been cancelled",
+    };
+
+    // 🔥 NOTIFY BUYER ABOUT STATUS CHANGE
+    await prisma.notification.create({
+      data: {
+        userId: updatedOrder.userId,
+        type: "ORDER_STATUS_UPDATED",
+        title: "Order Status Updated",
+        message: `Your order #${updatedOrder.trackingId} ${
+          statusMessages[status] || "status has been updated"
+        }.`,
+        link: `/dashboard/buyer/orders`,
+      },
+    });
+
+    // 🔥 NOTIFY ALL SUPPLIERS WHOSE PRODUCTS ARE IN THIS ORDER
+    const suppliersToNotify = new Set<{
+      userId: string;
+      businessName: string;
+    }>();
+
+    updatedOrder.items.forEach((item) => {
+      if (item.product.supplier?.userId) {
+        suppliersToNotify.add({
+          userId: item.product.supplier.userId,
+          businessName: item.product.supplier.businessName,
+        });
+      }
+    });
+
+    // Create notification for each supplier
+    const supplierNotifications = Array.from(suppliersToNotify).map(
+      (supplier) =>
+        prisma.notification.create({
+          data: {
+            userId: supplier.userId,
+            type: "ORDER_STATUS_UPDATED",
+            title: "Order Status Updated",
+            message: `Order #${
+              updatedOrder.trackingId
+            } has been updated to ${status}. ${
+              status === "DELIVERED"
+                ? "Payment processing will begin shortly."
+                : status === "CANCELLED"
+                ? "This order has been cancelled."
+                : "Keep your inventory ready."
+            }`,
+            link: `/dashboard/supplier`,
+          },
+        })
+    );
+
+    await Promise.all(supplierNotifications);
+
     return NextResponse.json(updatedOrder);
   } catch (error: any) {
     console.error("Error updating order:", error);

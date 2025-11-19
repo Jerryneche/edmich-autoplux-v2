@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         type: "ORDER",
         title: "Order Placed Successfully",
         message: `Your order #${trackingId} has been placed successfully. Total: ₦${total.toLocaleString()}. You will be notified when the supplier confirms your order.`,
-        link: `/track/${trackingId}`,
+        link: `/dashboard/buyer/orders`,
         read: false,
       },
     });

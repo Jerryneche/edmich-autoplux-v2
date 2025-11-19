@@ -57,14 +57,68 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
-    const supplierProfile = await prisma.supplierProfile.upsert({
+    // Validate required fields
+    const {
+      businessName,
+      businessAddress,
+      city,
+      state,
+      description,
+      cacNumber,
+      bankName,
+      accountNumber,
+      accountName,
+    } = body;
+
+    if (!businessName || !businessAddress || !city || !state) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Check if profile already exists
+    const existingProfile = await prisma.supplierProfile.findUnique({
       where: { userId: session.user.id },
-      update: { ...body },
-      create: {
-        ...body,
-        userId: session.user.id,
-      },
     });
+
+    let supplierProfile;
+
+    if (existingProfile) {
+      // Update existing profile
+      supplierProfile = await prisma.supplierProfile.update({
+        where: { userId: session.user.id },
+        data: {
+          businessName,
+          businessAddress,
+          city,
+          state,
+          description: description || null,
+          cacNumber: cacNumber || null,
+          bankName: bankName || null,
+          accountNumber: accountNumber || null,
+          accountName: accountName || null,
+        },
+      });
+    } else {
+      // Create new profile
+      supplierProfile = await prisma.supplierProfile.create({
+        data: {
+          userId: session.user.id,
+          businessName,
+          businessAddress,
+          city,
+          state,
+          description: description || null,
+          cacNumber: cacNumber || null,
+          bankName: bankName || null,
+          accountNumber: accountNumber || null,
+          accountName: accountName || null,
+          verified: false,
+          approved: false,
+        },
+      });
+    }
 
     // ✅ Mark onboarding as completed
     await prisma.user.update({
@@ -77,10 +131,19 @@ export async function POST(request: Request) {
         message: "Supplier profile created successfully",
         supplierProfile,
       },
-      { status: 201 }
+      { status: existingProfile ? 200 : 201 }
     );
   } catch (error: any) {
     console.error("Error creating supplier profile:", error);
+
+    // Better error handling
+    if (error.code === "P2003") {
+      return NextResponse.json(
+        { error: "User account not found. Please log out and log in again." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: error.message || "Failed to create supplier profile" },
       { status: 500 }

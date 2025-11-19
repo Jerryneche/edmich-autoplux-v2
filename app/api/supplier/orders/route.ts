@@ -1,4 +1,3 @@
-// app/api/supplier/orders/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -12,60 +11,66 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all products belonging to this supplier
-    const supplierProducts = await prisma.product.findMany({
-      where: { supplierId: session.user.id },
-      select: { id: true },
+    // Get supplier profile
+    const supplierProfile = await prisma.supplierProfile.findUnique({
+      where: { userId: session.user.id },
     });
 
-    const productIds = supplierProducts.map((p) => p.id);
+    if (!supplierProfile) {
+      return NextResponse.json(
+        { error: "Supplier profile not found" },
+        { status: 404 }
+      );
+    }
 
-    // Get all orders containing these products
+    // Get all orders that contain products from this supplier
     const orders = await prisma.order.findMany({
       where: {
         items: {
           some: {
-            productId: {
-              in: productIds,
+            product: {
+              supplierId: supplierProfile.id,
             },
           },
         },
       },
       include: {
-        items: {
-          where: {
-            productId: {
-              in: productIds, // Only include items from this supplier
-            },
-          },
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-                price: true,
-              },
-            },
-          },
-        },
-        shippingAddress: true,
         user: {
           select: {
             name: true,
             email: true,
           },
         },
+        items: {
+          where: {
+            product: {
+              supplierId: supplierProfile.id,
+            },
+          },
+          include: {
+            product: {
+              select: {
+                name: true,
+                price: true,
+                image: true,
+              },
+            },
+          },
+        },
+        shippingAddress: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    // Calculate supplier-specific totals for each order
+    // Calculate supplier's share for each order
     const ordersWithSupplierTotal = orders.map((order) => {
       const supplierTotal = order.items.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
       );
+
       return {
         ...order,
         supplierTotal,
