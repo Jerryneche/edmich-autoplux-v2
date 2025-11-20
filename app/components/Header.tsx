@@ -13,6 +13,8 @@ import {
   InformationCircleIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
+  HeartIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import CartDrawer from "@/app/components/CartDrawer";
 import NotificationBell from "@/app/components/NotificationBell";
@@ -28,6 +30,7 @@ export default function Header() {
   const navItems = [
     { href: "/business", label: "Business", icon: BuildingOfficeIcon },
     { href: "/shop", label: "Shop", icon: ShoppingBagIcon },
+    { href: "/impact", label: "Our Impact", icon: SparklesIcon }, // NEW
     { href: "/about", label: "About", icon: InformationCircleIcon },
   ];
 
@@ -37,7 +40,6 @@ export default function Header() {
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-1.5 sm:gap-3 group">
-            {/* Logo – BIG on mobile */}
             <div className="relative w-20 h-20 sm:w-20 sm:h-20 lg:w-30 lg:h-30">
               <Image
                 src="/Untitled design (1).svg"
@@ -48,8 +50,6 @@ export default function Header() {
                 sizes="(max-width: 640px) 44px, (max-width: 1024px) 56px, 64px"
               />
             </div>
-
-            {/* Text – Tiny but visible on mobile, normal on desktop */}
             <span className="font-black text-lg sm:text-1.5xl lg:text-2xl text-gray-700 tracking-tighter group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
               AUTOPLUX
             </span>
@@ -79,10 +79,8 @@ export default function Header() {
               );
             })}
 
-            {/* Notification Bell - Desktop (only for logged in users) */}
             {session && <NotificationBell />}
 
-            {/* Cart - Desktop */}
             {(!session || session?.user?.role === "BUYER") && (
               <button
                 onClick={() => setDrawerOpen(true)}
@@ -97,7 +95,6 @@ export default function Header() {
               </button>
             )}
 
-            {/* Auth */}
             {status === "loading" ? (
               <div className="ml-4 w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             ) : session ? (
@@ -129,9 +126,7 @@ export default function Header() {
 
           {/* Mobile */}
           <div className="lg:hidden flex items-center gap-3">
-            {/* Notification Bell - Mobile */}
             {session && <NotificationBell />}
-
             {(!session || session?.user?.role === "BUYER") && (
               <button
                 onClick={() => setDrawerOpen(true)}
@@ -219,7 +214,6 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Cart Drawer */}
       <CartDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </>
   );
