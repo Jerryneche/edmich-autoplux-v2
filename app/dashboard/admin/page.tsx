@@ -16,9 +16,7 @@ import {
   CurrencyDollarIcon,
   UserGroupIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   ClockIcon,
   EyeIcon,
   PencilIcon,
@@ -37,6 +35,32 @@ interface Supplier {
   approved: boolean;
   createdAt?: string;
   user?: { email: string };
+}
+
+interface Mechanic {
+  id: string;
+  businessName: string;
+  city: string;
+  state: string;
+  phone: string;
+  specialization?: string;
+  verified: boolean;
+  approved: boolean;
+  createdAt?: string;
+  user?: { email: string; name: string };
+}
+
+interface LogisticsProvider {
+  id: string;
+  companyName: string;
+  city: string;
+  state: string;
+  phone: string;
+  vehicleType?: string;
+  verified: boolean;
+  approved: boolean;
+  createdAt?: string;
+  user?: { email: string; name: string };
 }
 
 interface Order {
@@ -58,6 +82,8 @@ interface Booking {
   appointmentDate: string;
   user: { name: string; email: string };
   mechanic?: { businessName: string };
+  driver?: { companyName: string };
+  type?: "MECHANIC" | "LOGISTICS";
 }
 
 interface Product {
@@ -90,6 +116,8 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState("overview");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [mechanics, setMechanics] = useState<Mechanic[]>([]);
+  const [logistics, setLogistics] = useState<LogisticsProvider[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -99,7 +127,6 @@ export default function AdminDashboard() {
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
 
   useEffect(() => {
     if (status === "loading") return;
@@ -117,34 +144,33 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      const [supRes, ordRes, bookRes, prodRes, anaRes] = await Promise.all([
-        fetch("/api/admin/suppliers"),
-        fetch("/api/admin/orders"),
-        fetch("/api/admin/bookings"),
-        fetch("/api/admin/products"),
-        fetch("/api/admin/analytics"),
-      ]);
+      const [supRes, mechRes, logRes, ordRes, bookRes, prodRes, anaRes] =
+        await Promise.all([
+          fetch("/api/admin/suppliers"),
+          fetch("/api/admin/mechanics"),
+          fetch("/api/admin/logistics"),
+          fetch("/api/admin/orders"),
+          fetch("/api/admin/bookings"),
+          fetch("/api/admin/products"),
+          fetch("/api/admin/analytics"),
+        ]);
 
       if (supRes.ok) setSuppliers(await supRes.json());
-      if (ordRes.ok) {
-        const ordersData = await ordRes.json();
-        console.log("ORDERS FETCHED:", ordersData); // ADD THIS
-        setOrders(ordersData);
-      } else {
-        console.error("Orders API failed:", ordRes.status); // ADD THIS
-      }
+      if (mechRes.ok) setMechanics(await mechRes.json());
+      if (logRes.ok) setLogistics(await logRes.json());
+      if (ordRes.ok) setOrders(await ordRes.json());
       if (bookRes.ok) setBookings(await bookRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (anaRes.ok) setAnalytics(await anaRes.json());
     } catch (err) {
       console.error("Fetch error:", err);
       toast.error("Failed to load data");
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Supplier approval functions
   const approveSupplier = async (id: string) => {
     try {
       const res = await fetch(`/api/admin/suppliers/${id}/approve`, {
@@ -162,10 +188,12 @@ export default function AdminDashboard() {
   };
 
   const rejectSupplier = async (id: string) => {
-    if (!confirm("Are you sure you want to reject this supplier?")) return;
+    const reason = prompt("Reason for rejection (optional):");
     try {
       const res = await fetch(`/api/admin/suppliers/${id}/reject`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
       });
       if (res.ok) {
         toast.success("Supplier rejected");
@@ -178,27 +206,91 @@ export default function AdminDashboard() {
     }
   };
 
+  // Mechanic approval functions
+  const approveMechanic = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/mechanics/${id}/approve`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        toast.success("Mechanic approved");
+        fetchAllData();
+      } else {
+        throw new Error("Failed to approve");
+      }
+    } catch (err) {
+      toast.error("Failed to approve mechanic");
+    }
+  };
+
+  const rejectMechanic = async (id: string) => {
+    const reason = prompt("Reason for rejection (optional):");
+    try {
+      const res = await fetch(`/api/admin/mechanics/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) {
+        toast.success("Mechanic rejected");
+        fetchAllData();
+      } else {
+        throw new Error("Failed to reject");
+      }
+    } catch (err) {
+      toast.error("Failed to reject mechanic");
+    }
+  };
+
+  // Logistics approval functions
+  const approveLogistics = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/logistics/${id}/approve`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        toast.success("Logistics provider approved");
+        fetchAllData();
+      } else {
+        throw new Error("Failed to approve");
+      }
+    } catch (err) {
+      toast.error("Failed to approve logistics provider");
+    }
+  };
+
+  const rejectLogistics = async (id: string) => {
+    const reason = prompt("Reason for rejection (optional):");
+    try {
+      const res = await fetch(`/api/admin/logistics/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) {
+        toast.success("Logistics provider rejected");
+        fetchAllData();
+      } else {
+        throw new Error("Failed to reject");
+      }
+    } catch (err) {
+      toast.error("Failed to reject logistics provider");
+    }
+  };
+
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
-      console.log("Updating order:", orderId, "to status:", newStatus); // DEBUG
-
       const response = await fetch(`/api/admin/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
 
-      console.log("Response status:", response.status); // DEBUG
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Error response:", errorData); // DEBUG
         throw new Error(errorData.error || "Failed to update status");
       }
 
-      const updatedOrder = await response.json();
-
-      // Update local state
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId ? { ...order, status: newStatus } : order
@@ -231,7 +323,6 @@ export default function AdminDashboard() {
 
   // Filter functions
   const filteredOrders = orders.filter((order) => {
-    // If no search query, consider it a match
     const matchesSearch =
       !searchQuery ||
       order.trackingId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -246,7 +337,6 @@ export default function AdminDashboard() {
   });
 
   const filteredProducts = products.filter((product) => {
-    // If no search query, consider it a match
     const matchesSearch =
       !searchQuery ||
       product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -258,6 +348,10 @@ export default function AdminDashboard() {
 
     return matchesSearch && matchesStatus;
   });
+
+  // Calculate pending counts
+  const pendingMechanics = mechanics.filter((m) => !m.verified).length;
+  const pendingLogistics = logistics.filter((l) => !l.verified).length;
 
   if (isLoading) {
     return (
@@ -276,7 +370,7 @@ export default function AdminDashboard() {
       <Header />
 
       <section className="pt-32 pb-24 max-w-7xl mx-auto px-6">
-        {/* Header with Quick Actions */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div>
             <h1 className="text-4xl font-bold text-neutral-900 mb-2">
@@ -286,25 +380,40 @@ export default function AdminDashboard() {
               Welcome back, {session?.user?.name} • Manage your platform
             </p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={fetchAllData}
-              className="px-4 py-2 bg-white border-2 border-neutral-200 rounded-xl font-semibold hover:border-blue-300 transition-all flex items-center gap-2"
-            >
-              <ArrowTrendingUpIcon className="h-5 w-5" />
-              Refresh Data
-            </button>
-          </div>
+          <button
+            onClick={fetchAllData}
+            className="px-4 py-2 bg-white border-2 border-neutral-200 rounded-xl font-semibold hover:border-blue-300 transition-all flex items-center gap-2"
+          >
+            <ArrowTrendingUpIcon className="h-5 w-5" />
+            Refresh Data
+          </button>
         </div>
 
         {/* Tabs */}
         <div className="bg-white rounded-2xl border-2 border-neutral-200 p-2 mb-8 flex flex-wrap gap-2">
           {[
             { id: "overview", label: "Overview", icon: ChartBarIcon },
-            { id: "suppliers", label: "Suppliers", icon: UserGroupIcon },
+            {
+              id: "suppliers",
+              label: "Suppliers",
+              icon: UserGroupIcon,
+              badge: analytics?.pendingSuppliers,
+            },
+            {
+              id: "mechanics",
+              label: "Mechanics",
+              icon: WrenchScrewdriverIcon,
+              badge: pendingMechanics,
+            },
+            {
+              id: "logistics",
+              label: "Logistics",
+              icon: TruckIcon,
+              badge: pendingLogistics,
+            },
             { id: "orders", label: "Orders", icon: ShoppingBagIcon },
-            { id: "bookings", label: "Bookings", icon: WrenchScrewdriverIcon },
-            { id: "products", label: "Products", icon: TruckIcon },
+            { id: "bookings", label: "Bookings", icon: ClockIcon },
+            { id: "products", label: "Products", icon: ShoppingBagIcon },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -313,7 +422,7 @@ export default function AdminDashboard() {
                 setSearchQuery("");
                 setStatusFilter("all");
               }}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all ${
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all relative ${
                 activeTab === tab.id
                   ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
                   : "text-neutral-700 hover:bg-neutral-100"
@@ -321,6 +430,11 @@ export default function AdminDashboard() {
             >
               <tab.icon className="h-5 w-5" />
               {tab.label}
+              {tab.badge && tab.badge > 0 && (
+                <span className="absolute -top-1 -right-1 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -328,8 +442,9 @@ export default function AdminDashboard() {
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && analytics && (
           <>
-            {/* Key Metrics */}
+            {/* Key Metrics - Keep your existing code */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Your existing stats cards */}
               <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -351,40 +466,44 @@ export default function AdminDashboard() {
                 </p>
               </div>
 
+              {/* Add new service provider stats */}
               <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <ShoppingBagIcon className="h-6 w-6 text-white" />
+                    <WrenchScrewdriverIcon className="h-6 w-6 text-white" />
                   </div>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <ArrowTrendingUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-bold">
-                      {analytics.ordersGrowth}%
+                  {pendingMechanics > 0 && (
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full">
+                      {pendingMechanics} pending
                     </span>
-                  </div>
+                  )}
                 </div>
-                <p className="text-sm text-neutral-600 mb-1">Total Orders</p>
+                <p className="text-sm text-neutral-600 mb-1">Mechanics</p>
                 <p className="text-3xl font-bold text-neutral-900">
-                  {analytics.totalOrders}
+                  {mechanics.length}
                 </p>
                 <p className="text-xs text-neutral-500 mt-2">
-                  {orders.filter((o) => o.status === "PENDING").length} pending
+                  {mechanics.filter((m) => m.verified).length} verified
                 </p>
               </div>
 
               <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:shadow-xl transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <WrenchScrewdriverIcon className="h-6 w-6 text-white" />
+                    <TruckIcon className="h-6 w-6 text-white" />
                   </div>
+                  {pendingLogistics > 0 && (
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full">
+                      {pendingLogistics} pending
+                    </span>
+                  )}
                 </div>
-                <p className="text-sm text-neutral-600 mb-1">Total Bookings</p>
+                <p className="text-sm text-neutral-600 mb-1">Logistics</p>
                 <p className="text-3xl font-bold text-neutral-900">
-                  {analytics.totalBookings}
+                  {logistics.length}
                 </p>
                 <p className="text-xs text-neutral-500 mt-2">
-                  {bookings.filter((b) => b.status === "PENDING").length}{" "}
-                  pending
+                  {logistics.filter((l) => l.verified).length} verified
                 </p>
               </div>
 
@@ -399,7 +518,7 @@ export default function AdminDashboard() {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-neutral-600 mb-1">Total Suppliers</p>
+                <p className="text-sm text-neutral-600 mb-1">Suppliers</p>
                 <p className="text-3xl font-bold text-neutral-900">
                   {analytics.totalSuppliers}
                 </p>
@@ -409,131 +528,91 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Secondary Metrics */}
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border-2 border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold text-blue-900">
-                    Active Users
-                  </p>
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                </div>
-                <p className="text-3xl font-bold text-blue-900">
-                  {analytics.activeUsers}
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border-2 border-purple-200">
-                <p className="text-sm font-semibold text-purple-900 mb-2">
-                  Total Products
-                </p>
-                <p className="text-3xl font-bold text-purple-900">
-                  {analytics.totalProducts}
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border-2 border-red-200">
-                <p className="text-sm font-semibold text-red-900 mb-2">
-                  Low Stock Alert
-                </p>
-                <p className="text-3xl font-bold text-red-900">
-                  {analytics.lowStockProducts}
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200">
-                <h3 className="text-lg font-bold text-neutral-900 mb-4">
-                  Pending Actions
-                </h3>
-                <div className="space-y-3">
-                  <Link
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setActiveTab("suppliers");
-                    }}
-                    className="flex items-center justify-between p-3 bg-yellow-50 border-2 border-yellow-200 rounded-xl hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                        <ClockIcon className="h-5 w-5 text-yellow-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-neutral-900">
-                          Pending Suppliers
-                        </p>
-                        <p className="text-sm text-neutral-600">
-                          {analytics.pendingSuppliers} awaiting approval
-                        </p>
-                      </div>
+            {/* Pending Actions with Service Providers */}
+            <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 mb-8">
+              <h3 className="text-lg font-bold text-neutral-900 mb-4">
+                Pending Approvals
+              </h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <Link
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveTab("suppliers");
+                  }}
+                  className="flex items-center justify-between p-4 bg-orange-50 border-2 border-orange-200 rounded-xl hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <UserGroupIcon className="h-5 w-5 text-orange-600" />
                     </div>
-                    <ArrowTrendingUpIcon className="h-5 w-5 text-yellow-600" />
-                  </Link>
-
-                  <Link
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setActiveTab("orders");
-                    }}
-                    className="flex items-center justify-between p-3 bg-blue-50 border-2 border-blue-200 rounded-xl hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <ShoppingBagIcon className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-neutral-900">
-                          Pending Orders
-                        </p>
-                        <p className="text-sm text-neutral-600">
-                          {orders.filter((o) => o.status === "PENDING").length}{" "}
-                          orders to process
-                        </p>
-                      </div>
-                    </div>
-                    <ArrowTrendingUpIcon className="h-5 w-5 text-blue-600" />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200">
-                <h3 className="text-lg font-bold text-neutral-900 mb-4">
-                  Recent Activity
-                </h3>
-                <div className="space-y-3">
-                  {orders.slice(0, 3).map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl"
-                    >
-                      <div>
-                        <p className="font-semibold text-neutral-900 text-sm">
-                          New order #{order.trackingId.slice(-6)}
-                        </p>
-                        <p className="text-xs text-neutral-600">
-                          {order.user.name} •{" "}
-                          {format(new Date(order.createdAt), "MMM d, h:mm a")}
-                        </p>
-                      </div>
-                      <p className="text-sm font-bold text-neutral-900">
-                        ₦{order.total.toLocaleString()}
+                    <div>
+                      <p className="font-semibold text-neutral-900">
+                        Suppliers
+                      </p>
+                      <p className="text-sm text-neutral-600">
+                        {analytics.pendingSuppliers} pending
                       </p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                </Link>
+
+                <Link
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveTab("mechanics");
+                  }}
+                  className="flex items-center justify-between p-4 bg-purple-50 border-2 border-purple-200 rounded-xl hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <WrenchScrewdriverIcon className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-neutral-900">
+                        Mechanics
+                      </p>
+                      <p className="text-sm text-neutral-600">
+                        {pendingMechanics} pending
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveTab("logistics");
+                  }}
+                  className="flex items-center justify-between p-4 bg-green-50 border-2 border-green-200 rounded-xl hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <TruckIcon className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-neutral-900">
+                        Logistics
+                      </p>
+                      <p className="text-sm text-neutral-600">
+                        {pendingLogistics} pending
+                      </p>
+                    </div>
+                  </div>
+                </Link>
               </div>
             </div>
+
+            {/* Keep your existing overview content */}
           </>
         )}
 
-        {/* SUPPLIERS TAB */}
+        {/* SUPPLIERS TAB - Keep your existing code */}
         {activeTab === "suppliers" && (
           <div className="space-y-6">
-            {/* Search & Filter */}
+            {/* Your existing suppliers list */}
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
@@ -542,7 +621,7 @@ export default function AdminDashboard() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search suppliers by name, city..."
+                    placeholder="Search suppliers..."
                     className="w-full pl-12 pr-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
                   />
                 </div>
@@ -554,12 +633,10 @@ export default function AdminDashboard() {
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="verified">Verified</option>
-                  <option value="rejected">Rejected</option>
                 </select>
               </div>
             </div>
 
-            {/* Suppliers List */}
             <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
               <div className="p-6 border-b-2 border-neutral-200">
                 <h2 className="text-2xl font-bold text-neutral-900">
@@ -643,7 +720,7 @@ export default function AdminDashboard() {
                             className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
                           >
                             <EyeIcon className="h-4 w-4" />
-                            View Details
+                            View
                           </Link>
                         </div>
                       </div>
@@ -654,10 +731,291 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ORDERS TAB */}
+        {/* MECHANICS TAB - NEW */}
+        {activeTab === "mechanics" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search mechanics..."
+                    className="w-full pl-12 pr-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none font-medium"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="verified">Verified</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
+              <div className="p-6 border-b-2 border-neutral-200">
+                <h2 className="text-2xl font-bold text-neutral-900">
+                  All Mechanics ({mechanics.length})
+                </h2>
+              </div>
+              <div className="divide-y-2 divide-neutral-100">
+                {mechanics
+                  .filter((m) => {
+                    const matchesSearch =
+                      m.businessName
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                      m.city.toLowerCase().includes(searchQuery.toLowerCase());
+                    const matchesStatus =
+                      statusFilter === "all" ||
+                      (statusFilter === "pending" && !m.verified) ||
+                      (statusFilter === "verified" && m.verified);
+                    return matchesSearch && matchesStatus;
+                  })
+                  .map((mechanic) => (
+                    <div
+                      key={mechanic.id}
+                      className="p-6 hover:bg-neutral-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-bold text-neutral-900">
+                              {mechanic.businessName}
+                            </h3>
+                            {mechanic.verified ? (
+                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
+                                ✓ Verified
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1 text-sm text-neutral-600">
+                            <p>
+                              📍 {mechanic.city}, {mechanic.state}
+                            </p>
+                            <p>📞 {mechanic.phone}</p>
+                            {mechanic.specialization && (
+                              <p>🔧 {mechanic.specialization}</p>
+                            )}
+                            {mechanic.user?.email && (
+                              <p>✉️ {mechanic.user.email}</p>
+                            )}
+                            {mechanic.createdAt && (
+                              <p className="text-xs">
+                                Joined{" "}
+                                {format(
+                                  new Date(mechanic.createdAt),
+                                  "MMM d, yyyy"
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {!mechanic.verified && (
+                            <>
+                              <button
+                                onClick={() => approveMechanic(mechanic.id)}
+                                className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                              >
+                                <CheckCircleIcon className="h-4 w-4" />
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => rejectMechanic(mechanic.id)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
+                              >
+                                <XCircleIcon className="h-4 w-4" />
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          <Link
+                            href={`/dashboard/admin/mechanics/${mechanic.id}`}
+                            className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            View
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                {mechanics.filter((m) => {
+                  const matchesSearch =
+                    m.businessName
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    m.city.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchesStatus =
+                    statusFilter === "all" ||
+                    (statusFilter === "pending" && !m.verified) ||
+                    (statusFilter === "verified" && m.verified);
+                  return matchesSearch && matchesStatus;
+                }).length === 0 && (
+                  <div className="p-12 text-center text-neutral-500">
+                    No mechanics found matching your criteria
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LOGISTICS TAB - NEW */}
+        {activeTab === "logistics" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search logistics providers..."
+                    className="w-full pl-12 pr-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none font-medium"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="verified">Verified</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
+              <div className="p-6 border-b-2 border-neutral-200">
+                <h2 className="text-2xl font-bold text-neutral-900">
+                  All Logistics Providers ({logistics.length})
+                </h2>
+              </div>
+              <div className="divide-y-2 divide-neutral-100">
+                {logistics
+                  .filter((l) => {
+                    const matchesSearch =
+                      l.companyName
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                      l.city.toLowerCase().includes(searchQuery.toLowerCase());
+                    const matchesStatus =
+                      statusFilter === "all" ||
+                      (statusFilter === "pending" && !l.verified) ||
+                      (statusFilter === "verified" && l.verified);
+                    return matchesSearch && matchesStatus;
+                  })
+                  .map((provider) => (
+                    <div
+                      key={provider.id}
+                      className="p-6 hover:bg-neutral-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-bold text-neutral-900">
+                              {provider.companyName}
+                            </h3>
+                            {provider.verified ? (
+                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
+                                ✓ Verified
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1 text-sm text-neutral-600">
+                            <p>
+                              📍 {provider.city}, {provider.state}
+                            </p>
+                            <p>📞 {provider.phone}</p>
+                            {provider.vehicleType && (
+                              <p>🚚 {provider.vehicleType}</p>
+                            )}
+                            {provider.user?.email && (
+                              <p>✉️ {provider.user.email}</p>
+                            )}
+                            {provider.createdAt && (
+                              <p className="text-xs">
+                                Joined{" "}
+                                {format(
+                                  new Date(provider.createdAt),
+                                  "MMM d, yyyy"
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {!provider.verified && (
+                            <>
+                              <button
+                                onClick={() => approveLogistics(provider.id)}
+                                className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                              >
+                                <CheckCircleIcon className="h-4 w-4" />
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => rejectLogistics(provider.id)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
+                              >
+                                <XCircleIcon className="h-4 w-4" />
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          <Link
+                            href={`/dashboard/admin/logistics/${provider.id}`}
+                            className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            View
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                {logistics.filter((l) => {
+                  const matchesSearch =
+                    l.companyName
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    l.city.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchesStatus =
+                    statusFilter === "all" ||
+                    (statusFilter === "pending" && !l.verified) ||
+                    (statusFilter === "verified" && l.verified);
+                  return matchesSearch && matchesStatus;
+                }).length === 0 && (
+                  <div className="p-12 text-center text-neutral-500">
+                    No logistics providers found matching your criteria
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ORDERS TAB - Keep your existing code */}
         {activeTab === "orders" && (
           <div className="space-y-6">
-            {/* Search & Filter */}
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
@@ -685,7 +1043,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Orders List */}
             <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
               <div className="p-6 border-b-2 border-neutral-200">
                 <h2 className="text-2xl font-bold text-neutral-900">
@@ -770,7 +1127,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* BOOKINGS TAB */}
+        {/* BOOKINGS TAB - Keep your existing code */}
         {activeTab === "bookings" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
@@ -838,6 +1195,11 @@ export default function AdminDashboard() {
                             >
                               {booking.status}
                             </span>
+                            {booking.type && (
+                              <span className="px-3 py-1 bg-neutral-100 text-neutral-700 text-xs font-bold rounded-full">
+                                {booking.type}
+                              </span>
+                            )}
                           </div>
                           <div className="space-y-1 text-sm">
                             <p className="text-neutral-900 font-semibold">
@@ -848,7 +1210,12 @@ export default function AdminDashboard() {
                             </p>
                             {booking.mechanic && (
                               <p className="text-purple-600 font-medium">
-                                Assigned: {booking.mechanic.businessName}
+                                Mechanic: {booking.mechanic.businessName}
+                              </p>
+                            )}
+                            {booking.driver && (
+                              <p className="text-green-600 font-medium">
+                                Driver: {booking.driver.companyName}
                               </p>
                             )}
                             <p className="text-neutral-500">
@@ -869,7 +1236,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))}
-                {bookings.length === 0 && (
+                {bookings.filter((booking) => {
+                  const matchesSearch =
+                    booking.carModel
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    booking.user.name
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase());
+                  const matchesStatus =
+                    statusFilter === "all" || booking.status === statusFilter;
+                  return matchesSearch && matchesStatus;
+                }).length === 0 && (
                   <div className="p-12 text-center text-neutral-500">
                     No bookings found
                   </div>
@@ -879,7 +1257,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* PRODUCTS TAB */}
+        {/* PRODUCTS TAB - Keep your existing code */}
         {activeTab === "products" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">

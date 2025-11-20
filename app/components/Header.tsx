@@ -51,7 +51,7 @@ export default function Header() {
 
             {/* Text – Tiny but visible on mobile, normal on desktop */}
             <span className="font-black text-lg sm:text-1.5xl lg:text-2xl text-gray-700 tracking-tighter group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
-              EDMICH
+              AUTOPLUX
             </span>
           </Link>
 

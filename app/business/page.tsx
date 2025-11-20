@@ -13,6 +13,7 @@ import {
   WrenchScrewdriverIcon,
   CalendarDaysIcon,
 } from "@heroicons/react/24/outline";
+import SmartCTA from "../components/SmartCTA";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -31,9 +32,7 @@ interface Supplier {
 async function getSuppliers(): Promise<Supplier[]> {
   try {
     const suppliers = await prisma.supplierProfile.findMany({
-      where: {
-        approved: true,
-      },
+      // where: { approved: true },  // ← COMMENTED OUT — fetches ALL
       include: {
         _count: {
           select: {
@@ -62,20 +61,22 @@ async function getSuppliers(): Promise<Supplier[]> {
     return [];
   }
 }
-
 async function getStats() {
   try {
-    const [totalProducts, approvedSuppliers, mechanics, logistics] =
+    const [totalProducts, totalSuppliers, mechanics, logistics] =
       await Promise.all([
         prisma.product.count(),
-        prisma.supplierProfile.count({ where: { approved: true } }),
+        prisma.supplierProfile.count(), // ← REMOVED WHERE clause — fetches ALL (pending + approved)
         prisma.mechanicProfile.count({ where: { approved: true } }),
         prisma.logisticsProfile.count({ where: { approved: true } }),
       ]);
 
+    // Optional: Log for debugging (remove in production)
+    console.log("Total suppliers (all):", totalSuppliers);
+
     return {
       totalProducts,
-      approvedSuppliers,
+      approvedSuppliers: totalSuppliers, // ← Renamed to reflect ALL suppliers
       mechanics,
       logistics,
     };
@@ -83,7 +84,7 @@ async function getStats() {
     console.error("❌ Failed to fetch stats:", error);
     return {
       totalProducts: 500,
-      approvedSuppliers: 0,
+      approvedSuppliers: 0, // Fallback
       mechanics: 0,
       logistics: 0,
     };
@@ -129,7 +130,8 @@ export default async function BusinessPage() {
               <p className="text-3xl font-bold text-neutral-900 mb-1">
                 {stats.approvedSuppliers}+
               </p>
-              <p className="text-neutral-600 text-sm">Suppliers</p>
+              <p className="text-neutral-600 text-sm">Total Suppliers</p>{" "}
+              {/* ← Updated label */}
             </div>
             <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 shadow-lg">
               <WrenchScrewdriverIcon className="h-10 w-10 text-purple-600 mx-auto mb-3" />
@@ -191,12 +193,9 @@ export default async function BusinessPage() {
               <p className="text-lg text-neutral-600 mb-8">
                 We're onboarding quality suppliers. Check back soon!
               </p>
-              <Link
-                href="/signup"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all"
-              >
+              <SmartCTA className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all">
                 Become a Supplier
-              </Link>
+              </SmartCTA>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
