@@ -391,6 +391,27 @@ enum NotificationType {
   ORDER_STATUS_UPDATED
 }
 
+model ContactSubmission {
+  id         String    @id @default(cuid())
+  name       String
+  email      String
+  phone      String?
+  subject    String
+  category   String // general, supplier, mechanic, logistics, grant, support, other
+  message    String    @db.Text
+  status     String    @default("NEW") // NEW, READ, REPLIED, RESOLVED
+  adminReply String?   @db.Text
+  repliedAt  DateTime?
+  repliedBy  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+  @@index([email])
+}
+
 model TradeIn {
   id             String        @id @default(cuid())
   userId         String

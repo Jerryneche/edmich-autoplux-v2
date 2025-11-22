@@ -5,6 +5,7 @@ import ClientProvider from "./ClientProvider";
 import "./globals.css";
 import Script from "next/script";
 import Link from "next/link";
+import PWAInstaller from "@/app/components/PWAInstaller";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,8 +26,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1a1a1a" },
+    { media: "(prefers-color-scheme: light)", color: "#2563eb" },
+    { media: "(prefers-color-scheme: dark)", color: "#1e40af" },
   ],
 };
 
@@ -42,40 +43,29 @@ export const metadata: Metadata = {
     "Transform your automotive business with EDMICH AutoPlux. Connect with 500+ verified suppliers, 350+ certified mechanics, and smart logistics across Nigeria. Source genuine auto parts, manage services, and scale operations in one powerful platform.",
 
   keywords: [
-    // Primary Keywords
     "auto parts marketplace Nigeria",
     "B2B automotive platform Africa",
     "verified auto parts suppliers",
     "genuine spare parts Nigeria",
-
-    // Secondary Keywords
     "automotive B2B platform",
     "car parts suppliers Lagos",
     "certified mechanics Nigeria",
     "auto logistics services",
     "automotive supply chain",
-
-    // Long-tail Keywords
     "buy genuine auto parts online Nigeria",
     "B2B auto parts marketplace Africa",
     "verified automotive suppliers Lagos",
     "professional mechanics network Nigeria",
     "automotive parts distribution platform",
-
-    // Location-based
     "auto parts Lagos",
     "car parts Abuja",
     "spare parts Port Harcourt",
     "automotive suppliers Nigeria",
-
-    // Service-based
     "automotive inventory management",
     "parts sourcing platform",
     "mechanic booking system",
     "logistics tracking Nigeria",
     "automotive e-commerce",
-
-    // Brand
     "EDMICH",
     "AutoPlux",
     "Edmich AutoPlux",
@@ -103,6 +93,12 @@ export const metadata: Metadata = {
   },
 
   manifest: "/manifest.json",
+
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "EDMICH AutoPlux",
+  },
 
   openGraph: {
     type: "website",
@@ -156,8 +152,6 @@ export const metadata: Metadata = {
   verification: {
     google: "your-google-verification-code",
     yandex: "your-yandex-verification-code",
-    // yahoo: "your-yahoo-verification-code",
-    // other: ["your-other-verification-code"],
   },
 
   category: "technology",
@@ -177,7 +171,6 @@ export const metadata: Metadata = {
   },
 };
 
-// JSON-LD Structured Data
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -261,13 +254,20 @@ export default function RootLayout({
 
         {/* DNS Prefetch for performance */}
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+
+        {/* PWA Meta Tags - REMOVED <link> tags that caused error */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="EDMICH AutoPlux" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#2563eb" />
       </head>
 
       <body
         className={`${inter.className} bg-white text-gray-900 antialiased`}
         suppressHydrationWarning
       >
-        {/* Google Analytics - Replace with your ID */}
+        {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
           strategy="afterInteractive"
@@ -281,7 +281,7 @@ export default function RootLayout({
           `}
         </Script>
 
-        {/* Meta Pixel (Facebook) - Replace with your ID */}
+        {/* Meta Pixel (Facebook) */}
         <Script id="facebook-pixel" strategy="afterInteractive">
           {`
             !function(f,b,e,v,n,t,s)
@@ -308,6 +308,9 @@ export default function RootLayout({
 
         {/* Main App */}
         <ClientProvider>{children}</ClientProvider>
+
+        {/* PWA Install Prompt */}
+        <PWAInstaller />
 
         {/* Accessibility: Skip to main content */}
         <Link

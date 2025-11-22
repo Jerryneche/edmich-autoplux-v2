@@ -48,6 +48,12 @@ export default function Footer() {
                 <CreditCardIcon className="h-4 w-4 text-purple-600" />
                 <span>Secure</span>
               </div>
+              <Link
+                href="/install"
+                className="hover:text-blue-600 transition-colors"
+              >
+                📱 Install App
+              </Link>
             </div>
           </div>
 
