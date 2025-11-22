@@ -290,6 +290,15 @@ function BookingsContent() {
                             </p>
                           </div>
                         </div>
+
+                        <div className="mb-2">
+                          <span className="text-sm text-gray-500">
+                            Tracking ID:{" "}
+                          </span>
+                          <span className="font-mono font-semibold text-gray-900">
+                            MECH-{booking.id}
+                          </span>
+                        </div>
                       </div>
 
                       {booking.mechanic && (

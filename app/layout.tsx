@@ -88,7 +88,7 @@ export const metadata: Metadata = {
       { url: "/logo 192.png", type: "image/png", sizes: "192x192" },
       { url: "/logo 512.png", type: "image/png", sizes: "512x512" },
     ],
-    apple: [{ url: "/apple.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: "/logo (1).png", sizes: "180x180", type: "image/png" }],
     shortcut: "/favicon.ico",
   },
 

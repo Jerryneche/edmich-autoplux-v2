@@ -87,7 +87,7 @@ export default function Footer() {
                 { href: "/shop", label: "Marketplace" },
                 { href: "/business/mechanics", label: "Find Mechanics" },
                 { href: "/business/logistics", label: "Logistics" },
-                { href: "/business/logistics/track", label: "Track Order" },
+                { href: "/track", label: "Track Order" },
               ].map((link) => (
                 <li key={link.href}>
                   <Link
@@ -128,7 +128,7 @@ export default function Footer() {
                   href="mailto:edmichservices@gmail.com"
                   className="text-gray-600 hover:text-blue-600 transition-colors"
                 >
-                  info@edmich.com
+                  edmichservices@gmail.com
                 </a>
               </li>
             </ul>

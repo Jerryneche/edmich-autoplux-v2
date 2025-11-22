@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+
 import Image from "next/image";
 import {
   ShoppingBagIcon,

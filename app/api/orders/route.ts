@@ -4,6 +4,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 
+// 🔥 Helper function to generate tracking ID
+function generateOrderTrackingId(): string {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `EDM-${timestamp}-${random}`;
+}
+
 // POST: Create a new order
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -16,14 +23,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("Received payload:", body);
 
-    const {
-      items,
-      total,
-      shippingAddress,
-      deliveryNotes,
-      paymentMethod,
-      trackingId,
-    } = body;
+    const { items, total, shippingAddress, deliveryNotes, paymentMethod } =
+      body;
 
     if (!items?.length) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 });
@@ -70,6 +71,9 @@ export async function POST(request: Request) {
       supplierIds.add(product.supplierId);
     }
 
+    // 🔥 Generate tracking ID
+    const trackingId = generateOrderTrackingId();
+
     // Create order
     const order = await prisma.order.create({
       data: {
@@ -77,7 +81,7 @@ export async function POST(request: Request) {
         total,
         status: "PENDING",
         paymentMethod,
-        trackingId,
+        trackingId, // 🔥 Use generated tracking ID
         deliveryNotes,
         shippingAddress: {
           create: {
@@ -138,14 +142,13 @@ export async function POST(request: Request) {
         userId: user.id,
         type: "ORDER",
         title: "Order Placed Successfully",
-        message: `Your order #${trackingId} has been placed successfully. Total: ₦${total.toLocaleString()}. You will be notified when the supplier confirms your order.`,
-        link: `/dashboard/buyer/orders`,
+        message: `Your order #${trackingId} has been placed successfully. Total: ₦${total.toLocaleString()}. Track your order anytime using tracking ID: ${trackingId}`,
+        link: `/track?id=${trackingId}`, // 🔥 Direct tracking link
         read: false,
       },
     });
 
     // 🔥 CREATE NOTIFICATIONS FOR ALL SUPPLIERS IN THE ORDER
-    // Group items by supplier for better notifications
     const itemsBySupplier: { [key: string]: any[] } = {};
 
     for (const item of order.items) {
@@ -203,7 +206,7 @@ export async function POST(request: Request) {
       });
     }
 
-    console.log("Order created with notifications:", order.id);
+    console.log("✅ Order created with tracking:", order.id, trackingId);
 
     return NextResponse.json({
       orderId: order.id,

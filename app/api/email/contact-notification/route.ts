@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 </html>
     `;
 
-    // Log email for testing (you'll replace this with actual email service)
+    // Log email for testing
     console.log("📧 ADMIN EMAIL NOTIFICATION:");
     console.log("To:", to);
     console.log("Subject:", `New Contact: ${subject}`);
@@ -98,7 +98,6 @@ export async function POST(request: Request) {
     console.log("Category:", category);
 
     // TODO: Replace with actual email service (Resend, SendGrid, etc.)
-    // For now, we'll just log and return success
     // Example with Resend:
     /*
     const resend = new Resend(process.env.RESEND_API_KEY);
