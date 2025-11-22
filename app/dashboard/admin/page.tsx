@@ -11,6 +11,7 @@ import {
   ShoppingBagIcon,
   WrenchScrewdriverIcon,
   TruckIcon,
+  EnvelopeIcon,
   ChartBarIcon,
   PlusIcon,
   CurrencyDollarIcon,
@@ -123,6 +124,7 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [contacts, setContacts] = useState<any[]>([]);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -144,16 +146,25 @@ export default function AdminDashboard() {
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      const [supRes, mechRes, logRes, ordRes, bookRes, prodRes, anaRes] =
-        await Promise.all([
-          fetch("/api/admin/suppliers"),
-          fetch("/api/admin/mechanics"),
-          fetch("/api/admin/logistics"),
-          fetch("/api/admin/orders"),
-          fetch("/api/admin/bookings"),
-          fetch("/api/admin/products"),
-          fetch("/api/admin/analytics"),
-        ]);
+      const [
+        supRes,
+        mechRes,
+        logRes,
+        ordRes,
+        bookRes,
+        prodRes,
+        anaRes,
+        contRes,
+      ] = await Promise.all([
+        fetch("/api/admin/suppliers"),
+        fetch("/api/admin/mechanics"),
+        fetch("/api/admin/logistics"),
+        fetch("/api/admin/orders"),
+        fetch("/api/admin/bookings"),
+        fetch("/api/admin/products"),
+        fetch("/api/admin/analytics"),
+        fetch("/api/contact"),
+      ]);
 
       if (supRes.ok) setSuppliers(await supRes.json());
       if (mechRes.ok) setMechanics(await mechRes.json());
@@ -162,6 +173,7 @@ export default function AdminDashboard() {
       if (bookRes.ok) setBookings(await bookRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (anaRes.ok) setAnalytics(await anaRes.json());
+      if (contRes.ok) setContacts(await contRes.json());
     } catch (err) {
       console.error("Fetch error:", err);
       toast.error("Failed to load data");
@@ -414,6 +426,12 @@ export default function AdminDashboard() {
             { id: "orders", label: "Orders", icon: ShoppingBagIcon },
             { id: "bookings", label: "Bookings", icon: ClockIcon },
             { id: "products", label: "Products", icon: ShoppingBagIcon },
+            {
+              id: "contacts",
+              label: "Contacts",
+              icon: EnvelopeIcon,
+              badge: contacts.filter((c) => c.status === "NEW").length, // Fixed: removed ?. since contacts is always defined
+            },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1361,6 +1379,89 @@ export default function AdminDashboard() {
                 {filteredProducts.length === 0 && (
                   <div className="p-12 text-center text-neutral-500">
                     No products found matching your criteria
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CONTACTS TAB - ADD THIS BEFORE </section> */}
+        {/* CONTACTS TAB */}
+        {activeTab === "contacts" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-8 border-2 border-neutral-200 text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <EnvelopeIcon className="h-10 w-10 text-white" />
+              </div>
+              <h3 className="text-3xl font-bold text-neutral-900 mb-4">
+                Contact Submissions
+              </h3>
+              <p className="text-lg text-neutral-600 mb-2">
+                {contacts.length} total contacts
+              </p>
+              <p className="text-sm text-neutral-500 mb-8">
+                {contacts.filter((c) => c.status === "NEW").length} new •{" "}
+                {contacts.filter((c) => c.status === "REPLIED").length} replied
+                • {contacts.filter((c) => c.status === "RESOLVED").length}{" "}
+                resolved
+              </p>
+              <Link
+                href="/dashboard/admin/contacts"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-2xl hover:scale-105 transition-all"
+              >
+                <EyeIcon className="h-5 w-5" />
+                View All Contacts
+              </Link>
+            </div>
+
+            {/* Recent Contacts Preview */}
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
+              <div className="p-6 border-b-2 border-neutral-200">
+                <h3 className="text-xl font-bold text-neutral-900">
+                  Recent Submissions
+                </h3>
+              </div>
+              <div className="divide-y-2 divide-neutral-100">
+                {contacts.slice(0, 5).map((contact: any) => (
+                  <div
+                    key={contact.id}
+                    className="p-4 hover:bg-neutral-50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold text-neutral-900">
+                            {contact.name}
+                          </p>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                              contact.status === "NEW"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : contact.status === "REPLIED"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {contact.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-neutral-600">
+                          {contact.subject}
+                        </p>
+                      </div>
+                      <Link
+                        href={`/dashboard/admin/contacts/${contact.id}`}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+                {contacts.length === 0 && (
+                  <div className="p-12 text-center text-neutral-500">
+                    No contact submissions yet
                   </div>
                 )}
               </div>

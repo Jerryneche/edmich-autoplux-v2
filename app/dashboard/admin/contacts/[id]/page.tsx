@@ -239,25 +239,6 @@ export default function ContactDetailPage() {
             </div>
           </div>
 
-          {contact.adminReply && (
-            <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <ClockIcon className="h-4 w-4 text-green-600" />
-                <p className="text-sm text-green-800 font-semibold">
-                  Your Reply Sent{" "}
-                  {contact.repliedAt &&
-                    format(
-                      new Date(contact.repliedAt),
-                      "MMM d, yyyy 'at' h:mm a"
-                    )}
-                </p>
-              </div>
-              <p className="text-neutral-900 whitespace-pre-wrap">
-                {contact.adminReply}
-              </p>
-            </div>
-          )}
-
           <div className="flex gap-3">
             <a
               href={`mailto:${contact.email}?subject=Re: ${encodeURIComponent(
