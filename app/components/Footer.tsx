@@ -87,7 +87,7 @@ export default function Footer() {
                 { href: "/shop", label: "Marketplace" },
                 { href: "/business/mechanics", label: "Find Mechanics" },
                 { href: "/business/logistics", label: "Logistics" },
-                { href: "/track", label: "Track Order" },
+                { href: "/track", label: "UNIVERSAL TRACK (ORDERS, BOOKINGS)" },
               ].map((link) => (
                 <li key={link.href}>
                   <Link

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import {
@@ -13,22 +13,28 @@ import {
   TruckIcon,
   CheckCircleIcon,
   ArrowLeftIcon,
+  ShoppingBagIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
 
-interface MechanicBookingPageProps {
-  params: Promise<{ id: string }>;
+interface BookingContext {
+  orderId: string;
+  trackingId: string;
+  returnUrl: string;
 }
 
-export default function MechanicBookingPage({
-  params,
-}: MechanicBookingPageProps) {
+export default function MechanicBookingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [mechanicId, setMechanicId] = useState<string>("");
+  const params = useParams();
+  const mechanicId = params.id as string;
+
   const [mechanic, setMechanic] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingContext, setBookingContext] = useState<BookingContext | null>(
+    null
+  );
 
   const [formData, setFormData] = useState({
     vehicleType: "",
@@ -40,16 +46,20 @@ export default function MechanicBookingPage({
     preferredDate: "",
     preferredTime: "",
     location: "",
-    locationType: "WORKSHOP",
+    locationType: "WORKSHOP" as "WORKSHOP" | "HOME",
     phone: "",
   });
 
-  // Unwrap params
+  // Load booking context from sessionStorage (set by tracking modal)
   useEffect(() => {
-    params.then((resolvedParams) => {
-      setMechanicId(resolvedParams.id);
-    });
-  }, [params]);
+    if (typeof window !== "undefined") {
+      const context = sessionStorage.getItem("bookingContext");
+      if (context) {
+        const parsed = JSON.parse(context);
+        setBookingContext(parsed);
+      }
+    }
+  }, []);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -93,13 +103,6 @@ export default function MechanicBookingPage({
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Validate mechanicId
-    if (!mechanicId) {
-      toast.error("Invalid mechanic ID");
-      setIsSubmitting(false);
-      return;
-    }
-
     const estimatedPrice = calculateEstimate();
     if (!estimatedPrice || isNaN(estimatedPrice)) {
       toast.error("Invalid estimated price");
@@ -112,7 +115,6 @@ export default function MechanicBookingPage({
       vehicleMake: formData.vehicleMake,
       vehicleModel: formData.vehicleModel,
       vehicleYear: formData.vehicleYear,
-      plateNumber: "", // optional
       serviceType: formData.serviceType,
       customService:
         formData.serviceType === "Other" ? formData.description : null,
@@ -128,30 +130,66 @@ export default function MechanicBookingPage({
     };
 
     try {
+      // Step 1: Create the mechanic booking
       const response = await fetch("/api/bookings/mechanic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const text = await response.text();
-      console.log("API Response:", text);
-
-      if (response.ok) {
-        toast.success("Booking submitted successfully!");
-        setTimeout(() => router.push("/dashboard"), 2000);
-      } else {
+      if (!response.ok) {
+        const text = await response.text();
         let errorMsg = "Failed to submit booking";
         try {
           const err = JSON.parse(text);
           errorMsg = err.error || errorMsg;
         } catch {}
         toast.error(errorMsg);
+        setIsSubmitting(false);
+        return;
       }
+
+      const booking = await response.json();
+      console.log("Booking created:", booking);
+
+      // Step 2: If this is for an order, create service link
+      if (bookingContext?.orderId) {
+        console.log("Creating service link for order:", bookingContext.orderId);
+
+        const linkResponse = await fetch(
+          `/api/orders/${bookingContext.orderId}/service-links`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bookingId: booking.id,
+              type: "MECHANIC",
+            }),
+          }
+        );
+
+        if (!linkResponse.ok) {
+          console.error("Failed to create service link");
+          toast.error("Booking created but failed to link to order");
+        } else {
+          console.log("Service link created successfully");
+        }
+      }
+
+      // Step 3: Clean up and redirect
+      toast.success("Mechanic service booked successfully!");
+      sessionStorage.removeItem("bookingContext");
+
+      setTimeout(() => {
+        if (bookingContext?.returnUrl) {
+          router.push(bookingContext.returnUrl);
+        } else {
+          router.push("/dashboard/buyer/bookings");
+        }
+      }, 1500);
     } catch (error: any) {
       console.error("Network error:", error);
       toast.error("Network error. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -199,6 +237,30 @@ export default function MechanicBookingPage({
             <ArrowLeftIcon className="h-5 w-5" />
             Back to Services
           </button>
+
+          {/* Linked Order Banner */}
+          {bookingContext && (
+            <div className="mb-8 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-2xl p-6 shadow-md">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <ShoppingBagIcon className="w-7 h-7 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-purple-900">
+                    This service is for your order
+                  </p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="font-mono text-xl font-bold text-blue-700">
+                      {bookingContext.orderId}
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      Tracking: {bookingContext.trackingId}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Form */}
@@ -429,7 +491,10 @@ export default function MechanicBookingPage({
                             key={type}
                             type="button"
                             onClick={() =>
-                              setFormData({ ...formData, locationType: type })
+                              setFormData({
+                                ...formData,
+                                locationType: type as any,
+                              })
                             }
                             className={`p-4 border-2 rounded-lg transition-all ${
                               formData.locationType === type

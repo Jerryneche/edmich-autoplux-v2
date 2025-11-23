@@ -96,7 +96,7 @@ export async function POST(request: Request) {
         mechanicId,
         vehicleMake: vehicleMake.trim(),
         vehicleModel: vehicleModel.trim(),
-        vehicleYear: yearStr, // String
+        vehicleYear: yearStr,
         plateNumber: plateNumber?.trim() || null,
         serviceType: serviceType.trim(),
         customService: customService?.trim() || null,
@@ -111,7 +111,36 @@ export async function POST(request: Request) {
         additionalNotes: additionalNotes?.trim() || null,
         status: "PENDING",
       },
+      include: {
+        mechanic: {
+          select: {
+            businessName: true,
+            phone: true,
+            city: true,
+            state: true,
+          },
+        },
+      },
     });
+
+    // Send notification to mechanic
+    // FIXED: Send notification to mechanic using the correct table
+    try {
+      await prisma.mechanicNotification.create({
+        data: {
+          mechanicId: mechanicId,
+          type: "BOOKING",
+          title: "New Service Booking!",
+          message: `${
+            session.user.name || "Someone"
+          } just booked your service for a ${vehicleMake} ${vehicleModel} (${vehicleYear})`,
+          link: `/dashboard/mechanic/bookings`,
+        },
+      });
+    } catch (error) {
+      console.warn("Mechanic notification failed (non-critical):", error);
+      // We don't throw — booking still succeeds
+    }
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error: any) {

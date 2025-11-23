@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET - Fetch all logistics providers (public)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get("city");
     const state = searchParams.get("state");
-    const vehicleType = searchParams.get("vehicleType");
     const verified = searchParams.get("verified");
     const available = searchParams.get("available");
+    const limit = searchParams.get("limit");
 
     const where: any = {
       approved: true,
@@ -23,12 +22,6 @@ export async function GET(request: Request) {
       where.state = state;
     }
 
-    if (vehicleType) {
-      where.vehicleTypes = {
-        has: vehicleType,
-      };
-    }
-
     if (verified === "true") {
       where.verified = true;
     }
@@ -39,6 +32,7 @@ export async function GET(request: Request) {
 
     const providers = await prisma.logisticsProfile.findMany({
       where,
+      take: limit ? parseInt(limit) : undefined,
       include: {
         user: {
           select: {

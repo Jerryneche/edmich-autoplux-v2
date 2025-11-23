@@ -44,6 +44,15 @@ export default function MechanicDashboard() {
     checkAndFetchProfile();
   }, [session, status, router]);
 
+  // Add notification refresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchBookings(); // Refresh bookings every 30 seconds
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const checkAndFetchProfile = async () => {
     try {
       const res = await fetch("/api/onboarding/mechanic");
@@ -106,7 +115,7 @@ export default function MechanicDashboard() {
     pending: bookings.filter((b) => b.status === "PENDING").length,
     confirmed: bookings.filter((b) => b.status === "CONFIRMED").length,
     inProgress: bookings.filter((b) => b.status === "IN_PROGRESS").length,
-    completed: profile?.completedJobs || 0,
+    completed: bookings.filter((b) => b.status === "COMPLETED").length, // Changed from profile?.completedJobs
   };
 
   if (isLoading) {

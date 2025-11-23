@@ -44,6 +44,15 @@ export default function LogisticsDashboard() {
     checkAndFetchProfile();
   }, [session, status, router]);
 
+  // Add notification refresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchBookings(); // Refresh bookings every 30 seconds
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const checkAndFetchProfile = async () => {
     try {
       const res = await fetch("/api/onboarding/logistics");

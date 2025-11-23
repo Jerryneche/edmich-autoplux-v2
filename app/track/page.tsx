@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import ServiceProviderModal from "../components/ServiceProviderModal";
 import Link from "next/link";
 import {
   MagnifyingGlassIcon,
@@ -32,6 +33,8 @@ export default function UnifiedTrackPage() {
   const [showQR, setShowQR] = useState(false);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
 
+  // Service Booking Modal State
+  const [showServiceModal, setShowServiceModal] = useState(false);
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -687,6 +690,36 @@ export default function UnifiedTrackPage() {
                   ))}
                 </div>
               </div>
+
+              {result && (
+                <>
+                  {/* Existing tracking content... */}
+
+                  {/* Add Service Booking Section */}
+                  <div className="bg-white rounded-3xl shadow-2xl p-8 border-2 border-gray-200">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                      Need Additional Services?
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      Book a mechanic for installation or logistics for delivery
+                    </p>
+                    <button
+                      onClick={() => setShowServiceModal(true)}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:shadow-2xl transition-all"
+                    >
+                      Book Services
+                    </button>
+                  </div>
+
+                  {/* Service Booking Modal */}
+                  <ServiceProviderModal
+                    isOpen={showServiceModal}
+                    onClose={() => setShowServiceModal(false)}
+                    orderId={result.id}
+                    trackingId={trackingNumber}
+                  />
+                </>
+              )}
 
               {/* Contact & Share */}
               <div className="grid md:grid-cols-2 gap-6">

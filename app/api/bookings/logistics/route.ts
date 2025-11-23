@@ -87,24 +87,28 @@ export async function POST(request: Request) {
       },
       include: {
         driver: {
-          select: { companyName: true, phone: true },
+          select: {
+            companyName: true,
+            phone: true,
+            city: true,
+            state: true,
+          },
         },
       },
     });
 
-    // 🔥 NOTIFY BUYER - Booking Confirmation
+    // Notify buyer
     await prisma.notification.create({
       data: {
         userId: session.user.id,
         type: "BOOKING",
         title: "Delivery Booking Confirmed",
-        message: `Your ${packageType} delivery from ${pickupCity} to ${deliveryCity} has been booked. Tracking: ${trackingNumber}. The driver will confirm shortly.`,
+        message: `Your ${packageType} delivery from ${pickupCity} to ${deliveryCity} has been booked. Tracking: ${trackingNumber}`,
         link: `/dashboard/buyer/bookings?type=logistics`,
-        read: false,
       },
     });
 
-    // 🔥 NOTIFY LOGISTICS PROVIDER - New Booking
+    // Notify logistics provider
     await prisma.notification.create({
       data: {
         userId: provider.userId,
@@ -112,13 +116,12 @@ export async function POST(request: Request) {
         title: "New Delivery Request",
         message: `New ${packageType} delivery request from ${
           buyer?.name || "Customer"
-        }. Route: ${pickupCity} → ${deliveryCity}. Tracking: ${trackingNumber}`,
-        link: `/dashboard/logistics/bookings/${booking.id}`,
-        read: false,
+        }. Route: ${pickupCity} → ${deliveryCity}`,
+        link: `/dashboard/logistics/bookings`,
       },
     });
 
-    return NextResponse.json({ success: true, booking }, { status: 201 });
+    return NextResponse.json(booking, { status: 201 });
   } catch (error: any) {
     console.error("Booking creation error:", error);
     return NextResponse.json(
@@ -141,7 +144,8 @@ export async function GET(request: Request) {
 
     let bookings;
 
-    if (view === "driver") {
+    if (view === "provider" || view === "driver") {
+      // For logistics providers - find their profile first
       const profile = await prisma.logisticsProfile.findUnique({
         where: { userId: session.user.id },
       });
@@ -163,6 +167,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
       });
     } else if (view === "customer") {
+      // For customers viewing their own bookings
       bookings = await prisma.logisticsBooking.findMany({
         where: { userId: session.user.id },
         include: {
@@ -179,6 +184,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
       });
     } else {
+      // Default to customer view
       bookings = await prisma.logisticsBooking.findMany({
         where: { userId: session.user.id },
         include: {
