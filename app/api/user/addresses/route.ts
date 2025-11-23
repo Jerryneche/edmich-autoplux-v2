@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log("Address created successfully:", newAddress);
+
     return NextResponse.json(newAddress, { status: 201 });
   } catch (error) {
     console.error("Error creating address:", error);

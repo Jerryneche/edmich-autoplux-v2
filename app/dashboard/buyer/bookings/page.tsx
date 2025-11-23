@@ -220,10 +220,10 @@ function BookingsContent() {
                     No mechanic bookings yet
                   </p>
                   <p className="text-neutral-600 mb-6">
-                    Book a professional mechanic for your vehicle
+                    You haven't booked any mechanic services yet
                   </p>
                   <Link
-                    href="/business/mechanics/booking"
+                    href="/business/services"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors"
                   >
                     <WrenchScrewdriverIcon className="h-5 w-5" />
@@ -317,7 +317,7 @@ function BookingsContent() {
 
                       <div className="flex gap-3">
                         <Link
-                          href={`/dashboard/buyer/bookings/mechanics/${booking.id}`}
+                          href={`/dashboard/buyer/bookings/mechanics/${booking.id}`} // ✅ Correct
                           className="flex-1 px-4 py-2 bg-purple-100 text-purple-700 rounded-xl font-semibold hover:bg-purple-200 transition-colors flex items-center justify-center gap-2"
                         >
                           <EyeIcon className="h-5 w-5" />

@@ -181,9 +181,20 @@ export default function CheckoutPage() {
       const trackingId = generateTrackingId();
 
       // Save address if requested
+      // Save address if requested
       if (formData.saveAddress && session?.user) {
+        console.log("Attempting to save address:", {
+          fullName: formData.fullName,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zipCode,
+          isDefault: formData.setAsDefault,
+        });
+
         try {
-          await fetch("/api/user/addresses", {
+          const addressResponse = await fetch("/api/user/addresses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -196,8 +207,21 @@ export default function CheckoutPage() {
               isDefault: formData.setAsDefault,
             }),
           });
+
+          if (addressResponse.ok) {
+            const savedAddress = await addressResponse.json();
+            console.log("Address saved successfully:", savedAddress);
+            toast.success("Address saved for future use!");
+          } else {
+            const errorData = await addressResponse.json();
+            console.error("Failed to save address:", errorData);
+            toast.error(
+              `Failed to save address: ${errorData.error || "Unknown error"}`
+            );
+          }
         } catch (err) {
-          console.error("Failed to save address:", err);
+          console.error("Error saving address:", err);
+          toast.error("Could not save address");
         }
       }
 

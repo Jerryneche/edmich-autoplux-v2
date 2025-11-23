@@ -522,6 +522,18 @@ export default function BuyerDashboard() {
             <h3 className="font-bold text-neutral-900 mb-1">Need Help?</h3>
             <p className="text-sm text-neutral-600">We're here 24/7</p>
           </Link>
+          <Link
+            href="/dashboard/buyer/addresses"
+            className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-neutral-200 hover:border-blue-500 transition-all"
+          >
+            <MapPinIcon className="h-6 w-6 text-blue-600" />
+            <div>
+              <p className="font-bold text-neutral-900">My Addresses</p>
+              <p className="text-sm text-neutral-600">
+                Manage delivery addresses
+              </p>
+            </div>
+          </Link>
         </div>
       </section>
 

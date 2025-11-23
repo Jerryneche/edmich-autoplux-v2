@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
@@ -56,25 +56,29 @@ interface MechanicBooking {
 export default function MechanicBookingDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [booking, setBooking] = useState<MechanicBooking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Unwrap params Promise
+  const resolvedParams = use(params);
+  const bookingId = resolvedParams.id;
+
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      router.push("/auth/signin");
     }
     if (status === "authenticated") {
       fetchBooking();
     }
-  }, [status, params.id, router]);
+  }, [status, bookingId, router]);
 
   const fetchBooking = async () => {
     try {
-      const response = await fetch(`/api/bookings/mechanics/${params.id}`);
+      const response = await fetch(`/api/bookings/mechanic/${bookingId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch booking");
       }
