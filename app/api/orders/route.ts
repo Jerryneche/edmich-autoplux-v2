@@ -1,257 +1,218 @@
-// app/api/orders/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// 🔥 Helper function to generate tracking ID
-function generateOrderTrackingId(): string {
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `EDM-${timestamp}-${random}`;
-}
-
-// POST: Create a new order
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    console.log("Received payload:", body);
+    const session = await getServerSession(authOptions);
 
-    const { items, total, shippingAddress, deliveryNotes, paymentMethod } =
-      body;
-
-    if (!items?.length) {
-      return NextResponse.json({ error: "No items in cart" }, { status: 400 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user with name for notifications
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, name: true },
-    });
+    const body = await req.json();
+    const {
+      items,
+      total,
+      shippingAddress,
+      deliveryNotes,
+      paymentMethod,
+      trackingId,
+    } = body;
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // Validate request
+    if (!items || items.length === 0) {
+      return NextResponse.json({ error: "No items in order" }, { status: 400 });
     }
 
-    // Validate products and collect supplier info
-    const supplierIds = new Set<string>();
-    for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        select: {
-          id: true,
-          stock: true,
-          price: true,
-          supplierId: true,
-          name: true,
-        },
-      });
-
-      if (!product) {
-        return NextResponse.json(
-          { error: `Product not found: ${item.productId}` },
-          { status: 400 }
-        );
-      }
-
-      if (product.stock < item.quantity) {
-        return NextResponse.json(
-          { error: `Insufficient stock for ${item.productId}` },
-          { status: 400 }
-        );
-      }
-
-      supplierIds.add(product.supplierId);
+    if (!shippingAddress || !trackingId) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    // 🔥 Generate tracking ID
-    const trackingId = generateOrderTrackingId();
+    // STEP 1: Validate stock availability for all items
+    const stockValidation = await Promise.all(
+      items.map(async (item: { productId: string; quantity: number }) => {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          select: { id: true, name: true, stock: true },
+        });
 
-    // Create order
-    const order = await prisma.order.create({
-      data: {
-        userId: user.id,
-        total,
-        status: "PENDING",
-        paymentMethod,
-        trackingId, // 🔥 Use generated tracking ID
-        deliveryNotes,
-        shippingAddress: {
-          create: {
-            fullName: shippingAddress.fullName,
-            email: shippingAddress.email,
-            phone: shippingAddress.phone,
-            address: shippingAddress.address,
-            city: shippingAddress.city,
-            state: shippingAddress.state,
-            zipCode: shippingAddress.zipCode,
-          },
-        },
-        items: {
-          create: items.map((item: any) => ({
+        if (!product) {
+          return {
+            valid: false,
+            error: `Product not found`,
             productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
+          };
+        }
+
+        if (product.stock < item.quantity) {
+          return {
+            valid: false,
+            error: `${product.name} - Only ${product.stock} left in stock (requested ${item.quantity})`,
+            productId: item.productId,
+            productName: product.name,
+            availableStock: product.stock,
+            requestedQuantity: item.quantity,
+          };
+        }
+
+        return {
+          valid: true,
+          product,
+        };
+      })
+    );
+
+    // Check if any items failed validation
+    const invalidItems = stockValidation.filter((v) => !v.valid);
+    if (invalidItems.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Insufficient stock",
+          message: invalidItems.map((item) => item.error).join(", "),
+          insufficientStock: invalidItems.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            availableStock: item.availableStock,
+            requestedQuantity: item.requestedQuantity,
           })),
         },
-      },
-      include: {
-        shippingAddress: true,
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-                price: true,
-                supplier: {
-                  select: {
-                    businessName: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+        { status: 400 }
+      );
+    }
 
-    // Update product stock
-    for (const item of items) {
-      await prisma.product.update({
-        where: { id: item.productId },
+    // STEP 2: Use transaction to create order and update stock atomically
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the order
+      const order = await tx.order.create({
         data: {
-          stock: {
-            decrement: item.quantity,
-          },
-        },
-      });
-    }
-
-    // 🔥 CREATE NOTIFICATION FOR BUYER (Order Confirmation)
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        type: "ORDER",
-        title: "Order Placed Successfully",
-        message: `Your order #${trackingId} has been placed successfully. Total: ₦${total.toLocaleString()}. Track your order anytime using tracking ID: ${trackingId}`,
-        link: `/track?id=${trackingId}`, // 🔥 Direct tracking link
-        read: false,
-      },
-    });
-
-    // 🔥 CREATE NOTIFICATIONS FOR ALL SUPPLIERS IN THE ORDER
-    const itemsBySupplier: { [key: string]: any[] } = {};
-
-    for (const item of order.items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        select: {
-          supplierId: true,
-          name: true,
-          supplier: {
-            select: {
-              userId: true,
-              businessName: true,
-            },
-          },
+          userId: session.user.id,
+          trackingId,
+          total,
+          status: paymentMethod === "BANK TRANSFER" ? "PENDING" : "CONFIRMED",
+          paymentMethod,
+          deliveryNotes: deliveryNotes || null,
         },
       });
 
-      if (product) {
-        const supplierId = product.supplier.userId;
-        if (!itemsBySupplier[supplierId]) {
-          itemsBySupplier[supplierId] = [];
-        }
-        itemsBySupplier[supplierId].push({
-          name: product.name,
-          quantity: item.quantity,
-          price: item.price,
-        });
-      }
-    }
+      // Create order items and update stock
+      const orderItems = await Promise.all(
+        items.map(
+          async (item: {
+            productId: string;
+            quantity: number;
+            price: number;
+          }) => {
+            // Double-check stock again within transaction (race condition protection)
+            const product = await tx.product.findUnique({
+              where: { id: item.productId },
+              select: { stock: true, name: true },
+            });
 
-    // Create notification for each supplier
-    for (const [supplierId, supplierItems] of Object.entries(itemsBySupplier)) {
-      const itemsList = supplierItems
-        .map((item) => `${item.name} (x${item.quantity})`)
-        .join(", ");
+            if (!product || product.stock < item.quantity) {
+              throw new Error(
+                `Stock changed: ${product?.name || "Product"} now has only ${
+                  product?.stock || 0
+                } left`
+              );
+            }
 
-      const supplierTotal = supplierItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
+            // Update stock (decrement)
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: { decrement: item.quantity },
+              },
+            });
+
+            // Create order item
+            return tx.orderItem.create({
+              data: {
+                orderId: order.id,
+                productId: item.productId,
+                quantity: item.quantity,
+                price: item.price,
+              },
+            });
+          }
+        )
       );
 
-      await prisma.notification.create({
+      // Create shipping address
+      await tx.shippingAddress.create({
         data: {
-          userId: supplierId,
-          type: "ORDER",
-          title: "New Order Received",
-          message: `New order #${trackingId} from ${
-            user.name || "Customer"
-          }. Items: ${itemsList}. Amount: ₦${supplierTotal.toLocaleString()}. Delivery to: ${
-            shippingAddress.city
-          }, ${shippingAddress.state}`,
-          link: `/dashboard/supplier`,
-          read: false,
+          orderId: order.id,
+          fullName: shippingAddress.fullName,
+          email: shippingAddress.email,
+          phone: shippingAddress.phone,
+          address: shippingAddress.address,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          zipCode: shippingAddress.zipCode || null,
         },
       });
+
+      return { order, orderItems };
+    });
+
+    // Send notification to user
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: session.user.id,
+          type: "ORDER",
+          title: "Order Placed Successfully",
+          message: `Your order ${trackingId} has been placed. Total: ₦${total.toLocaleString()}`,
+          link: `/track/${trackingId}`,
+        },
+      });
+    } catch (notifError) {
+      console.error("Failed to send notification:", notifError);
+      // Don't fail the order if notification fails
     }
 
-    console.log("✅ Order created with tracking:", order.id, trackingId);
-
     return NextResponse.json({
-      orderId: order.id,
-      trackingId: order.trackingId,
-      message: "Order created successfully",
+      success: true,
+      orderId: result.order.id,
+      trackingId: result.order.trackingId,
+      message: "Order placed successfully",
     });
   } catch (error: any) {
-    console.error("ORDER CREATION FAILED:", {
-      message: error.message,
-      code: error.code,
-      stack: error.stack,
-    });
+    console.error("Order creation error:", error);
+
+    // Handle specific transaction errors
+    if (error.message?.includes("Stock changed")) {
+      return NextResponse.json(
+        {
+          error: "Stock availability changed",
+          message: error.message,
+        },
+        { status: 409 } // Conflict
+      );
+    }
 
     return NextResponse.json(
-      {
-        error: "Failed to create order",
-        details: error.message || "Unknown error",
-        code: error.code || "UNKNOWN",
-      },
+      { error: error.message || "Failed to create order" },
       { status: 500 }
     );
   }
 }
 
-// GET: Fetch all orders for the authenticated user
-export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+// GET - Fetch user's orders
+export async function GET(req: NextRequest) {
   try {
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
+    const session = await getServerSession(authOptions);
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const orders = await prisma.order.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
+      where: { userId: session.user.id },
       include: {
         items: {
           include: {
@@ -260,27 +221,21 @@ export async function GET() {
                 id: true,
                 name: true,
                 image: true,
-                price: true,
+                slug: true,
               },
             },
           },
         },
         shippingAddress: true,
       },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(orders);
-  } catch (error: any) {
-    console.error("FAILED TO FETCH ORDERS:", {
-      message: error.message,
-      code: error.code,
-    });
-
+  } catch (error) {
+    console.error("Error fetching orders:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch orders",
-        details: error.message || "Unknown error",
-      },
+      { error: "Failed to fetch orders" },
       { status: 500 }
     );
   }

@@ -1,0 +1,162 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+// GET - Fetch a single address
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const params = await context.params;
+    const addressId = params.id;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const address = await prisma.userAddress.findUnique({
+      where: { id: addressId },
+    });
+
+    if (!address) {
+      return NextResponse.json({ error: "Address not found" }, { status: 404 });
+    }
+
+    // Check ownership
+    if (address.userId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(address);
+  } catch (error) {
+    console.error("Error fetching address:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch address" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH - Update an address
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const params = await context.params;
+    const addressId = params.id;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { fullName, phone, address, city, state, zipCode, isDefault } = body;
+
+    // Check ownership
+    const existingAddress = await prisma.userAddress.findUnique({
+      where: { id: addressId },
+    });
+
+    if (!existingAddress) {
+      return NextResponse.json({ error: "Address not found" }, { status: 404 });
+    }
+
+    if (existingAddress.userId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // If this is set as default, unset all other default addresses
+    if (isDefault && !existingAddress.isDefault) {
+      await prisma.userAddress.updateMany({
+        where: {
+          userId: session.user.id,
+          isDefault: true,
+        },
+        data: { isDefault: false },
+      });
+    }
+
+    const updatedAddress = await prisma.userAddress.update({
+      where: { id: addressId },
+      data: {
+        ...(fullName && { fullName: fullName.trim() }),
+        ...(phone && { phone: phone.trim() }),
+        ...(address && { address: address.trim() }),
+        ...(city && { city: city.trim() }),
+        ...(state && { state: state.trim() }),
+        ...(zipCode !== undefined && { zipCode: zipCode?.trim() || null }),
+        ...(isDefault !== undefined && { isDefault }),
+        updatedAt: new Date(),
+      },
+    });
+
+    return NextResponse.json(updatedAddress);
+  } catch (error) {
+    console.error("Error updating address:", error);
+    return NextResponse.json(
+      { error: "Failed to update address" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete an address
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const params = await context.params;
+    const addressId = params.id;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check ownership
+    const existingAddress = await prisma.userAddress.findUnique({
+      where: { id: addressId },
+    });
+
+    if (!existingAddress) {
+      return NextResponse.json({ error: "Address not found" }, { status: 404 });
+    }
+
+    if (existingAddress.userId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await prisma.userAddress.delete({
+      where: { id: addressId },
+    });
+
+    // If this was the default address, set another one as default
+    if (existingAddress.isDefault) {
+      const firstAddress = await prisma.userAddress.findFirst({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (firstAddress) {
+        await prisma.userAddress.update({
+          where: { id: firstAddress.id },
+          data: { isDefault: true },
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, message: "Address deleted" });
+  } catch (error) {
+    console.error("Error deleting address:", error);
+    return NextResponse.json(
+      { error: "Failed to delete address" },
+      { status: 500 }
+    );
+  }
+}

@@ -61,6 +61,27 @@ model User {
   mechanicBookings  MechanicBooking[]
   logisticsBookings LogisticsBooking[]
   notifications     Notification[]
+  addresses         UserAddress[]
+}
+
+model UserAddress {
+  id        String  @id @default(cuid())
+  userId    String
+  fullName  String
+  phone     String
+  address   String
+  city      String
+  state     String
+  zipCode   String?
+  isDefault Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isDefault])
 }
 
 model MechanicProfile {
