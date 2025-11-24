@@ -1,57 +1,64 @@
-// app/dashboard/supplier/products/new/page.tsx
-// app/dashboard/supplier/products/new/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import { useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
-import ImageUploader from "@/app/components/ImageUploader";
-import { ArrowLeftIcon, PlusIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
-import toast from "react-hot-toast";
 import Image from "next/image";
+import {
+  ArrowLeftIcon,
+  PhotoIcon,
+  CubeIcon,
+} from "@heroicons/react/24/outline";
+import Link from "next/link";
+import toast, { Toaster } from "react-hot-toast";
 
 const CATEGORIES = [
-  "Brakes",
   "Engine",
-  "Filters",
-  "Lighting",
-  "Electrical",
-  "Cooling",
-  "Suspension",
   "Transmission",
+  "Suspension",
+  "Brakes",
+  "Electrical",
+  "Body Parts",
+  "Interior",
   "Exhaust",
-  "Accessories",
+  "Cooling",
+  "Fuel System",
   "Other",
 ];
 
 export default function NewProductPage() {
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const { data: session } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
     category: "",
     stock: "",
-    image: "",
   });
 
-  // Fixed & robust input handler
   const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const target = e.target;
-    const name = target.name;
-    let value: string = (target as HTMLInputElement).value ?? "";
-
-    // If you later add checkboxes / files, handle them here
+    const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const validateForm = () => {
@@ -60,19 +67,15 @@ export default function NewProductPage() {
       return false;
     }
     if (!formData.price || parseFloat(formData.price) <= 0) {
-      toast.error("Please enter a valid price");
+      toast.error("Valid price is required");
       return false;
     }
     if (!formData.category) {
-      toast.error("Please select a category");
+      toast.error("Category is required");
       return false;
     }
     if (!formData.stock || parseInt(formData.stock) < 0) {
-      toast.error("Please enter a valid stock quantity");
-      return false;
-    }
-    if (!formData.image) {
-      toast.error("Please upload a product image");
+      toast.error("Valid stock quantity is required");
       return false;
     }
     return true;
@@ -86,27 +89,33 @@ export default function NewProductPage() {
     setIsSubmitting(true);
 
     try {
-      const productData = {
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        price: parseFloat(formData.price),
-        category: formData.category,
-        stock: parseInt(formData.stock),
-        image: formData.image,
-      };
+      // Create FormData instead of JSON
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name.trim());
+      formDataToSend.append("description", formData.description.trim() || "");
+      formDataToSend.append("price", formData.price);
+      formDataToSend.append("category", formData.category);
+      formDataToSend.append("stock", formData.stock);
+
+      // Append the actual file if it exists
+      if (imageFile) {
+        formDataToSend.append("image", imageFile);
+      }
 
       const response = await fetch("/api/supplier/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(productData),
+        body: formDataToSend,
+        // Don't set Content-Type header - browser will set it automatically with boundary
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create product");
+      }
 
       const data = await response.json();
 
-      if (!response.ok)
-        throw new Error(data.error || "Failed to create product");
-
-      // Revalidate shop and market pages to show new product immediately
+      // Revalidate shop and market pages
       await Promise.all([
         fetch("/api/revalidate?path=/shop", { method: "POST" }),
         fetch("/api/revalidate?path=/business/market", { method: "POST" }),
@@ -114,7 +123,7 @@ export default function NewProductPage() {
 
       toast.success("Product added successfully! Now live in shop!");
 
-      // Small delay to ensure revalidation completes
+      // Redirect with refresh
       setTimeout(() => {
         router.push("/dashboard/supplier");
         router.refresh();
@@ -127,224 +136,199 @@ export default function NewProductPage() {
     }
   };
 
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    router.push("/login");
+    return null;
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white via-neutral-50 to-white">
+    <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
+      <Toaster position="top-center" />
       <Header />
 
-      <div className="pt-24 pb-16">
-        <div className="max-w-4xl mx-auto px-6">
-          <Link
-            href="/dashboard/supplier"
-            className="inline-flex items-center gap-2 text-neutral-600 hover:text-blue-600 mb-8 transition-colors"
-          >
-            <ArrowLeftIcon className="h-5 w-5" />
-            Back to Dashboard
-          </Link>
+      <section className="pt-32 pb-24 max-w-4xl mx-auto px-6">
+        <Link
+          href="/dashboard/supplier"
+          className="inline-flex items-center gap-2 text-neutral-600 hover:text-neutral-900 mb-8 font-semibold"
+        >
+          <ArrowLeftIcon className="h-5 w-5" />
+          Back to Dashboard
+        </Link>
 
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-neutral-900 mb-2">
-              Add New Product
-            </h1>
-            <p className="text-neutral-600">
-              List a new auto part - it will appear instantly in the marketplace
-            </p>
+        <div className="bg-white rounded-3xl p-8 border-2 border-neutral-200 shadow-lg">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center">
+              <CubeIcon className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-neutral-900">
+                Add New Product
+              </h1>
+              <p className="text-neutral-600">
+                List a new auto part in the marketplace
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-white rounded-2xl border-2 border-neutral-200 p-8 shadow-lg">
-              <h2 className="text-2xl font-bold text-neutral-900 mb-6">
-                Product Information
-              </h2>
+            {/* Product Name */}
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                Product Name *
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="e.g., Toyota Camry Engine Oil Filter"
+                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                required
+              />
+            </div>
 
-              <div className="space-y-6">
-                {/* Product Name */}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Product Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Premium Brake Pads Set"
-                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-neutral-900"
-                    required
-                  />
-                </div>
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Detailed product description..."
+                rows={4}
+                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none resize-none"
+              />
+            </div>
 
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder="Describe your product features, compatibility, specifications..."
-                    rows={5}
-                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors resize-none text-neutral-900"
-                  />
-                  <p className="text-xs text-neutral-500 mt-1">
-                    A detailed description helps buyers find and trust your
-                    product
-                  </p>
-                </div>
+            {/* Price and Stock */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Price (₦) *
+                </label>
+                <input
+                  type="number"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="50000"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                  required
+                />
+              </div>
 
-                {/* Category & Price */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Category *
-                    </label>
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-neutral-900"
-                      required
-                    >
-                      <option value="">Select category</option>
-                      {CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Stock Quantity *
+                </label>
+                <input
+                  type="number"
+                  name="stock"
+                  value={formData.stock}
+                  onChange={handleInputChange}
+                  placeholder="50"
+                  min="0"
+                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                  required
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  Number of units available for sale
+                </p>
+              </div>
+            </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                      Price (₦) *
-                    </label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      placeholder="25000"
-                      min="0"
-                      step="0.01"
-                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-neutral-900"
-                      required
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                Category *
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                required
+              >
+                <option value="">Select a category</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Product Image */}
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                Product Image *
+              </label>
+              <div className="border-2 border-dashed border-neutral-300 rounded-xl p-8 text-center hover:border-blue-400 transition-colors">
+                {imagePreview ? (
+                  <div className="relative w-full h-64 mb-4">
+                    <Image
+                      src={imagePreview}
+                      alt="Preview"
+                      fill
+                      className="object-contain rounded-lg"
                     />
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Set a competitive price for your product
-                    </p>
                   </div>
-                </div>
-
-                {/* Stock */}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Stock Quantity *
-                  </label>
-                  <input
-                    type="number"
-                    name="stock"
-                    value={formData.stock}
-                    onChange={handleInputChange}
-                    placeholder="50"
-                    min="0"
-                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-neutral-900"
-                    required
-                  />
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Number of units available for sale
-                  </p>
-                </div>
-
-                {/* Product Image */}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Product Image *
-                  </label>
-                  <ImageUploader
-                    onUpload={(url) => {
-                      console.log("UPLOADED URL:", url);
-                      setFormData((prev) => ({ ...prev, image: url }));
-                      toast.success("Image uploaded successfully!");
-                    }}
-                  />
-                  <p className="text-sm text-neutral-500 mt-2">
-                    Upload a clear, high-quality image of your product
-                  </p>
-
-                  {/* Preview */}
-                  {formData.image && (
-                    <div className="mt-4">
-                      <p className="text-sm font-semibold text-neutral-700 mb-2">
-                        Preview:
-                      </p>
-                      <div className="relative w-full h-64 bg-neutral-100 rounded-xl overflow-hidden border-2 border-neutral-200">
-                        <Image
-                          src={formData.image}
-                          alt="Preview"
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({ ...prev, image: "" }))
-                        }
-                        className="mt-2 text-sm text-red-600 hover:text-red-700 font-semibold"
-                      >
-                        Remove Image
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Publishing Notice */}
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6">
-              <div className="flex gap-3">
-                <div className="text-2xl">🚀</div>
-                <div>
-                  <h3 className="font-bold text-blue-900 mb-1">
-                    Instant Publishing
-                  </h3>
-                  <p className="text-sm text-blue-800">
-                    Your product will appear immediately in the shop and
-                    marketplace once you click "Add Product". Make sure all
-                    information is correct!
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <Link
-                href="/dashboard/supplier"
-                className="flex-1 px-6 py-4 bg-white border-2 border-neutral-200 text-neutral-700 rounded-xl font-bold text-center hover:border-neutral-300 hover:shadow-md transition-all"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                    Publishing Product...
-                  </>
                 ) : (
-                  <>
-                    <PlusIcon className="h-5 w-5" /> Add Product to Shop
-                  </>
+                  <PhotoIcon className="h-16 w-16 text-neutral-400 mx-auto mb-4" />
                 )}
-              </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                  id="image-upload"
+                />
+                <label
+                  htmlFor="image-upload"
+                  className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold cursor-pointer hover:bg-blue-700 transition-colors"
+                >
+                  {imagePreview ? "Change Image" : "Upload Image"}
+                </label>
+                <p className="text-sm text-neutral-500 mt-2">
+                  Upload a clear, high-quality image of your product
+                </p>
+              </div>
             </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+                isSubmitting
+                  ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
+                  : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-xl hover:scale-105"
+              }`}
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  Creating Product...
+                </span>
+              ) : (
+                "Create Product"
+              )}
+            </button>
           </form>
         </div>
-      </div>
+      </section>
 
       <Footer />
     </main>

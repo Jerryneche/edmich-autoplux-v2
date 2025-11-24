@@ -451,7 +451,7 @@ export default function SupplierDashboard() {
 
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <Link
-                        href={`/products/${product.slug}`}
+                        href={`/products/${product.id}`} // Changed from slug to id
                         className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
                         title="View"
                       >

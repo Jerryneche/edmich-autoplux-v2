@@ -2,49 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== "SUPPLIER") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const supplierProfile = await prisma.supplierProfile.findUnique({
-      where: { userId: session.user.id },
-    });
-
-    if (!supplierProfile) {
-      return NextResponse.json(
-        { error: "Supplier profile not found" },
-        { status: 404 }
-      );
-    }
-
-    const products = await prisma.product.findMany({
-      where: { supplierId: supplierProfile.id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json(products);
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch products" },
-      { status: 500 }
-    );
-  }
-}
+import { put } from "@vercel/blob";
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== "SUPPLIER") {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Check if user has supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: session.user.id },
     });
@@ -56,63 +23,80 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { name, description, price, category, brand, stock, image, images } =
-      body;
+    const formData = await req.formData();
+    const name = formData.get("name") as string;
+    const description = formData.get("description") as string;
+    const price = formData.get("price") as string;
+    const category = formData.get("category") as string;
+    const stock = formData.get("stock") as string;
+    const imageFile = formData.get("image") as File | null;
 
-    // Create slug from name
+    // Validate required fields
+    if (!name || !price || !category || !stock) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Validate price and stock are numbers
+    const priceNum = parseFloat(price);
+    const stockNum = parseInt(stock);
+
+    if (isNaN(priceNum) || priceNum <= 0) {
+      return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+    }
+
+    if (isNaN(stockNum) || stockNum < 0) {
+      return NextResponse.json(
+        { error: "Invalid stock quantity" },
+        { status: 400 }
+      );
+    }
+
+    // Upload image if provided
+    let imageUrl: string | null = null;
+    if (imageFile && imageFile.size > 0) {
+      try {
+        const blob = await put(imageFile.name, imageFile, {
+          access: "public",
+        });
+        imageUrl = blob.url;
+      } catch (uploadError) {
+        console.error("Image upload error:", uploadError);
+        return NextResponse.json(
+          { error: "Failed to upload image. Please try again." },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Generate slug
     const slug = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+      .replace(/^-+|-+$/g, "");
 
+    // Create product
     const product = await prisma.product.create({
       data: {
         name,
         slug,
-        description,
-        price: parseFloat(price),
+        description: description || null,
+        price: priceNum,
         category,
-        brand,
-        stock: parseInt(stock),
-        image,
-        images: images || [],
-        status: "ACTIVE",
+        stock: stockNum,
+        image: imageUrl,
         supplierId: supplierProfile.id,
+        status: "ACTIVE",
       },
     });
-
-    // 🔥 NOTIFY SUPPLIER ABOUT NEW PRODUCT
-    await prisma.notification.create({
-      data: {
-        userId: session.user.id,
-        type: "PRODUCT_CREATED",
-        title: "Product Listed Successfully",
-        message: `Your product "${name}" has been added to the marketplace. ${
-          stock < 5 ? "⚠️ Stock is low, consider restocking." : ""
-        }`,
-        link: `/dashboard/supplier`,
-      },
-    });
-
-    // 🔥 CHECK IF STOCK IS LOW IMMEDIATELY
-    if (stock < 5) {
-      await prisma.notification.create({
-        data: {
-          userId: session.user.id,
-          type: "LOW_INVENTORY",
-          title: "Low Stock Alert",
-          message: `${name} was added with only ${stock} units. Consider increasing stock for better sales.`,
-          link: `/dashboard/supplier/products/${product.id}/edit`,
-        },
-      });
-    }
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error) {
-    console.error("Error creating product:", error);
+  } catch (error: any) {
+    console.error("Product creation error:", error);
     return NextResponse.json(
-      { error: "Failed to create product" },
+      { error: error.message || "Failed to create product" },
       { status: 500 }
     );
   }
