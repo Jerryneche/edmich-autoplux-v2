@@ -25,6 +25,7 @@ async function getProduct(slugOrId: string) {
           city: true,
           state: true,
           verified: true,
+          userId: true,
         },
       },
     },

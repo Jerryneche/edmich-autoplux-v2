@@ -2,8 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { put } from "@vercel/blob";
 
+// GET - Fetch supplier's products
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Find supplier profile
+    const supplierProfile = await prisma.supplierProfile.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!supplierProfile) {
+      return NextResponse.json(
+        { error: "Supplier profile not found" },
+        { status: 404 }
+      );
+    }
+
+    // Fetch all products for this supplier
+    const products = await prisma.product.findMany({
+      where: { supplierId: supplierProfile.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(products);
+  } catch (error: any) {
+    console.error("Error fetching products:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch products" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Create new product
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -23,16 +59,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const formData = await req.formData();
-    const name = formData.get("name") as string;
-    const description = formData.get("description") as string;
-    const price = formData.get("price") as string;
-    const category = formData.get("category") as string;
-    const stock = formData.get("stock") as string;
-    const imageFile = formData.get("image") as File | null;
+    if (!supplierProfile.verified || !supplierProfile.approved) {
+      return NextResponse.json(
+        { error: "Supplier account not approved yet" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const { name, description, price, category, stock, imageUrl } = body;
 
     // Validate required fields
-    if (!name || !price || !category || !stock) {
+    if (!name || !price || !category || stock === undefined) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -54,28 +92,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Upload image if provided
-    let imageUrl: string | null = null;
-    if (imageFile && imageFile.size > 0) {
-      try {
-        const blob = await put(imageFile.name, imageFile, {
-          access: "public",
-        });
-        imageUrl = blob.url;
-      } catch (uploadError) {
-        console.error("Image upload error:", uploadError);
-        return NextResponse.json(
-          { error: "Failed to upload image. Please try again." },
-          { status: 500 }
-        );
-      }
-    }
-
-    // Generate slug
-    const slug = name
+    // Generate unique slug
+    const baseSlug = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
+    const slug = `${baseSlug}-${Date.now()}`;
 
     // Create product
     const product = await prisma.product.create({
@@ -86,9 +108,18 @@ export async function POST(req: NextRequest) {
         price: priceNum,
         category,
         stock: stockNum,
-        image: imageUrl,
+        image: imageUrl || null,
         supplierId: supplierProfile.id,
         status: "ACTIVE",
+      },
+      include: {
+        supplier: {
+          select: {
+            businessName: true,
+            city: true,
+            state: true,
+          },
+        },
       },
     });
 

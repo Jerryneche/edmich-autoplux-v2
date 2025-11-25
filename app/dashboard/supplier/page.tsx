@@ -88,11 +88,18 @@ export default function SupplierDashboard() {
     checkAndFetchProfile();
     checkInventory();
   }, [session, status, router]);
-
   const checkAndFetchProfile = async () => {
     try {
       const res = await fetch("/api/onboarding/supplier");
-      if (!res.ok) throw new Error("Failed to fetch profile");
+      if (!res.ok) {
+        if (res.status === 404) {
+          // No profile found, redirect to onboarding
+          router.push("/onboarding/supplier");
+          return;
+        }
+        throw new Error("Failed to fetch profile");
+      }
+
       const data = await res.json();
 
       if (!data.hasProfile) {
@@ -101,9 +108,12 @@ export default function SupplierDashboard() {
       }
 
       setProfile(data.supplierProfile);
-      await Promise.all([fetchProducts(), fetchOrders()]);
+
+      // Fetch products and orders in parallel, but don't fail if they error
+      await Promise.allSettled([fetchProducts(), fetchOrders()]);
     } catch (error) {
       console.error("Profile fetch error:", error);
+      toast.error("Failed to load dashboard. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -120,11 +130,21 @@ export default function SupplierDashboard() {
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/supplier/products");
-      if (!res.ok) throw new Error("Failed to fetch products");
+      if (!res.ok) {
+        // Check if it's a 404 (no profile) or other error
+        if (res.status === 404) {
+          console.log("Supplier profile not found");
+          setProducts([]);
+          return;
+        }
+        throw new Error("Failed to fetch products");
+      }
       const data = await res.json();
-      setProducts(data);
+      setProducts(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error(error);
+      console.error("Product fetch error:", error);
+      // Don't show error toast, just set empty array
+      setProducts([]);
     }
   };
 
@@ -155,14 +175,13 @@ export default function SupplierDashboard() {
       toast.error("An error occurred while deleting");
     }
   };
-
   const orderStats = {
-    pending: orders.filter((o) => o.status === "PENDING").length,
-    confirmed: orders.filter((o) => o.status === "CONFIRMED").length,
-    processing: orders.filter((o) => o.status === "PROCESSING").length,
-    shipped: orders.filter((o) => o.status === "SHIPPED").length,
-    delivered: orders.filter((o) => o.status === "DELIVERED").length,
-    cancelled: orders.filter((o) => o.status === "CANCELLED").length,
+    pending: orders?.filter((o) => o.status === "PENDING").length || 0,
+    confirmed: orders?.filter((o) => o.status === "CONFIRMED").length || 0,
+    processing: orders?.filter((o) => o.status === "PROCESSING").length || 0,
+    shipped: orders?.filter((o) => o.status === "SHIPPED").length || 0,
+    delivered: orders?.filter((o) => o.status === "DELIVERED").length || 0,
+    cancelled: orders?.filter((o) => o.status === "CANCELLED").length || 0,
   };
 
   const totalRevenue = orders

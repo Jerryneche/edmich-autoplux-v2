@@ -16,7 +16,7 @@ export async function POST(
     const params = await context.params;
     const supplierId = params.id;
 
-    // Update supplier profile
+    // Update BOTH verified and approved
     const updatedSupplier = await prisma.supplierProfile.update({
       where: { id: supplierId },
       data: {
@@ -30,14 +30,14 @@ export async function POST(
       },
     });
 
-    // Send notification to supplier
+    // Send notification
     await prisma.notification.create({
       data: {
         userId: updatedSupplier.userId,
         type: "SYSTEM",
-        title: "Supplier Application Approved! 🎉",
-        message: `Congratulations! Your supplier profile for "${updatedSupplier.businessName}" has been verified and approved. You can now start listing products.`,
-        link: "/dashboard/supplier",
+        title: "✅ Supplier Approved!",
+        message: `Congratulations! Your supplier profile "${updatedSupplier.businessName}" has been verified and approved. You can now list products on the marketplace.`,
+        link: "/dashboard/supplier/products/new",
       },
     });
 

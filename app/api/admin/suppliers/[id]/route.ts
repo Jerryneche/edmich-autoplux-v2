@@ -88,6 +88,24 @@ export async function PATCH(
           select: {
             name: true,
             email: true,
+            image: true,
+            createdAt: true,
+          },
+        },
+        products: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            stock: true,
+            status: true,
+            category: true,
+          },
+          take: 10,
+        },
+        _count: {
+          select: {
+            products: true,
           },
         },
       },

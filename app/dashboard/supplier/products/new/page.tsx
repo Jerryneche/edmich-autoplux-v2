@@ -10,6 +10,7 @@ import {
   ArrowLeftIcon,
   PhotoIcon,
   CubeIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
@@ -32,8 +33,10 @@ export default function NewProductPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
+  const [cloudinaryPublicId, setCloudinaryPublicId] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -49,16 +52,92 @@ export default function NewProductPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      "image/heic",
+      "image/heif",
+    ];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      toast.error("Please upload a valid image file");
+      return;
     }
+
+    // Validate file size (10MB for Cloudinary)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image size must be less than 10MB");
+      return;
+    }
+
+    // Create preview immediately
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to Cloudinary
+    await uploadImage(file);
+  };
+
+  const uploadImage = async (file: File) => {
+    setIsUploading(true);
+    const uploadToast = toast.loading("Uploading image...");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+
+      const data = await response.json();
+      setUploadedImageUrl(data.url);
+      setCloudinaryPublicId(data.publicId);
+      toast.success("Image uploaded successfully!", { id: uploadToast });
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Failed to upload image", {
+        id: uploadToast,
+      });
+      setImagePreview("");
+      setUploadedImageUrl("");
+      setCloudinaryPublicId("");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeImage = async () => {
+    // Delete from Cloudinary if exists
+    if (cloudinaryPublicId) {
+      try {
+        await fetch(`/api/upload?publicId=${cloudinaryPublicId}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        console.error("Failed to delete image:", error);
+      }
+    }
+
+    setImagePreview("");
+    setUploadedImageUrl("");
+    setCloudinaryPublicId("");
   };
 
   const validateForm = () => {
@@ -78,6 +157,10 @@ export default function NewProductPage() {
       toast.error("Valid stock quantity is required");
       return false;
     }
+    if (!uploadedImageUrl) {
+      toast.error("Please upload a product image");
+      return false;
+    }
     return true;
   };
 
@@ -89,23 +172,19 @@ export default function NewProductPage() {
     setIsSubmitting(true);
 
     try {
-      // Create FormData instead of JSON
-      const formDataToSend = new FormData();
-      formDataToSend.append("name", formData.name.trim());
-      formDataToSend.append("description", formData.description.trim() || "");
-      formDataToSend.append("price", formData.price);
-      formDataToSend.append("category", formData.category);
-      formDataToSend.append("stock", formData.stock);
-
-      // Append the actual file if it exists
-      if (imageFile) {
-        formDataToSend.append("image", imageFile);
-      }
+      const productData = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        stock: parseInt(formData.stock),
+        imageUrl: uploadedImageUrl,
+      };
 
       const response = await fetch("/api/supplier/products", {
         method: "POST",
-        body: formDataToSend,
-        // Don't set Content-Type header - browser will set it automatically with boundary
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(productData),
       });
 
       if (!response.ok) {
@@ -113,24 +192,23 @@ export default function NewProductPage() {
         throw new Error(errorData.error || "Failed to create product");
       }
 
-      const data = await response.json();
+      toast.success("Product created successfully!");
 
-      // Revalidate shop and market pages
-      await Promise.all([
-        fetch("/api/revalidate?path=/shop", { method: "POST" }),
-        fetch("/api/revalidate?path=/business/market", { method: "POST" }),
+      // Revalidate pages
+      Promise.all([
+        fetch("/api/revalidate?path=/shop", { method: "POST" }).catch(() => {}),
+        fetch("/api/revalidate?path=/business/market", {
+          method: "POST",
+        }).catch(() => {}),
       ]);
 
-      toast.success("Product added successfully! Now live in shop!");
-
-      // Redirect with refresh
       setTimeout(() => {
         router.push("/dashboard/supplier");
         router.refresh();
-      }, 500);
+      }, 1000);
     } catch (error: any) {
       console.error("Submit error:", error);
-      toast.error(error.message || "Failed to add product");
+      toast.error(error.message || "Failed to create product");
     } finally {
       setIsSubmitting(false);
     }
@@ -138,8 +216,11 @@ export default function NewProductPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4" />
+          <p className="text-neutral-600">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -157,7 +238,7 @@ export default function NewProductPage() {
       <section className="pt-32 pb-24 max-w-4xl mx-auto px-6">
         <Link
           href="/dashboard/supplier"
-          className="inline-flex items-center gap-2 text-neutral-600 hover:text-neutral-900 mb-8 font-semibold"
+          className="inline-flex items-center gap-2 text-neutral-600 hover:text-neutral-900 mb-8 font-semibold transition-colors"
         >
           <ArrowLeftIcon className="h-5 w-5" />
           Back to Dashboard
@@ -165,7 +246,7 @@ export default function NewProductPage() {
 
         <div className="bg-white rounded-3xl p-8 border-2 border-neutral-200 shadow-lg">
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
               <CubeIcon className="h-8 w-8 text-white" />
             </div>
             <div>
@@ -179,153 +260,213 @@ export default function NewProductPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Product Name */}
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                Product Name *
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="e.g., Toyota Camry Engine Oil Filter"
-                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                required
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                Description
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Detailed product description..."
-                rows={4}
-                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none resize-none"
-              />
-            </div>
-
-            {/* Price and Stock */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                  Price (₦) *
-                </label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  placeholder="50000"
-                  min="0"
-                  step="0.01"
-                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                  Stock Quantity *
-                </label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleInputChange}
-                  placeholder="50"
-                  min="0"
-                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                  required
-                />
-                <p className="text-xs text-neutral-500 mt-1">
-                  Number of units available for sale
-                </p>
-              </div>
-            </div>
-
-            {/* Category */}
-            <div>
-              <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                Category *
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                required
-              >
-                <option value="">Select a category</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Product Image */}
+            {/* Product Image Upload - FIRST */}
             <div>
               <label className="block text-sm font-semibold text-neutral-700 mb-2">
                 Product Image *
               </label>
-              <div className="border-2 border-dashed border-neutral-300 rounded-xl p-8 text-center hover:border-blue-400 transition-colors">
+              <div className="border-2 border-dashed border-neutral-300 rounded-2xl p-8 text-center hover:border-blue-400 transition-all">
                 {imagePreview ? (
-                  <div className="relative w-full h-64 mb-4">
-                    <Image
-                      src={imagePreview}
-                      alt="Preview"
-                      fill
-                      className="object-contain rounded-lg"
-                    />
+                  <div className="relative">
+                    <div className="relative w-full aspect-square max-w-md mx-auto mb-4 rounded-xl overflow-hidden bg-neutral-100">
+                      <Image
+                        src={imagePreview}
+                        alt="Preview"
+                        fill
+                        className="object-contain"
+                        priority
+                      />
+                    </div>
+
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-xl backdrop-blur-sm">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-3" />
+                          <p className="text-white font-bold text-lg">
+                            Uploading to cloud...
+                          </p>
+                          <p className="text-white/80 text-sm">Please wait</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {uploadedImageUrl && (
+                      <div className="mb-4">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full font-semibold">
+                          <svg
+                            className="h-5 w-5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Image uploaded successfully
+                        </div>
+                      </div>
+                    )}
+
+                    {!isUploading && (
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-red-100 text-red-700 rounded-xl font-bold hover:bg-red-200 transition-all"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                        Remove & Upload New
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <PhotoIcon className="h-16 w-16 text-neutral-400 mx-auto mb-4" />
+                  <div>
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <PhotoIcon className="h-10 w-10 text-blue-600" />
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                      id="image-upload"
+                      disabled={isUploading}
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className={`inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold cursor-pointer hover:shadow-xl hover:scale-105 transition-all ${
+                        isUploading ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      Choose Image to Upload
+                    </label>
+                    <p className="text-sm text-neutral-500 mt-3">
+                      Supports: JPG, PNG, WebP, GIF, HEIC • Max 10MB
+                    </p>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      Image will be optimized automatically
+                    </p>
+                  </div>
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  id="image-upload"
-                />
-                <label
-                  htmlFor="image-upload"
-                  className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold cursor-pointer hover:bg-blue-700 transition-colors"
-                >
-                  {imagePreview ? "Change Image" : "Upload Image"}
-                </label>
-                <p className="text-sm text-neutral-500 mt-2">
-                  Upload a clear, high-quality image of your product
-                </p>
               </div>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
-                isSubmitting
-                  ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-xl hover:scale-105"
-              }`}
-            >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                  Creating Product...
-                </span>
-              ) : (
-                "Create Product"
-              )}
-            </button>
+            {/* Rest of form - Only show when image is uploaded */}
+            {uploadedImageUrl && (
+              <>
+                {/* Product Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Product Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Toyota Camry Engine Oil Filter"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Describe your product in detail..."
+                    rows={4}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none resize-none transition-colors"
+                  />
+                </div>
+
+                {/* Price and Stock */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Price (₦) *
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      placeholder="50000"
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Stock Quantity *
+                    </label>
+                    <input
+                      type="number"
+                      name="stock"
+                      value={formData.stock}
+                      onChange={handleInputChange}
+                      placeholder="50"
+                      min="0"
+                      className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                      required
+                    />
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Number of units available
+                    </p>
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Category *
+                  </label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting || isUploading}
+                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+                    isSubmitting || isUploading
+                      ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-2xl hover:scale-105"
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                      Creating Product...
+                    </span>
+                  ) : (
+                    "Create Product & List in Marketplace"
+                  )}
+                </button>
+              </>
+            )}
           </form>
         </div>
       </section>
