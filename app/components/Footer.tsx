@@ -54,6 +54,12 @@ export default function Footer() {
               >
                 📱 Install App
               </Link>
+              <Link
+                href="/suppliers"
+                className="hover:text-blue-600 transition-colors"
+              >
+                📱 SUPPLIERS
+              </Link>
             </div>
           </div>
 

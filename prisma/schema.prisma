@@ -168,26 +168,6 @@ model MechanicBooking {
   @@index([orderId])
 }
 
-model SupplierProfile {
-  id              String    @id @default(cuid())
-  userId          String    @unique
-  businessName    String
-  businessAddress String
-  city            String
-  state           String
-  description     String?
-  cacNumber       String?
-  bankName        String?
-  accountNumber   String?
-  accountName     String?
-  verified        Boolean   @default(false)
-  approved        Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  user            User      @relation(fields: [userId], references: [id])
-  products        Product[]
-}
-
 model LogisticsProfile {
   id                  String             @id @default(cuid())
   userId              String             @unique
@@ -396,6 +376,45 @@ model LogisticsRequest {
   logisticsId    String?
   user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   logistics      LogisticsProfile? @relation(fields: [logisticsId], references: [id])
+}
+
+model SupplierProfile {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  businessName    String
+  businessAddress String
+  city            String
+  state           String
+  description     String?
+  cacNumber       String?
+  bankName        String?
+  accountNumber   String?
+  accountName     String?
+  verified        Boolean @default(false)
+  approved        Boolean @default(false)
+
+  // 🔥 NEW: Social Media Links
+  website   String?
+  instagram String?
+  facebook  String?
+  twitter   String?
+  whatsapp  String?
+  tiktok    String?
+
+  // 🔥 NEW: Business Hours & Info
+  businessHours String? // JSON string: { "monday": "9AM-6PM", ... }
+  tagline       String? // Short catchy tagline
+  coverImage    String? // Hero/banner image URL
+  logo          String? // Business logo URL
+
+  // 🔥 NEW: SEO & Marketing
+  metaDescription String?
+  keywords        String[] @default([])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+  products  Product[]
 }
 
 model OrderServiceLink {
