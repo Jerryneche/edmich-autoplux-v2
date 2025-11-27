@@ -192,6 +192,7 @@ export default function EditProductPage({ params }: Props) {
     setUploadedImageUrl("");
     setCloudinaryPublicId("");
   };
+  // Replace the handleSubmit function in your edit page
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,8 +223,10 @@ export default function EditProductPage({ params }: Props) {
         price: parseFloat(formData.price),
         category: formData.category,
         stock: parseInt(formData.stock),
-        imageUrl: uploadedImageUrl || product.image,
+        imageUrl: uploadedImageUrl || product.image, // Match the API field name
       };
+
+      console.log("Updating product with data:", updateData);
 
       const response = await fetch(`/api/supplier/products/${productId}`, {
         method: "PATCH",
@@ -231,13 +234,32 @@ export default function EditProductPage({ params }: Props) {
         body: JSON.stringify(updateData),
       });
 
+      // ✅ Better error handling
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update product");
+        let errorMessage = "Failed to update product";
+
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            errorMessage = `Server error: ${response.status}`;
+          }
+        } catch (parseError) {
+          console.error("Could not parse error response:", parseError);
+        }
+
+        throw new Error(errorMessage);
       }
 
-      toast.success("Product updated successfully!");
+      // ✅ Parse success response
+      const result = await response.json();
+      console.log("Update successful:", result);
 
+      toast.success("Product updated successfully! 🎉");
+
+      // Redirect after a short delay
       setTimeout(() => {
         router.push("/dashboard/supplier");
         router.refresh();

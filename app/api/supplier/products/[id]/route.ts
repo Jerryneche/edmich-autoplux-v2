@@ -53,7 +53,7 @@ export async function GET(
 }
 
 // PUT - Update product
-export async function PUT(
+export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
@@ -74,7 +74,15 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, price, category, stock, image } = body;
+    const { name, description, price, category, stock, imageUrl } = body;
+
+    // Validate required fields
+    if (!name || !price || !category || stock === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
 
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: session.user.id },
@@ -113,50 +121,66 @@ export async function PUT(
         price: parseFloat(price),
         category,
         stock: newStock,
-        image,
+        image: imageUrl || product.image, // Use imageUrl from request
       },
     });
 
+    // Revalidate paths
     try {
       revalidatePath("/shop");
       revalidatePath("/business/market");
       revalidatePath("/dashboard/supplier");
       revalidatePath(`/shop/${id}`);
+      revalidatePath(`/products/${id}`);
+      revalidatePath(`/suppliers/${supplierProfile.id}`);
     } catch (e) {
       console.error("Revalidation error:", e);
     }
 
-    await createNotification({
-      userId: session.user.id,
-      type: "PRODUCT",
-      title: "Product Updated",
-      message: `${name} has been updated successfully`,
-      link: `/shop/${id}`,
-    });
+    // Create notifications
+    try {
+      await createNotification({
+        userId: session.user.id,
+        type: "PRODUCT",
+        title: "Product Updated",
+        message: `${name} has been updated successfully`,
+        link: `/shop/${id}`,
+      });
 
-    if (newStock === 0 && oldStock > 0) {
-      await createNotification({
-        userId: session.user.id,
-        type: "PRODUCT",
-        title: "Product Out of Stock",
-        message: `${name} is now out of stock`,
-        link: `/dashboard/supplier`,
-      });
-    } else if (newStock <= 5 && newStock > 0 && oldStock > 5) {
-      await createNotification({
-        userId: session.user.id,
-        type: "PRODUCT",
-        title: "Low Stock Alert",
-        message: `${name} has only ${newStock} units left`,
-        link: `/dashboard/supplier`,
-      });
+      if (newStock === 0 && oldStock > 0) {
+        await createNotification({
+          userId: session.user.id,
+          type: "PRODUCT",
+          title: "Product Out of Stock",
+          message: `${name} is now out of stock`,
+          link: `/dashboard/supplier`,
+        });
+      } else if (newStock <= 5 && newStock > 0 && oldStock > 5) {
+        await createNotification({
+          userId: session.user.id,
+          type: "PRODUCT",
+          title: "Low Stock Alert",
+          message: `${name} has only ${newStock} units left`,
+          link: `/dashboard/supplier`,
+        });
+      }
+    } catch (notifError) {
+      console.error("Notification error:", notifError);
     }
 
-    return NextResponse.json(updatedProduct);
+    // ✅ ALWAYS RETURN JSON WITH SUCCESS STATUS
+    return NextResponse.json({
+      success: true,
+      product: updatedProduct,
+      message: "Product updated successfully",
+    });
   } catch (error: any) {
     console.error("Error updating product:", error);
     return NextResponse.json(
-      { error: "Failed to update product" },
+      {
+        error: error.message || "Failed to update product",
+        success: false,
+      },
       { status: 500 }
     );
   }

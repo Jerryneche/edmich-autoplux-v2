@@ -54,12 +54,6 @@ export default function Footer() {
               >
                 📱 Install App
               </Link>
-              <Link
-                href="/suppliers"
-                className="hover:text-blue-600 transition-colors"
-              >
-                📱 SUPPLIERS
-              </Link>
             </div>
           </div>
 
@@ -72,6 +66,7 @@ export default function Footer() {
                 { href: "/business", label: "For Business" },
                 { href: "/careers", label: "Careers" },
                 { href: "/blog", label: "Blog" },
+                { href: "/suppliers", label: "Suppliers" },
               ].map((link) => (
                 <li key={link.href}>
                   <Link
