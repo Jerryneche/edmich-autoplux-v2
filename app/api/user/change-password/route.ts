@@ -1,3 +1,5 @@
+// At the top of any file using bcryptjs
+declare module "bcryptjs";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";

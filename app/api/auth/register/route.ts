@@ -1,4 +1,7 @@
 // app/api/auth/register/route.ts
+
+// At the top of any file using bcryptjs
+declare module "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";

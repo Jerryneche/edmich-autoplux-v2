@@ -1,4 +1,6 @@
 // lib/auth.ts - COMPLETE UPDATED VERSION
+// At the top of any file using bcryptjs
+declare module "bcryptjs";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
