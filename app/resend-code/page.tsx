@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { EnvelopeIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 
-export default function ResendCodePage() {
-  const router = useRouter();
+// Extract search params in a separate component so it can be wrapped in Suspense
+function ResendCodeContent() {
   const searchParams = useSearchParams();
   const emailFromUrl = searchParams.get("email") || "";
 
+  const router = useRouter();
   const [email, setEmail] = useState(emailFromUrl);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,7 +39,6 @@ export default function ResendCodePage() {
 
       setMessage("Verification code sent! Check your email.");
 
-      // Redirect to verify page after 2 seconds
       setTimeout(() => {
         router.push(`/verify-email?email=${encodeURIComponent(email)}`);
       }, 2000);
@@ -55,7 +55,6 @@ export default function ResendCodePage() {
 
       <main className="flex-grow flex items-center justify-center px-4 py-12">
         <div className="max-w-md w-full space-y-8">
-          {/* Header */}
           <div className="text-center">
             <div className="mx-auto h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center">
               <ArrowPathIcon className="h-8 w-8 text-indigo-600" />
@@ -68,26 +67,22 @@ export default function ResendCodePage() {
             </p>
           </div>
 
-          {/* Form */}
           <form
             onSubmit={handleResend}
             className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow-md"
           >
-            {/* Success Message */}
             {message && (
               <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
                 {message}
               </div>
             )}
 
-            {/* Error Message */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Email Input */}
             <div>
               <label
                 htmlFor="email"
@@ -101,27 +96,24 @@ export default function ResendCodePage() {
                 </div>
                 <input
                   id="email"
-                  name="email"
                   type="email"
-                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="you@example.com"
                 />
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex justify-center py-3 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {isLoading ? (
                 <>
-                  <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" />
+                  <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-5 w-5" />
                   Sending...
                 </>
               ) : (
@@ -129,24 +121,22 @@ export default function ResendCodePage() {
               )}
             </button>
 
-            {/* Back to Login */}
             <div className="text-center">
               <Link
                 href="/login"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                className="text-sm text-indigo-600 hover:text-indigo-500"
               >
                 Back to Login
               </Link>
             </div>
           </form>
 
-          {/* Additional Help */}
           <div className="text-center text-sm text-gray-600">
             <p>
               Didn't receive the code?{" "}
               <Link
                 href="/signup"
-                className="font-medium text-indigo-600 hover:text-indigo-500"
+                className="text-indigo-600 hover:text-indigo-500"
               >
                 Sign up again
               </Link>
@@ -157,5 +147,20 @@ export default function ResendCodePage() {
 
       <Footer />
     </div>
+  );
+}
+
+// Main page component — wraps content in Suspense
+export default function ResendCodePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <ResendCodeContent />
+    </Suspense>
   );
 }
