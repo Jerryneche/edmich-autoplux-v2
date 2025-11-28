@@ -44,7 +44,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/bcryptjs": "^3.0.0",
     "@types/formidable": "^3.4.6",
     "@types/node": "^20.19.24",
     "@types/nodemailer": "^7.0.4",
