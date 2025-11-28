@@ -8,8 +8,13 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: UserRole;
+      email: string;
+      name?: string | null;
+      image?: string | null;
+      role: string;
       onboardingStatus: string;
+      isGoogleAuth: boolean;
+      hasCompletedOnboarding: boolean;
       hasSupplierProfile?: boolean;
       hasMechanicProfile?: boolean;
       hasLogisticsProfile?: boolean;
@@ -17,19 +22,25 @@ declare module "next-auth" {
   }
 
   interface User extends DefaultUser {
-    id: string;
-    role: UserRole;
+    role?: string;
     onboardingStatus?: string;
+    isGoogleAuth?: boolean;
+    hasCompletedOnboarding?: boolean;
+    emailVerified?: Date | null;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id?: string;
-    role?: UserRole;
-    onboardingStatus?: string;
+    id: string;
+    role: string;
+    onboardingStatus: string;
+    isGoogleAuth: boolean;
+    hasCompletedOnboarding: boolean;
     hasSupplierProfile?: boolean;
     hasMechanicProfile?: boolean;
     hasLogisticsProfile?: boolean;
   }
 }
+
+// types/next-auth.d.ts - UPDATE YOUR TYPES FILE

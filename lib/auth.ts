@@ -1,6 +1,6 @@
+// lib/auth.ts - COMPLETE UPDATED VERSION
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import GitHubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
@@ -11,36 +11,63 @@ type UserRole = "BUYER" | "SUPPLIER" | "MECHANIC" | "LOGISTICS" | "ADMIN";
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
+    // ✅ GOOGLE PROVIDER (NO GITHUB!)
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
     }),
-    GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    }),
+
+    // ✅ CREDENTIALS PROVIDER - Login with EMAIL OR USERNAME
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        emailOrUsername: {
+          label: "Email or Username",
+          type: "text",
+          placeholder: "email@example.com or username",
+        },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password)
-          throw new Error("Invalid credentials");
+        if (!credentials?.emailOrUsername || !credentials?.password) {
+          throw new Error("Please enter email/username and password");
+        }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        // ✅ Find user by EMAIL OR USERNAME
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: credentials.emailOrUsername.toLowerCase() },
+              { username: credentials.emailOrUsername.toLowerCase() },
+            ],
+          },
         });
 
-        if (!user || !user.password) throw new Error("Invalid credentials");
+        if (!user || !user.password) {
+          throw new Error("Invalid credentials");
+        }
 
+        // ✅ Check if email is verified
+        if (!user.emailVerified) {
+          throw new Error("Please verify your email before logging in");
+        }
+
+        // Verify password
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password
         );
 
-        if (!isPasswordValid) throw new Error("Invalid credentials");
+        if (!isPasswordValid) {
+          throw new Error("Invalid credentials");
+        }
 
         return user;
       },
@@ -51,19 +78,36 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (account?.provider === "credentials") return true;
 
-      const email = user.email;
-      if (!email) return true;
+      // Handle Google Sign In
+      if (account?.provider === "google") {
+        const email = user.email;
+        if (!email) return true;
 
-      const dbUser = await prisma.user.findUnique({ where: { email } });
-      if (!dbUser) return true;
+        const dbUser = await prisma.user.findUnique({ where: { email } });
 
-      if (!dbUser.role) {
-        setImmediate(async () => {
+        if (!dbUser) {
+          // New Google user - create with default role
+          await prisma.user.create({
+            data: {
+              email: email,
+              name: user.name,
+              image: user.image,
+              emailVerified: new Date(), // Auto-verify Google users
+              isGoogleAuth: true,
+              hasCompletedOnboarding: false, // Needs role selection
+              role: "BUYER", // Default
+            },
+          });
+        } else {
+          // Existing user - update image and verify email
           await prisma.user.update({
             where: { id: dbUser.id },
-            data: { role: "BUYER", onboardingStatus: "PENDING" },
+            data: {
+              image: user.image,
+              emailVerified: new Date(),
+            },
           });
-        });
+        }
       }
 
       return true;
@@ -72,32 +116,32 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, trigger, session }) {
       // Initial login
       if (user) {
-        token.id = user.id;
-        token.role = (user.role ?? "BUYER") as UserRole;
-        token.onboardingStatus = user.onboardingStatus ?? "PENDING";
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          include: {
+            supplierProfile: true,
+            mechanicProfile: true,
+            logisticsProfile: true,
+          },
+        });
 
-        // 🔥 Check for supplier profile on initial login
-        if (user.role === "SUPPLIER") {
-          const supplierProfile = await prisma.supplierProfile.findUnique({
-            where: { userId: user.id },
-          });
-          token.hasSupplierProfile = !!supplierProfile;
-        }
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.role = (dbUser.role ?? "BUYER") as UserRole;
+          token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
+          token.isGoogleAuth = dbUser.isGoogleAuth ?? false;
+          token.hasCompletedOnboarding = dbUser.hasCompletedOnboarding ?? true;
 
-        // 🔥 Check for mechanic profile on initial login
-        if (user.role === "MECHANIC") {
-          const mechanicProfile = await prisma.mechanicProfile.findUnique({
-            where: { userId: user.id },
-          });
-          token.hasMechanicProfile = !!mechanicProfile;
-        }
-
-        // 🔥 Check for logistics profile on initial login
-        if (user.role === "LOGISTICS") {
-          const logisticsProfile = await prisma.logisticsProfile.findUnique({
-            where: { userId: user.id },
-          });
-          token.hasLogisticsProfile = !!logisticsProfile;
+          // Profile checks
+          if (dbUser.role === "SUPPLIER") {
+            token.hasSupplierProfile = !!dbUser.supplierProfile;
+          }
+          if (dbUser.role === "MECHANIC") {
+            token.hasMechanicProfile = !!dbUser.mechanicProfile;
+          }
+          if (dbUser.role === "LOGISTICS") {
+            token.hasLogisticsProfile = !!dbUser.logisticsProfile;
+          }
         }
       }
 
@@ -115,18 +159,16 @@ export const authOptions: NextAuthOptions = {
         if (refreshedUser) {
           token.role = (refreshedUser.role ?? "BUYER") as UserRole;
           token.onboardingStatus = refreshedUser.onboardingStatus ?? "PENDING";
+          token.hasCompletedOnboarding =
+            refreshedUser.hasCompletedOnboarding ?? true;
 
-          // 🔥 Update supplier profile status
+          // Update profile status
           if (refreshedUser.role === "SUPPLIER") {
             token.hasSupplierProfile = !!refreshedUser.supplierProfile;
           }
-
-          // 🔥 Update mechanic profile status
           if (refreshedUser.role === "MECHANIC") {
             token.hasMechanicProfile = !!refreshedUser.mechanicProfile;
           }
-
-          // 🔥 Update logistics profile status
           if (refreshedUser.role === "LOGISTICS") {
             token.hasLogisticsProfile = !!refreshedUser.logisticsProfile;
           }
@@ -142,8 +184,11 @@ export const authOptions: NextAuthOptions = {
         session.user.role = (token.role || "BUYER") as any;
         session.user.onboardingStatus = (token.onboardingStatus ||
           "PENDING") as string;
+        session.user.isGoogleAuth = token.isGoogleAuth as boolean;
+        session.user.hasCompletedOnboarding =
+          token.hasCompletedOnboarding as boolean;
 
-        // Add profile flags if they exist
+        // Add profile flags
         if (token.hasSupplierProfile !== undefined) {
           session.user.hasSupplierProfile = token.hasSupplierProfile;
         }

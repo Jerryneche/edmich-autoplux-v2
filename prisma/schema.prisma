@@ -39,6 +39,7 @@ model Session {
 model User {
   id                String             @id @default(cuid())
   name              String?
+  username          String?            @unique
   email             String             @unique
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -62,6 +63,19 @@ model User {
   logisticsBookings LogisticsBooking[]
   notifications     Notification[]
   addresses         UserAddress[]
+
+  // ✅ NEW: Email Verification
+
+  verificationCode   String? // 6-digit code
+  verificationExpiry DateTime? // Code expires in 15 minutes
+
+  // ✅ NEW: Password Reset
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  // ✅ NEW: Google OAuth flag
+  isGoogleAuth           Boolean @default(false)
+  hasCompletedOnboarding Boolean @default(false)
 }
 
 model UserAddress {
