@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
@@ -11,12 +11,22 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function BookingPage() {
+  const [bookingContext, setBookingContext] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const ctx = sessionStorage.getItem("bookingContext");
+      if (ctx) setBookingContext(JSON.parse(ctx));
+    }
+  }, []);
+
   return (
     <>
       <Header />
 
       <main className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* BACK BUTTON */}
           <div className="mb-6">
             <Link
               href="/"
@@ -27,27 +37,40 @@ export default function BookingPage() {
             </Link>
           </div>
 
+          {/* AUTO BOOKING CONTEXT BANNER */}
+          {bookingContext && (
+            <div className="mb-8 bg-blue-100 border border-blue-300 p-4 rounded-xl text-center shadow-sm animate-pulse">
+              <p className="text-blue-800 font-semibold">
+                Booking linked to Order #{bookingContext.orderId}
+              </p>
+            </div>
+          )}
+
+          {/* PAGE HEADER */}
           <header className="mb-10 text-center">
-            <h1 className="text-4xl font-bold text-gray-900">Book a Service</h1>
-            <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
+            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight animate-fade-in">
+              Book a Service
+            </h1>
+            <p className="mt-3 text-gray-600 max-w-2xl mx-auto animate-fade-in-delay">
               Choose between fast, reliable logistics or trusted mechanic
-              services — powered by EDMICH.
+              services — powered by EDMICH AUTOPLUX
             </p>
           </header>
 
+          {/* GRID LAYOUT */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* MAIN COLUMN */}
+            {/* MAIN SERVICE SELECTION */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Quick Bookings
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  Pick a service below to start a new booking. If you have an
-                  order, the booking flow will link to it automatically.
+                  Pick a service to start a new booking. If you have an existing
+                  order, EDMICH will automatically link it.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-300">
                   {/* LOGISTICS CARD */}
                   <Link
                     href="/booking/logistics"
@@ -63,8 +86,7 @@ export default function BookingPage() {
                           Logistics Booking
                         </h3>
                         <p className="text-sm text-gray-600 mt-1">
-                          Arrange pickups, deliveries and track shipments in
-                          real-time.
+                          Arrange pickups, deliveries, and real-time tracking.
                         </p>
 
                         <div className="mt-4 flex items-center gap-3">
@@ -72,7 +94,7 @@ export default function BookingPage() {
                             Pickup & Delivery
                           </span>
                           <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
-                            Estimated pricing available
+                            Estimated pricing
                           </span>
                         </div>
                       </div>
@@ -100,8 +122,7 @@ export default function BookingPage() {
                           Mechanic Booking
                         </h3>
                         <p className="text-sm text-gray-600 mt-1">
-                          Book verified mechanics for diagnostics, repairs or
-                          installations.
+                          Book verified technicians for repairs & installations.
                         </p>
 
                         <div className="mt-4 flex items-center gap-3">
@@ -124,23 +145,11 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* Linked Booking Context Banner */}
+              {/* STATIC INFO BANNER */}
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-2xl p-6 shadow-md">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg
-                      className="w-7 h-7 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3 3v18h18"
-                      />
-                    </svg>
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    📦
                   </div>
 
                   <div>
@@ -148,8 +157,7 @@ export default function BookingPage() {
                       Link your booking to an order
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
-                      If you started from an order, it will attach
-                      automatically.
+                      If you started from an order, it auto-links.
                     </p>
                   </div>
                 </div>
@@ -163,19 +171,17 @@ export default function BookingPage() {
                   Need help deciding?
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Call support or browse services to find the right option.
+                  Call support or explore available services.
                 </p>
 
-                <div className="pt-4 border-t border-gray-100">
-                  <a
-                    href="tel:+234800EDMICH"
-                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                  >
-                    Call Support
-                  </a>
-                </div>
+                <a
+                  href="tel:+2349025579441"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                >
+                  Call Support
+                </a>
 
-                <div className="pt-4">
+                <div className="mt-6 border-t pt-4">
                   <p className="text-sm text-gray-500 mb-2">Estimated Cost</p>
                   <p className="text-3xl font-bold text-green-600">₦0</p>
                   <p className="text-xs text-gray-500 mt-1">
