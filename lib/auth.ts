@@ -205,7 +205,14 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      return url.startsWith(baseUrl) ? url : baseUrl;
+      // Handles relative URLs like "/dashboard"
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+
+      // Handles full URLs from our domain
+      if (url.startsWith(baseUrl)) return url;
+
+      // Default: after sign-in, send to role selection
+      return `${baseUrl}/auth/role-selection`;
     },
   },
 

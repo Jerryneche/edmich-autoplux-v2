@@ -1,4 +1,3 @@
-// app/signup/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -18,9 +17,9 @@ import {
   CubeIcon,
   WrenchIcon,
   TruckIcon,
+  AtSymbolIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
-import { signIn } from "next-auth/react";
 
 const roles = [
   {
@@ -56,6 +55,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
+    username: "",
     email: "",
     phone: "",
     password: "",
@@ -82,12 +82,23 @@ export default function SignupPage() {
   };
 
   const validateStep2 = () => {
-    if (!formData.name || !formData.email || !formData.phone) {
+    if (
+      !formData.name ||
+      !formData.username ||
+      !formData.email ||
+      !formData.phone
+    ) {
       setError("Please fill in all fields");
       return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       setError("Please enter a valid email address");
+      return false;
+    }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(formData.username)) {
+      setError(
+        "Username must be 3-20 characters (letters, numbers, underscore only)"
+      );
       return false;
     }
     if (formData.phone.length < 10) {
@@ -140,6 +151,7 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name,
+          username: formData.username,
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
@@ -155,23 +167,14 @@ export default function SignupPage() {
         return;
       }
 
-      toast.success("Account created successfully!");
+      toast.success("Account created! Please verify your email.");
 
-      // AUTO SIGN IN
-      setTimeout(async () => {
-        const signInResult = await signIn("credentials", {
-          email: formData.email,
-          password: formData.password,
-          redirect: false,
-        });
-
-        if (signInResult?.ok) {
-          router.push("/dashboard");
-          router.refresh();
-        } else {
-          router.push("/login");
-        }
-      }, 1000);
+      // Redirect to email verification page
+      setTimeout(() => {
+        router.push(
+          `/verify-email?email=${encodeURIComponent(formData.email)}`
+        );
+      }, 1500);
     } catch (error) {
       setError("Something went wrong. Please try again.");
       toast.error("Registration failed");
@@ -332,6 +335,27 @@ export default function SignupPage() {
                           required
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                        Username *
+                      </label>
+                      <div className="relative">
+                        <AtSymbolIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                        <input
+                          type="text"
+                          name="username"
+                          value={formData.username}
+                          onChange={handleChange}
+                          placeholder="johndoe"
+                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                          required
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        3-20 characters, letters, numbers, and underscore only
+                      </p>
                     </div>
 
                     <div>
