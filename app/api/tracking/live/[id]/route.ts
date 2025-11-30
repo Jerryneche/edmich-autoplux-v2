@@ -4,10 +4,12 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // ← Now a Promise!
 ) {
   try {
-    const trackingId = params.id.toUpperCase();
+    // MUST AWAIT params in Next.js 16
+    const { id } = await context.params;
+    const trackingId = id.toUpperCase();
 
     const tracking = await prisma.orderTracking.findFirst({
       where: {
@@ -25,10 +27,7 @@ export async function GET(
                   include: {
                     supplier: {
                       include: {
-                        user: {
-                          // ← phone lives on User, not SupplierProfile
-                          select: { phone: true, name: true },
-                        },
+                        user: { select: { phone: true, name: true } },
                       },
                     },
                   },
