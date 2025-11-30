@@ -1,4 +1,4 @@
-// app/mechanics/find/page.tsx - PRODUCTION WITH REAL DATA
+// app/mechanics/find/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -57,10 +57,14 @@ export default function FindMechanicsPage() {
       if (searchState) params.append("state", searchState);
       if (verifiedOnly) params.append("verified", "true");
 
-      const response = await fetch(`/api/mechanics?${params.toString()}`);
+      // FIXED LINE — was calling /api/mechanics (doesn’t exist)
+      const response = await fetch(
+        `/api/mechanics/available?${params.toString()}`
+      );
+
       if (response.ok) {
         const data = await response.json();
-        setMechanics(data);
+        setMechanics(data.mechanics || []); // ← now matches your API response
       } else {
         toast.error("Failed to load mechanics");
       }
@@ -184,7 +188,7 @@ export default function FindMechanicsPage() {
                   </div>
                   {mechanic.verified && (
                     <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
-                      ✓ Verified
+                      Verified
                     </span>
                   )}
                 </div>

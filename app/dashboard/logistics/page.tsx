@@ -150,6 +150,11 @@ export default function LogisticsDashboard() {
             >
               Settings
             </Link>
+            <Link href="/logistics">
+              <button className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold">
+                Manage Deliveries
+              </button>
+            </Link>
           </div>
 
           <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 rounded-2xl p-8 text-white shadow-2xl">

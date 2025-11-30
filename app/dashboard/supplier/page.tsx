@@ -510,6 +510,11 @@ export default function SupplierDashboard() {
                   <PlusIcon className="h-6 w-6" />
                   Add Your First Product
                 </Link>
+                <Link href="/products">
+                  <button className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold">
+                    Manage Products
+                  </button>
+                </Link>
               </div>
             )}
           </div>

@@ -101,5 +101,8 @@ export const config = {
     "/onboarding/:path*",
     "/profile/:path*",
     "/api/user/complete-onboarding",
+    "/profile",
+    "/products",
+    "/logistics",
   ],
 };

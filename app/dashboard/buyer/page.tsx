@@ -12,6 +12,9 @@ import {
   HeartIcon,
   ClockIcon,
   CheckCircleIcon,
+  DocumentTextIcon,
+  WalletIcon,
+  CreditCardIcon,
   WrenchScrewdriverIcon,
   TruckIcon,
   EyeIcon,
@@ -533,6 +536,39 @@ export default function BuyerDashboard() {
                 Manage delivery addresses
               </p>
             </div>
+          </Link>
+
+          <Link
+            href="/dashboard/buyer/payment-methods"
+            className="p-6 bg-white rounded-2xl border-2 border-neutral-200 hover:border-blue-300 hover:shadow-lg transition-all"
+          >
+            <CreditCardIcon className="h-10 w-10 text-blue-600 mb-3" />
+            <h3 className="font-bold text-neutral-900 mb-1">Payment Methods</h3>
+            <p className="text-sm text-neutral-600">
+              Manage cards & bank accounts
+            </p>
+          </Link>
+
+          <Link
+            href="/dashboard/buyer/wallet"
+            className="p-6 bg-white rounded-2xl border-2 border-neutral-200 hover:border-blue-300 hover:shadow-lg transition-all"
+          >
+            <WalletIcon className="h-10 w-10 text-green-600 mb-3" />
+            <h3 className="font-bold text-neutral-900 mb-1">My Wallet</h3>
+            <p className="text-sm text-neutral-600">
+              View balance & transactions
+            </p>
+          </Link>
+
+          <Link
+            href="/dashboard/kyc/status"
+            className="p-6 bg-white rounded-2xl border-2 border-neutral-200 hover:border-blue-300 hover:shadow-lg transition-all"
+          >
+            <DocumentTextIcon className="h-10 w-10 text-purple-600 mb-3" />
+            <h3 className="font-bold text-neutral-900 mb-1">
+              KYC Verification
+            </h3>
+            <p className="text-sm text-neutral-600">Verify your account</p>
           </Link>
         </div>
       </section>
