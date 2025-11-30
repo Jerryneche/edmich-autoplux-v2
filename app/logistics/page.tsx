@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useSession } from "next-auth/react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
@@ -13,6 +14,8 @@ import {
   PhoneIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
+
+// KEEP YOUR CODE UNCHANGED ABOVE THIS LINE
 
 interface LogisticsProvider {
   id: string;
@@ -33,7 +36,7 @@ interface LogisticsProvider {
   };
 }
 
-export default function FindLogisticsPage() {
+export function FindLogisticsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -312,5 +315,12 @@ export default function FindLogisticsPage() {
 
       <Footer />
     </main>
+  );
+}
+export default function FindLogisticsWrapper() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
+      <FindLogisticsPage />
+    </Suspense>
   );
 }
