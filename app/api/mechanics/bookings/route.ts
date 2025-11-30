@@ -1,7 +1,9 @@
+// app/api/mechanics/bookings/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -12,39 +14,40 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role"); // "mechanic" or "buyer"
 
-    const where: any =
+    // Find MechanicProfile to get actual ID
+    const mechanicProfile =
       role === "mechanic"
-        ? { mechanicId: session.user.id }
-        : { buyerId: session.user.id };
+        ? await prisma.mechanicProfile.findUnique({
+            where: { userId: session.user.id },
+            select: { id: true },
+          })
+        : null;
+
+    const where =
+      role === "mechanic"
+        ? { mechanicId: mechanicProfile?.id }
+        : { userId: session.user.id };
 
     const bookings = await prisma.mechanicBooking.findMany({
       where,
       include: {
+        user: {
+          select: { name: true, image: true, phone: true },
+        },
         mechanic: {
           include: {
             user: {
-              select: {
-                name: true,
-                image: true,
-                phone: true,
-              },
+              select: { name: true, image: true, phone: true },
             },
           },
         },
-        buyer: {
-          select: {
-            name: true,
-            image: true,
-            phone: true,
-          },
-        },
-        vehicle: true,
       },
       orderBy: { date: "desc" },
     });
 
     return NextResponse.json({ success: true, bookings });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("Fetch bookings error:", error);
     return NextResponse.json(
       { error: "Failed to fetch bookings" },
       { status: 500 }
@@ -61,75 +64,102 @@ export async function POST(request: Request) {
 
     const data = await request.json();
     const {
-      mechanicId,
-      vehicleId,
+      mechanicId, // This is MechanicProfile.id
+      vehicleMake,
+      vehicleModel,
+      vehicleYear,
+      plateNumber,
       serviceType,
+      customService,
       date,
-      startTime,
-      endTime,
-      description,
+      time,
       location,
-      latitude,
-      longitude,
+      address,
+      city,
+      state,
+      endTime,
+      phone,
+      additionalNotes,
     } = data;
 
-    // Check mechanic availability
-    const existingBooking = await prisma.mechanicBooking.findFirst({
-      where: {
-        mechanicId,
-        date: new Date(date),
-        status: { in: ["pending", "confirmed"] },
-        OR: [
-          {
-            startTime: { lte: startTime },
-            endTime: { gt: startTime },
-          },
-          {
-            startTime: { lt: endTime },
-            endTime: { gte: endTime },
-          },
-        ],
-      },
-    });
-
-    if (existingBooking) {
+    if (!mechanicId || !serviceType || !date || !time) {
       return NextResponse.json(
-        { error: "Mechanic not available at this time" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Get mechanic pricing
-    const mechanic = await prisma.mechanic.findUnique({
-      where: { userId: mechanicId },
+    // Check for time conflicts
+    const existing = await prisma.mechanicBooking.findFirst({
+      where: {
+        mechanicId,
+        date,
+        status: { in: ["PENDING", "CONFIRMED"] },
+        OR: [
+          { startTime: { lte: time }, endTime: { gt: time } },
+          { startTime: { lt: endTime }, endTime: { gte: endTime } },
+          { startTime: { gte: time }, endTime: { lte: endTime } },
+        ],
+      },
     });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "This time slot is already booked" },
+        { status: 400 }
+      );
+    }
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "Mechanic is not available at this time" },
+        { status: 400 }
+      );
+    }
+
+    const mechanic = await prisma.mechanicProfile.findUnique({
+      where: { id: mechanicId },
+      select: { hourlyRate: true, userId: true },
+    });
+
+    if (!mechanic) {
+      return NextResponse.json(
+        { error: "Mechanic not found" },
+        { status: 404 }
+      );
+    }
 
     const booking = await prisma.mechanicBooking.create({
       data: {
-        buyerId: session.user.id,
+        userId: session.user.id,
         mechanicId,
-        vehicleId,
+        vehicleMake,
+        vehicleModel,
+        vehicleYear,
+        plateNumber,
         serviceType,
-        date: new Date(date),
-        startTime,
-        endTime,
-        description,
+        customService,
+        date,
+        time,
         location,
-        latitude,
-        longitude,
-        estimatedPrice: mechanic?.basePrice || 0,
-        status: "pending",
+        address,
+        city,
+        state,
+        phone,
+        additionalNotes,
+        estimatedPrice: mechanic.hourlyRate * 2, // example
+        status: "PENDING", // ← Correct enum
       },
       include: {
         mechanic: {
           include: {
             user: {
-              select: {
-                name: true,
-                phone: true,
-              },
+              select: { name: true, phone: true },
             },
           },
+        },
+        user: {
+          select: { name: true, phone: true },
         },
       },
     });
@@ -137,23 +167,23 @@ export async function POST(request: Request) {
     // Notify mechanic
     await prisma.notification.create({
       data: {
-        userId: mechanicId,
-        title: "New Booking Request",
-        message: `You have a new booking request for ${serviceType}`,
-        type: "booking",
-        actionUrl: `/mechanic/bookings/${booking.id}`,
+        userId: mechanic.userId,
+        title: "New Service Request",
+        message: `New booking from ${session.user.name || "a customer"}`,
+        type: "BOOKING", // ← Correct enum
+        link: `/mechanic/bookings/${booking.id}`,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: "Booking created successfully",
+      message: "Booking request sent!",
       booking,
     });
-  } catch (error) {
-    console.error("Booking creation error:", error);
+  } catch (error: any) {
+    console.error("Booking error:", error);
     return NextResponse.json(
-      { error: "Failed to create booking" },
+      { error: "Failed to create booking", details: error.message },
       { status: 500 }
     );
   }

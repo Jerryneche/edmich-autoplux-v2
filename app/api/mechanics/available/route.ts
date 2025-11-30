@@ -1,22 +1,48 @@
+// app/api/mechanics/available/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+
+// Proper Haversine distance
+const toRad = (value: number) => (value * Math.PI) / 180;
+
+function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371; // km
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((R * c).toFixed(2));
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const latitude = parseFloat(searchParams.get("lat") || "0");
     const longitude = parseFloat(searchParams.get("lng") || "0");
     const serviceType = searchParams.get("serviceType");
-    const radius = parseFloat(searchParams.get("radius") || "10"); // km
+    const radius = parseFloat(searchParams.get("radius") || "20");
 
-    // Find mechanics within radius
-    const mechanics = await prisma.mechanic.findMany({
+    if (!latitude || !longitude) {
+      return NextResponse.json({ error: "Location required" }, { status: 400 });
+    }
+
+    const mechanics = await prisma.mechanicProfile.findMany({
       where: {
         isAvailable: true,
+        approved: true,
         verified: true,
+        latitude: { not: null },
+        longitude: { not: null },
+        // Fix: specialization is String[] → use "has"
         ...(serviceType && {
-          specializations: {
+          specialization: {
             has: serviceType,
           },
         }),
@@ -25,52 +51,48 @@ export async function GET(request: Request) {
         user: {
           select: {
             name: true,
-            email: true,
             phone: true,
             image: true,
           },
         },
         reviews: {
-          select: {
-            rating: true,
-          },
-        },
-        bookings: {
-          where: {
-            date: {
-              gte: new Date(),
-            },
-          },
-          select: {
-            date: true,
-            startTime: true,
-            endTime: true,
-          },
+          select: { rating: true },
         },
       },
     });
 
-    // Calculate distance and filter by radius
-    const mechanicsWithDistance = mechanics
+    const result = mechanics
       .map((mechanic) => {
         const distance = calculateDistance(
           latitude,
           longitude,
-          mechanic.latitude || 0,
-          mechanic.longitude || 0
+          mechanic.latitude!,
+          mechanic.longitude!
         );
 
+        const ratings = mechanic.reviews.map((r) => r.rating);
         const averageRating =
-          mechanic.reviews.length > 0
-            ? mechanic.reviews.reduce((acc, r) => acc + r.rating, 0) /
-              mechanic.reviews.length
+          ratings.length > 0
+            ? Number(
+                (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+              )
             : 0;
 
         return {
-          ...mechanic,
+          id: mechanic.id,
+          name: mechanic.user.name,
+          phone: mechanic.user.phone,
+          image: mechanic.user.image,
+          specialty: mechanic.specialty,
+          specializations: mechanic.specialization,
+          location: mechanic.location,
+          hourlyRate: mechanic.hourlyRate,
+          rating: mechanic.rating,
+          completedJobs: mechanic.completedJobs,
+          isAvailable: mechanic.isAvailable,
           distance,
           averageRating,
-          reviewCount: mechanic.reviews.length,
+          reviewCount: ratings.length,
         };
       })
       .filter((m) => m.distance <= radius)
@@ -78,32 +100,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      mechanics: mechanicsWithDistance,
+      mechanics: result,
+      count: result.length,
     });
-  } catch (error) {
-    console.error("Mechanics fetch error:", error);
+  } catch (error: any) {
+    console.error("Mechanics API error:", error);
     return NextResponse.json(
       { error: "Failed to fetch mechanics" },
       { status: 500 }
     );
   }
-}
-
-function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-) {
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }
