@@ -10,6 +10,12 @@ datasource db {
   directUrl = env("DIRECT_URL") // ← this is crucial for Vercel
 }
 
+/**
+ * -------------------------
+ * EXISTING / UPDATED MODELS
+ * -------------------------
+ */
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -37,18 +43,18 @@ model Session {
 }
 
 model User {
-  id                String             @id @default(cuid())
+  id                String                    @id @default(cuid())
   name              String?
-  username          String?            @unique
-  email             String             @unique
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  username          String?                   @unique
+  email             String                    @unique
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
   emailVerified     DateTime?
   image             String?
-  onboardingStatus  OnboardingStatus   @default(PENDING)
+  onboardingStatus  OnboardingStatus          @default(PENDING)
   password          String?
   phone             String?
-  role              UserRole           @default(BUYER)
+  role              UserRole                  @default(BUYER)
   accounts          Account[]
   bookings          Booking[]
   logisticsProfile  LogisticsProfile?
@@ -63,19 +69,28 @@ model User {
   logisticsBookings LogisticsBooking[]
   notifications     Notification[]
   addresses         UserAddress[]
+  conversations     ConversationParticipant[] // participants relation
 
-  // ✅ NEW: Email Verification
-
+  // Email Verification
   verificationCode   String? // 6-digit code
   verificationExpiry DateTime? // Code expires in 15 minutes
 
-  // ✅ NEW: Password Reset
+  // Password Reset
   resetToken       String?
   resetTokenExpiry DateTime?
 
-  // ✅ NEW: Google OAuth flag
-  isGoogleAuth           Boolean @default(false)
-  hasCompletedOnboarding Boolean @default(false)
+  // Google OAuth flag
+  isGoogleAuth           Boolean           @default(false)
+  hasCompletedOnboarding Boolean           @default(false)
+  messages               Message[]
+  mechanicReviews        MechanicReview[]
+  payments               Payment[]
+  paymentMethods         PaymentMethod[]
+  kycs                   KYC[]
+  wallet                 Wallet?
+  orderTrackings         OrderTracking[]
+  logisticsReviews       LogisticsReview[]
+  vehicles               Vehicle[]
 }
 
 model UserAddress {
@@ -98,6 +113,13 @@ model UserAddress {
   @@index([userId, isDefault])
 }
 
+/**
+ * MechanicProfile updated to match API usages:
+ * - renamed available -> isAvailable
+ * - added latitude, longitude, basePrice, isAvailable (boolean)
+ * - ensure specializations is a string[] (matches APIs)
+ * - added relation to MechanicReview model
+ */
 model MechanicProfile {
   id             String   @id @default(cuid())
   userId         String   @unique
@@ -105,7 +127,7 @@ model MechanicProfile {
   location       String
   city           String
   businessName   String
-  specialization String[]
+  specialization String[] @default([]) // array for skills
   experience     Int
   address        String
   phone          String
@@ -116,20 +138,25 @@ model MechanicProfile {
   state          String
   hourlyRate     Float
   bio            String?
-  certifications String[]
+  certifications String[] @default([])
   verified       Boolean  @default(false)
-  available      Boolean  @default(true)
+  // NOTE: API expects isAvailable and 'latitude'/'longitude'/'basePrice'
+  isAvailable    Boolean  @default(true)
+  available      Boolean? // legacy alias (optional)
+  latitude       Float?
+  longitude      Float?
+  basePrice      Float?   @default(0)
   workingHours   String?
   responseTime   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // ✅ Correct relation
   bookings MechanicBooking[]
-  booking  Booking[]
+  booking  Booking[] // existing relation
 
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   mechanicNotifications MechanicNotification[]
+  reviews               MechanicReview[] // mechanic-specific reviews
 }
 
 model MechanicBooking {
@@ -148,9 +175,11 @@ model MechanicBooking {
   customService  String?
   estimatedPrice Float
 
-  // Schedule
-  date String
-  time String
+  // Schedule (APIs used date and time fields differently — keep them)
+  date      String
+  time      String?
+  startTime String?
+  endTime   String?
 
   // Location
   location String
@@ -158,10 +187,10 @@ model MechanicBooking {
   city     String
   state    String?
 
-  // ... existing fields ...
+  // Link to order/service
   orderLink OrderServiceLink?
 
-  // Add these fields if they don't exist
+  // Optional fields
   orderId    String?
   trackingId String?
 
@@ -182,6 +211,9 @@ model MechanicBooking {
   @@index([orderId])
 }
 
+/**
+ * LogisticsProfile kept mostly as-is. Add currentLat/currentLng for proximity queries
+ */
 model LogisticsProfile {
   id                  String             @id @default(cuid())
   userId              String             @unique
@@ -194,22 +226,61 @@ model LogisticsProfile {
   state               String
   phone               String
   description         String?
-  vehicleTypes        String[]
-  coverageAreas       String[]
+  vehicleTypes        String[]           @default([])
+  coverageAreas       String[]           @default([])
   verified            Boolean            @default(false)
-  available           Boolean            @default(true)
+  isAvailable         Boolean            @default(true) // changed to isAvailable
+  available           Boolean? // legacy alias
+  currentLat          Float?
+  currentLng          Float?
   user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries          LogisticsRequest[]
   approved            Boolean            @default(false)
   rating              Float              @default(0)
   completedDeliveries Int                @default(0)
 
-  bookings LogisticsBooking[]
+  bookings  LogisticsBooking[]
+  reviews   LogisticsReview[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model Vehicle {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  make         String
+  model        String
+  year         Int
+  vin          String? @unique
+  color        String?
+  mileage      Int?
+  engineType   String?
+  transmission String?
+  nickname     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([vin])
 }
 
+model LogisticsReview {
+  id          String           @id @default(cuid())
+  logisticsId String
+  logistics   LogisticsProfile @relation(fields: [logisticsId], references: [id])
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  rating      Float
+  comment     String?
+  createdAt   DateTime         @default(now())
+}
+
+/**
+ * LogisticsBooking exists already; keep mostly as-is but ensure numeric fields present
+ */
 model LogisticsBooking {
   id     String @id @default(cuid())
   userId String
@@ -251,7 +322,6 @@ model LogisticsBooking {
   updatedAt DateTime          @updatedAt
   orderLink OrderServiceLink?
 
-  // Add these fields if they don't exist
   orderId    String?
   trackingId String?
 
@@ -274,6 +344,10 @@ model MechanicNotification {
   @@index([mechanicId])
 }
 
+/**
+ * Product, SupplierProfile, Order, OrderItem, ShippingAddress left mostly unchanged,
+ * but ensure status casing matches APIs ("active"/"ACTIVE"). Adjusted where needed.
+ */
 model Product {
   id          String   @id @default(cuid())
   name        String
@@ -295,7 +369,6 @@ model Product {
   reviews    Review[]
 }
 
-// schema.prisma
 model Order {
   id            String   @id @default(cuid())
   trackingId    String   @unique @default(dbgenerated("('EDM-' || gen_random_uuid())"))
@@ -307,15 +380,18 @@ model Order {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user            User               @relation(fields: [userId], references: [id])
-  items           OrderItem[]
-  shippingAddress ShippingAddress?
-  serviceLinks    OrderServiceLink[]
+  user               User                @relation(fields: [userId], references: [id])
+  items              OrderItem[]
+  shippingAddress    ShippingAddress?
+  serviceLinks       OrderServiceLink[]
+  payments           Payment[]
+  walletTransactions WalletTransaction[]
+  orderTracking      OrderTracking?
 }
 
 model ShippingAddress {
-  id       String  @id @default(cuid()) // ← String
-  orderId  String  @unique // ← String
+  id       String  @id @default(cuid())
+  orderId  String  @unique
   fullName String
   email    String
   phone    String
@@ -336,8 +412,9 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-// ADD THESE MODELS TO YOUR SCHEMA (AFTER LogisticsProfile)
-
+/**
+ * Supplier and SupplierProfile kept with the new marketing fields previously added
+ */
 model Supplier {
   id          String   @id @default(cuid())
   name        String
@@ -407,7 +484,6 @@ model SupplierProfile {
   verified        Boolean @default(false)
   approved        Boolean @default(false)
 
-  // 🔥 NEW: Social Media Links
   website   String?
   instagram String?
   facebook  String?
@@ -415,13 +491,11 @@ model SupplierProfile {
   whatsapp  String?
   tiktok    String?
 
-  // 🔥 NEW: Business Hours & Info
-  businessHours String? // JSON string: { "monday": "9AM-6PM", ... }
-  tagline       String? // Short catchy tagline
-  coverImage    String? // Hero/banner image URL
-  logo          String? // Business logo URL
+  businessHours String?
+  tagline       String?
+  coverImage    String?
+  logo          String?
 
-  // 🔥 NEW: SEO & Marketing
   metaDescription String?
   keywords        String[] @default([])
 
@@ -436,11 +510,9 @@ model OrderServiceLink {
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  // Mechanic booking (nullable)
   mechanicBookingId String?          @unique
   mechanicBooking   MechanicBooking? @relation(fields: [mechanicBookingId], references: [id], onDelete: SetNull)
 
-  // Logistics booking (nullable)
   logisticsBookingId String?           @unique
   logisticsBooking   LogisticsBooking? @relation(fields: [logisticsBookingId], references: [id], onDelete: SetNull)
 
@@ -463,14 +535,9 @@ model Review {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
+/**
+ * Notifications (keeps existing model)
+ */
 model Notification {
   id     String @id @default(cuid())
   userId String
@@ -487,19 +554,6 @@ model Notification {
 
   @@index([userId, read])
   @@index([createdAt])
-}
-
-enum NotificationType {
-  ORDER
-  BOOKING
-  PRODUCT
-  SYSTEM
-  PAYMENT
-  DELIVERY
-  REVIEW
-  PRODUCT_CREATED
-  LOW_INVENTORY
-  ORDER_STATUS_UPDATED
 }
 
 model ContactSubmission {
@@ -529,13 +583,235 @@ model TradeIn {
   user           User          @relation(fields: [userId], references: [id])
   oldPart        String
   condition      String
-  estimatedValue Decimal       @default(0.0) // ← This is Naira (₦5000.00)
+  estimatedValue Decimal       @default(0.0)
   status         TradeInStatus @default(PENDING)
-  photos         String[]
+  photos         String[]      @default([])
   createdAt      DateTime      @default(now())
   approvedAt     DateTime?
 
   @@map("trade_ins")
+}
+
+/**
+ * -------------------------
+ * NEW MODELS (to support APIs)
+ * -------------------------
+ */
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt       DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([userId])
+}
+
+/**
+ * Messages (chat)
+ */
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  read           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+/**
+ * Mechanic-specific reviews (APIs reference mechanic.reviews)
+ */
+model MechanicReview {
+  id         String          @id @default(cuid())
+  mechanicId String
+  mechanic   MechanicProfile @relation(fields: [mechanicId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating     Float
+  comment    String?
+  createdAt  DateTime        @default(now())
+
+  @@index([mechanicId])
+  @@index([userId])
+}
+
+/**
+ * Payment models (payment, paymentMethod)
+ */
+model Payment {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId          String?
+  order            Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  amount           Float
+  currency         String    @default("NGN")
+  method           String
+  status           String    @default("pending")
+  gatewayReference String?   @unique
+  gatewayResponse  Json?
+  verifiedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+}
+
+/**
+ * PaymentMethod for saving cards / bank details
+ */
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String // card | bank | ussd | etc
+  last4         String?
+  expiryMonth   String?
+  expiryYear    String?
+  bankName      String?
+  accountNumber String?
+  token         String? // tokenized card
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+/**
+ * KYC model (kYC)
+ */
+model KYC {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idType            String
+  idNumber          String
+  businessName      String?
+  businessRegNumber String?
+  address           String?
+  city              String?
+  state             String?
+  idFrontUrl        String?
+  idBackUrl         String?
+  selfieUrl         String?
+  businessCertUrl   String?
+  status            String    @default("pending")
+  submittedAt       DateTime  @default(now())
+  reviewedAt        DateTime?
+  reviewedBy        String?
+
+  @@index([userId])
+  @@index([status])
+}
+
+/**
+ * Wallets, transactions, withdrawals
+ */
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Float    @default(0)
+  currency  String   @default("NGN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions WalletTransaction[]
+  withdrawals  Withdrawal[]
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  walletId    String
+  wallet      Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type        String // credit | debit
+  amount      Float
+  description String?
+  reference   String?
+  orderId     String? // optional link to an order
+  createdAt   DateTime @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([walletId])
+  @@index([orderId])
+}
+
+model Withdrawal {
+  id            String    @id @default(cuid())
+  walletId      String
+  wallet        Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount        Float
+  bankCode      String
+  accountNumber String
+  status        String    @default("pending")
+  initiatedAt   DateTime  @default(now())
+  processedAt   DateTime?
+  reference     String?
+
+  @@index([walletId])
+}
+
+/**
+ * Order tracking & live updates
+ */
+model OrderTracking {
+  id                 String    @id @default(cuid())
+  orderId            String    @unique
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driverId           String? // references User.id (driver)
+  driver             User?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  deliveryLat        Float?
+  deliveryLng        Float?
+  currentLat         Float?
+  currentLng         Float?
+  lastLocationUpdate DateTime?
+  status             String    @default("pending")
+  estimatedArrival   String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  updates TrackingUpdate[]
+
+  @@index([orderId])
+  @@index([driverId])
+}
+
+/**
+ * Tracking updates (location pings)
+ */
+model TrackingUpdate {
+  id         String        @id @default(cuid())
+  trackingId String
+  tracking   OrderTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  latitude   Float
+  longitude  Float
+  status     String?
+  timestamp  DateTime      @default(now())
+
+  @@index([trackingId])
+  @@index([timestamp])
 }
 
 enum TradeInStatus {
@@ -570,17 +846,35 @@ enum OrderStatus {
 
 enum BookingStatus {
   PENDING
-  CONFIRMED
+  ACCEPTED
+  REJECTED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  CONFIRMED // add back
 }
 
 enum LogisticsStatus {
   PENDING
+  ASSIGNED
   PICKED_UP
   IN_TRANSIT
-  OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
+  OUT_FOR_DELIVERY // add back
+}
+
+enum NotificationType {
+  ORDER
+  BOOKING
+  LOGISTICS
+  SYSTEM
+  ACCOUNT
+  PRODUCT
+  PAYMENT
+  REVIEW
+  PRODUCT_CREATED
+  LOW_INVENTORY
+  ORDER_STATUS_UPDATED
+  DELIVERY
 }

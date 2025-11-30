@@ -1,199 +1,332 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import {
-  TruckIcon,
   WrenchScrewdriverIcon,
-  ArrowLeftIcon,
+  TruckIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 
-export default function BookingPage() {
-  const [bookingContext, setBookingContext] = useState<any>(null);
+export default function BookingsPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [mechanicBookings, setMechanicBookings] = useState([]);
+  const [logisticsBookings, setLogisticsBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const ctx = sessionStorage.getItem("bookingContext");
-      if (ctx) setBookingContext(JSON.parse(ctx));
+    if (session) {
+      fetchBookings();
     }
-  }, []);
+  }, [session]);
+
+  const fetchBookings = async () => {
+    try {
+      const [mechanicRes, logisticsRes] = await Promise.all([
+        fetch("/api/mechanics/bookings?role=buyer"),
+        fetch("/api/logistics/bookings"),
+      ]);
+
+      const mechanicData = await mechanicRes.json();
+      const logisticsData = await logisticsRes.json();
+
+      if (mechanicData.success) {
+        setMechanicBookings(mechanicData.bookings);
+      }
+
+      if (logisticsData.success) {
+        setLogisticsBookings(logisticsData.bookings);
+      }
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const styles: any = {
+      pending: "bg-yellow-100 text-yellow-800",
+      confirmed: "bg-blue-100 text-blue-800",
+      in_progress: "bg-purple-100 text-purple-800",
+      completed: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
+      accepted: "bg-blue-100 text-blue-800",
+      picked_up: "bg-purple-100 text-purple-800",
+      in_transit: "bg-indigo-100 text-indigo-800",
+      delivered: "bg-green-100 text-green-800",
+    };
+
+    return (
+      <span
+        className={`px-3 py-1 rounded-full text-xs font-medium ${
+          styles[status] || styles.pending
+        }`}
+      >
+        {status.replace("_", " ").toUpperCase()}
+      </span>
+    );
+  };
+
+  const allBookings = [
+    ...mechanicBookings.map((b: any) => ({ ...b, type: "mechanic" })),
+    ...logisticsBookings.map((b: any) => ({ ...b, type: "logistics" })),
+  ].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  const filteredBookings =
+    activeTab === "all"
+      ? allBookings
+      : allBookings.filter((b) => b.type === activeTab);
+
+  if (!session) {
+    router.push("/login");
+    return null;
+  }
 
   return (
     <>
       <Header />
-
-      <main className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-12">
+      <div className="min-h-screen bg-gray-50 pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* BACK BUTTON */}
-          <div className="mb-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-              Back to Home
-            </Link>
-          </div>
-
-          {/* AUTO BOOKING CONTEXT BANNER */}
-          {bookingContext && (
-            <div className="mb-8 bg-blue-100 border border-blue-300 p-4 rounded-xl text-center shadow-sm animate-pulse">
-              <p className="text-blue-800 font-semibold">
-                Booking linked to Order #{bookingContext.orderId}
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
+              <p className="text-gray-600 mt-2">
+                Manage your mechanic and logistics bookings
               </p>
             </div>
-          )}
 
-          {/* PAGE HEADER */}
-          <header className="mb-10 text-center">
-            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight animate-fade-in">
-              Book a Service
-            </h1>
-            <p className="mt-3 text-gray-600 max-w-2xl mx-auto animate-fade-in-delay">
-              Choose between fast, reliable logistics or trusted mechanic
-              services — powered by EDMICH AUTOPLUX
-            </p>
-          </header>
+            <div className="flex gap-3">
+              <button
+                onClick={() => router.push("/mechanics")}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium"
+              >
+                <WrenchScrewdriverIcon className="h-5 w-5" />
+                Book Mechanic
+              </button>
+              <button
+                onClick={() => router.push("/logistics/book")}
+                className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium"
+              >
+                <TruckIcon className="h-5 w-5" />
+                Book Delivery
+              </button>
+            </div>
+          </div>
 
-          {/* GRID LAYOUT */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* MAIN SERVICE SELECTION */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Quick Bookings
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  Pick a service to start a new booking. If you have an existing
-                  order, EDMICH will automatically link it.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-300">
-                  {/* LOGISTICS CARD */}
-                  <Link
-                    href="/booking/logistics"
-                    className="group block rounded-2xl border border-gray-200 hover:shadow-xl transition p-6 bg-gradient-to-br from-white to-green-50"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 bg-green-50 text-green-700 rounded-lg flex items-center justify-center">
-                        <TruckIcon className="h-7 w-7" />
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Logistics Booking
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Arrange pickups, deliveries, and real-time tracking.
-                        </p>
-
-                        <div className="mt-4 flex items-center gap-3">
-                          <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                            Pickup & Delivery
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
-                            Estimated pricing
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <button className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg shadow">
-                        Start Logistics Booking
-                      </button>
-                    </div>
-                  </Link>
-
-                  {/* MECHANIC CARD */}
-                  <Link
-                    href="/booking/mechanic"
-                    className="group block rounded-2xl border border-gray-200 hover:shadow-xl transition p-6 bg-gradient-to-br from-white to-blue-50"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 bg-blue-50 text-blue-700 rounded-lg flex items-center justify-center">
-                        <WrenchScrewdriverIcon className="h-7 w-7" />
-                      </div>
-
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Mechanic Booking
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Book verified technicians for repairs & installations.
-                        </p>
-
-                        <div className="mt-4 flex items-center gap-3">
-                          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
-                            Certified Mechanics
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
-                            Calendar & Pricing
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <button className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow">
-                        Book Mechanic
-                      </button>
-                    </div>
-                  </Link>
-                </div>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600">Total</span>
+                <ClockIcon className="h-5 w-5 text-gray-400" />
               </div>
+              <p className="text-3xl font-bold text-gray-900">
+                {allBookings.length}
+              </p>
+            </div>
 
-              {/* STATIC INFO BANNER */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-2xl p-6 shadow-md">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    📦
-                  </div>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600">Pending</span>
+                <ClockIcon className="h-5 w-5 text-yellow-500" />
+              </div>
+              <p className="text-3xl font-bold text-yellow-600">
+                {allBookings.filter((b) => b.status === "pending").length}
+              </p>
+            </div>
 
-                  <div>
-                    <p className="text-lg font-bold text-blue-900">
-                      Link your booking to an order
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      If you started from an order, it auto-links.
-                    </p>
-                  </div>
-                </div>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600">Active</span>
+                <ClockIcon className="h-5 w-5 text-blue-500" />
+              </div>
+              <p className="text-3xl font-bold text-blue-600">
+                {
+                  allBookings.filter((b) =>
+                    ["confirmed", "in_progress", "in_transit"].includes(
+                      b.status
+                    )
+                  ).length
+                }
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600">Completed</span>
+                <CheckCircleIcon className="h-5 w-5 text-green-500" />
+              </div>
+              <p className="text-3xl font-bold text-green-600">
+                {
+                  allBookings.filter((b) =>
+                    ["completed", "delivered"].includes(b.status)
+                  ).length
+                }
+              </p>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="bg-white rounded-lg shadow-md mb-6">
+            <div className="border-b">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab("all")}
+                  className={`flex-1 px-6 py-4 font-medium ${
+                    activeTab === "all"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  All Bookings ({allBookings.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab("mechanic")}
+                  className={`flex-1 px-6 py-4 font-medium ${
+                    activeTab === "mechanic"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Mechanic Services ({mechanicBookings.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab("logistics")}
+                  className={`flex-1 px-6 py-4 font-medium ${
+                    activeTab === "logistics"
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Logistics ({logisticsBookings.length})
+                </button>
               </div>
             </div>
 
-            {/* SIDEBAR */}
-            <aside className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
-                  Need help deciding?
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Call support or explore available services.
-                </p>
-
-                <a
-                  href="tel:+2349025579441"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                >
-                  Call Support
-                </a>
-
-                <div className="mt-6 border-t pt-4">
-                  <p className="text-sm text-gray-500 mb-2">Estimated Cost</p>
-                  <p className="text-3xl font-bold text-green-600">₦0</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Select a service to calculate
-                  </p>
+            {/* Bookings List */}
+            <div className="divide-y">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 </div>
-              </div>
-            </aside>
+              ) : filteredBookings.length === 0 ? (
+                <div className="text-center py-12">
+                  <ClockIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    No bookings yet
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Start by booking a mechanic or delivery service
+                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={() => router.push("/mechanics")}
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium"
+                    >
+                      Book Mechanic
+                    </button>
+                    <button
+                      onClick={() => router.push("/logistics/book")}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium"
+                    >
+                      Book Delivery
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                filteredBookings.map((booking: any) => (
+                  <div
+                    key={booking.id}
+                    className="p-6 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      if (booking.type === "mechanic") {
+                        router.push(`/bookings/mechanic/${booking.id}`);
+                      } else {
+                        router.push(`/bookings/logistics/${booking.id}`);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          booking.type === "mechanic"
+                            ? "bg-green-100"
+                            : "bg-orange-100"
+                        }`}
+                      >
+                        {booking.type === "mechanic" ? (
+                          <WrenchScrewdriverIcon
+                            className={`h-6 w-6 ${
+                              booking.type === "mechanic"
+                                ? "text-green-600"
+                                : "text-orange-600"
+                            }`}
+                          />
+                        ) : (
+                          <TruckIcon
+                            className={`h-6 w-6 ${
+                              booking.type === "mechanic"
+                                ? "text-green-600"
+                                : "text-orange-600"
+                            }`}
+                          />
+                        )}
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-semibold text-gray-900 mb-1">
+                              {booking.type === "mechanic"
+                                ? booking.serviceType
+                                : `Delivery: ${booking.packageType}`}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {booking.type === "mechanic"
+                                ? `Mechanic: ${booking.mechanic?.user?.name}`
+                                : `From: ${booking.pickupAddress}`}
+                            </p>
+                          </div>
+                          {getStatusBadge(booking.status)}
+                        </div>
+
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <span>
+                            📅{" "}
+                            {new Date(
+                              booking.date ||
+                                booking.scheduledDate ||
+                                booking.createdAt
+                            ).toLocaleDateString()}
+                          </span>
+                          {booking.startTime && (
+                            <span>🕐 {booking.startTime}</span>
+                          )}
+                          <span className="font-semibold text-blue-600">
+                            ₦{booking.estimatedPrice?.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </main>
-
+      </div>
       <Footer />
     </>
   );

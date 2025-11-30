@@ -1,10 +1,9 @@
 // app/api/notifications/route.ts
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
-// GET - Fetch user's notifications
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -12,28 +11,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const unreadOnly = searchParams.get("unread") === "true";
+    const [notifications, unreadCount] = await prisma.$transaction([
+      prisma.notification.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      prisma.notification.count({
+        where: {
+          userId: session.user.id,
+          read: false,
+        },
+      }),
+    ]);
 
-    const where: any = { userId: session.user.id };
-    if (unreadOnly) {
-      where.read = false;
-    }
-
-    const notifications = await prisma.notification.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
+    return NextResponse.json({
+      success: true,
+      notifications,
+      unreadCount,
     });
-
-    const unreadCount = await prisma.notification.count({
-      where: { userId: session.user.id, read: false },
-    });
-
-    return NextResponse.json({ notifications, unreadCount });
   } catch (error: any) {
-    console.error("Error fetching notifications:", error);
+    console.error("Notifications GET error:", error);
     return NextResponse.json(
       { error: "Failed to fetch notifications" },
       { status: 500 }
@@ -41,7 +39,6 @@ export async function GET(request: Request) {
   }
 }
 
-// POST - Create a notification (internal use)
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -50,31 +47,76 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { userId, type, title, message, link } = body;
+    const { title, message, type, link } = body;
 
-    if (!userId || !type || !title || !message) {
+    // Validation
+    if (!title || !message || !type) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "title, message and type are required" },
         { status: 400 }
       );
     }
 
     const notification = await prisma.notification.create({
       data: {
-        userId,
-        type,
+        userId: session.user.id,
         title,
         message,
-        link: link || null,
-        read: false,
+        type, // ← this is correct (NotificationType enum)
+        link, // ← this is the correct field name in your schema
+        read: false, // explicit default
       },
     });
 
-    return NextResponse.json(notification);
+    return NextResponse.json({ success: true, notification }, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating notification:", error);
+    console.error("Notifications POST error:", error);
     return NextResponse.json(
       { error: "Failed to create notification" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { notificationId, markAllRead } = body;
+
+    if (markAllRead) {
+      await prisma.notification.updateMany({
+        where: {
+          userId: session.user.id,
+          read: false,
+        },
+        data: { read: true },
+      });
+    } else if (notificationId) {
+      // Extra safety: make sure the notification belongs to the user
+      await prisma.notification.update({
+        where: {
+          id: notificationId,
+          userId: session.user.id, // prevents marking other users' notifications
+        },
+        data: { read: true },
+      });
+    } else {
+      return NextResponse.json(
+        { error: "Either notificationId or markAllRead=true is required" },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Notifications PATCH error:", error);
+    return NextResponse.json(
+      { error: "Failed to update notifications" },
       { status: 500 }
     );
   }
