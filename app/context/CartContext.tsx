@@ -1,4 +1,4 @@
-// app/context/CartContext.tsx
+// app/context/CartContext.tsx  ← Keep this as-is (your working web version)
 "use client";
 
 import { createContext, useContext, useState, ReactNode } from "react";
@@ -9,7 +9,7 @@ interface CartItem {
   price: number;
   image: string;
   quantity: number;
-  stock: number; // Add stock property
+  stock: number;
 }
 
 interface CartContextType {
@@ -19,17 +19,17 @@ interface CartContextType {
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   total: number;
-  totalPrice: number; // Alias for total
+  totalPrice: number;
   itemCount: number;
-  totalItems: number; // Alias for itemCount
-  isOpen: boolean; // Add cart open state
-  openCart: () => void; // Add open function
-  closeCart: () => void; // Add close function
+  totalItems: number;
+  isOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -45,9 +45,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = (id: string) =>
     setItems((prev) => prev.filter((i) => i.id !== id));
-  };
 
   const updateQuantity = (id: string, quantity: number) => {
     if (quantity <= 0) {
@@ -58,7 +57,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearCart = () => setItems([]);
-
   const openCart = () => setIsOpen(true);
   const closeCart = () => setIsOpen(false);
 
@@ -77,9 +75,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         updateQuantity,
         clearCart,
         total,
-        totalPrice: total, // Alias
+        totalPrice: total,
         itemCount,
-        totalItems: itemCount, // Alias
+        totalItems: itemCount,
         isOpen,
         openCart,
         closeCart,
