@@ -142,7 +142,7 @@ export default function ProductsPage() {
             <p className="text-neutral-600">Manage your product inventory</p>
           </div>
           <Link
-            href="/products/add"
+            href="/dashboard/supplier/products/new"
             className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
@@ -201,7 +201,7 @@ export default function ProductsPage() {
               Start adding products to your inventory
             </p>
             <Link
-              href="/products/add"
+              href="/dashboard/supplier/products/new"
               className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               Add Your First Product
