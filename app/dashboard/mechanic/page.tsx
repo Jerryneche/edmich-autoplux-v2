@@ -140,7 +140,7 @@ export default function MechanicDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-neutral-900 mb-2">
-                Welcome back, {session?.user?.name}!
+                Welcome back!
               </h1>
               <p className="text-lg text-neutral-600">Manage your bookings</p>
             </div>

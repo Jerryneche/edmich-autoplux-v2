@@ -389,7 +389,7 @@ export default function AdminDashboard() {
               Admin Dashboard
             </h1>
             <p className="text-neutral-600">
-              Welcome back, {session?.user?.name} • Manage your platform
+              Welcome back• Manage your platform
             </p>
           </div>
           <button

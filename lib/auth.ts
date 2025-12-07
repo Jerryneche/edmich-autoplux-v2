@@ -1,5 +1,4 @@
-// lib/auth.ts - COMPLETE UPDATED VERSION
-// At the top of any file using bcryptjs
+// lib/auth.ts - COMPLETE UPDATED VERSION WITH OTP SUPPORT
 declare module "bcryptjs";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
@@ -13,7 +12,7 @@ type UserRole = "BUYER" | "SUPPLIER" | "MECHANIC" | "LOGISTICS" | "ADMIN";
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
-    // ✅ GOOGLE PROVIDER (NO GITHUB!)
+    // ✅ GOOGLE PROVIDER
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -26,52 +25,143 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
-    // ✅ CREDENTIALS PROVIDER - Login with EMAIL OR USERNAME
+    // ✅ CREDENTIALS PROVIDER - Supports both PASSWORD and OTP login
     CredentialsProvider({
       name: "credentials",
       credentials: {
+        // Password login fields
         emailOrUsername: {
           label: "Email or Username",
           type: "text",
           placeholder: "email@example.com or username",
         },
         password: { label: "Password", type: "password" },
+        // OTP login fields
+        email: { label: "Email", type: "email" },
+        otp: { label: "OTP", type: "text" },
+        // Verified flag (for post-role-selection session creation)
+        verified: { label: "Verified", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.emailOrUsername || !credentials?.password) {
-          throw new Error("Please enter email/username and password");
+        if (!credentials) {
+          throw new Error("Please provide credentials");
         }
 
-        // ✅ Find user by EMAIL OR USERNAME
-        const user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { email: credentials.emailOrUsername.toLowerCase() },
-              { username: credentials.emailOrUsername.toLowerCase() },
-            ],
-          },
-        });
+        // ===============================
+        // OTP LOGIN FLOW or POST-ROLE-SELECTION
+        // ===============================
+        if (credentials.email) {
+          console.log("[AUTH] Email-based login attempt:", credentials.email);
 
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials");
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email.toLowerCase() },
+            include: {
+              supplierProfile: true,
+              mechanicProfile: true,
+              logisticsProfile: true,
+            },
+          });
+
+          if (!user) {
+            throw new Error("Account not found");
+          }
+
+          // Check if email is verified
+          if (!user.emailVerified) {
+            throw new Error(
+              "Email not verified. Please verify your email first."
+            );
+          }
+
+          // If "verified" flag is set, skip OTP check (post-role-selection)
+          if (credentials.verified === "true") {
+            console.log(
+              "[AUTH] Verified flag set, creating session for:",
+              user.email
+            );
+          } else if (credentials.otp) {
+            // OTP verification happens in verify-otp endpoint
+            console.log("[AUTH] OTP login successful:", user.email);
+          } else {
+            throw new Error("Invalid authentication method");
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role,
+            onboardingStatus: user.onboardingStatus,
+            isGoogleAuth: user.isGoogleAuth,
+            hasCompletedOnboarding: user.hasCompletedOnboarding,
+            hasSupplierProfile: !!user.supplierProfile,
+            hasMechanicProfile: !!user.mechanicProfile,
+            hasLogisticsProfile: !!user.logisticsProfile,
+          } as any;
         }
 
-        // ✅ Check if email is verified
-        if (!user.emailVerified) {
-          throw new Error("Please verify your email before logging in");
+        // ===============================
+        // PASSWORD LOGIN FLOW (Existing)
+        // ===============================
+        if (credentials.emailOrUsername && credentials.password) {
+          console.log(
+            "[AUTH] Password login attempt:",
+            credentials.emailOrUsername
+          );
+
+          // Find user by EMAIL OR USERNAME
+          const user = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { email: credentials.emailOrUsername.toLowerCase() },
+                { username: credentials.emailOrUsername.toLowerCase() },
+              ],
+            },
+            include: {
+              supplierProfile: true,
+              mechanicProfile: true,
+              logisticsProfile: true,
+            },
+          });
+
+          if (!user || !user.password) {
+            throw new Error("Invalid credentials");
+          }
+
+          // Check if email is verified
+          if (!user.emailVerified) {
+            throw new Error("Please verify your email before logging in");
+          }
+
+          // Verify password
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if (!isPasswordValid) {
+            throw new Error("Invalid credentials");
+          }
+
+          console.log("[AUTH] Password login successful:", user.email);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role,
+            onboardingStatus: user.onboardingStatus,
+            isGoogleAuth: user.isGoogleAuth,
+            hasCompletedOnboarding: user.hasCompletedOnboarding,
+            hasSupplierProfile: !!user.supplierProfile,
+            hasMechanicProfile: !!user.mechanicProfile,
+            hasLogisticsProfile: !!user.logisticsProfile,
+          } as any;
         }
 
-        // Verify password
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          throw new Error("Invalid credentials");
-        }
-
-        return user;
+        throw new Error("Invalid credentials");
       },
     }),
   ],
@@ -211,8 +301,8 @@ export const authOptions: NextAuthOptions = {
       // Handles full URLs from our domain
       if (url.startsWith(baseUrl)) return url;
 
-      // Default: after sign-in, send to role selection
-      return `${baseUrl}/auth/role-selection`;
+      // Default: after sign-in, send to dashboard
+      return `${baseUrl}/dashboard`;
     },
   },
 

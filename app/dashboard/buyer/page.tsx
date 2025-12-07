@@ -306,7 +306,7 @@ export default function BuyerDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-neutral-900 mb-2">
-                Welcome back, {session?.user?.name}!
+                Welcome back!
               </h1>
               <p className="text-lg text-neutral-600">
                 Track your orders, services, and deliveries in one place

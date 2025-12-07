@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import {
@@ -222,6 +223,13 @@ export default function SupplierSettings() {
           <h1 className="text-4xl font-bold text-neutral-900 mb-2">
             Business Settings
           </h1>
+          <Link
+            href="/complete-profile"
+            className="block p-4 rounded-xl bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100"
+          >
+            Complete Your Profile
+          </Link>
+
           <p className="text-neutral-600">
             Manage your business profile and social media presence
           </p>

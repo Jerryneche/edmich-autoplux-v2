@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import Link from "next/link";
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -35,6 +36,12 @@ export default function BuyerSettings() {
         <p className="text-neutral-600 mb-10">
           Manage your account and preferences
         </p>
+        <Link
+          href="/complete-profile"
+          className="block p-4 rounded-xl bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100"
+        >
+          Complete Your Profile
+        </Link>
 
         <div className="space-y-6">
           {/* Profile */}

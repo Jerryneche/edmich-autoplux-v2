@@ -3,183 +3,166 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import {
-  UserIcon,
   EnvelopeIcon,
-  PhoneIcon,
-  LockClosedIcon,
+  KeyIcon,
   ArrowRightIcon,
-  CheckCircleIcon,
   ExclamationCircleIcon,
-  ShoppingCartIcon,
-  CubeIcon,
-  WrenchIcon,
-  TruckIcon,
-  AtSymbolIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast, { Toaster } from "react-hot-toast";
 
-const roles = [
-  {
-    value: "BUYER",
-    label: "Buyer",
-    description: "Purchase auto parts and services",
-    icon: ShoppingCartIcon,
-  },
-  {
-    value: "SUPPLIER",
-    label: "Supplier",
-    description: "Sell auto parts to verified buyers",
-    icon: CubeIcon,
-  },
-  {
-    value: "MECHANIC",
-    label: "Mechanic",
-    description: "Offer repair and maintenance services",
-    icon: WrenchIcon,
-  },
-  {
-    value: "LOGISTICS",
-    label: "Logistics",
-    description: "Provide delivery and transport services",
-    icon: TruckIcon,
-  },
-];
-
-export default function SignupPage() {
+export default function SimplifiedSignupPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<"email" | "otp">("email");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState({
-    name: "",
-    username: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-    role: "",
-  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Handle email submission
+  const handleEmailSubmit = async () => {
     setError("");
-  };
 
-  const handleRoleSelect = (role: string) => {
-    setFormData({ ...formData, role });
-    setError("");
-  };
-
-  const validateStep1 = () => {
-    if (!formData.role) {
-      setError("Please select your role");
-      return false;
-    }
-    return true;
-  };
-
-  const validateStep2 = () => {
-    if (
-      !formData.name ||
-      !formData.username ||
-      !formData.email ||
-      !formData.phone
-    ) {
-      setError("Please fill in all fields");
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address");
-      return false;
+      toast.error("Please enter a valid email address");
+      return;
     }
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(formData.username)) {
-      setError(
-        "Username must be 3-20 characters (letters, numbers, underscore only)"
-      );
-      return false;
-    }
-    if (formData.phone.length < 10) {
-      setError("Please enter a valid phone number");
-      return false;
-    }
-    return true;
-  };
-
-  const validateStep3 = () => {
-    if (!formData.password || !formData.confirmPassword) {
-      setError("Please fill in all fields");
-      return false;
-    }
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return false;
-    }
-    return true;
-  };
-
-  const handleNext = () => {
-    if (step === 1 && validateStep1()) {
-      setStep(2);
-    } else if (step === 2 && validateStep2()) {
-      setStep(3);
-    }
-  };
-
-  const handleBack = () => {
-    setStep(step - 1);
-    setError("");
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateStep3()) return;
 
     setIsLoading(true);
-    setError("");
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          username: formData.username,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-          role: formData.role,
-        }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Something went wrong");
-        toast.error(data.error || "Registration failed");
+        setError(data.error || "Failed to send code");
+        toast.error(data.error || "Failed to send code");
         return;
       }
 
-      toast.success("Account created! Please verify your email.");
-
-      // Redirect to email verification page
-      setTimeout(() => {
-        router.push(
-          `/verify-email?email=${encodeURIComponent(formData.email)}`
-        );
-      }, 1500);
-    } catch (error) {
+      toast.success("Verification code sent to your email!");
+      setStep("otp");
+    } catch (err) {
       setError("Something went wrong. Please try again.");
-      toast.error("Registration failed");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle OTP input
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(
+        `otp-${index + 1}`
+      ) as HTMLInputElement;
+      nextInput?.focus();
+    }
+  };
+
+  // Handle OTP verification
+  const handleOtpSubmit = async () => {
+    setError("");
+
+    const otpCode = otp.join("");
+    if (otpCode.length !== 6) {
+      setError("Please enter the 6-digit code");
+      toast.error("Please enter the 6-digit code");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp: otpCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Invalid code");
+        toast.error(data.error || "Invalid code");
+        return;
+      }
+
+      toast.success("Email verified successfully!");
+
+      // Redirect to role selection
+      setTimeout(() => {
+        router.push("/select-role");
+      }, 1000);
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        toast.error("Failed to resend code");
+        return;
+      }
+
+      toast.success("New code sent!");
+    } catch (err) {
+      toast.error("Failed to resend code");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Google Sign In
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn("google", { callbackUrl: "/select-role" });
+    } catch (error) {
+      toast.error("Failed to sign in with Google");
+    }
+  };
+
+  // Handle backspace in OTP
+  const handleOtpKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(
+        `otp-${index - 1}`
+      ) as HTMLInputElement;
+      prevInput?.focus();
     }
   };
 
@@ -198,7 +181,7 @@ export default function SignupPage() {
           ></div>
         </div>
 
-        <div className="relative max-w-4xl mx-auto px-6">
+        <div className="relative max-w-lg mx-auto px-6">
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-5xl font-bold text-neutral-900 mb-4">
@@ -208,34 +191,10 @@ export default function SignupPage() {
               </span>
             </h1>
             <p className="text-xl text-neutral-600">
-              Create your account and start growing your automotive business
+              {step === "email"
+                ? "Create your account in seconds"
+                : "Verify your email address"}
             </p>
-          </div>
-
-          {/* Progress Steps */}
-          <div className="flex items-center justify-center mb-12">
-            <div className="flex items-center gap-4">
-              {[1, 2, 3].map((s) => (
-                <div key={s} className="flex items-center">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
-                      step >= s
-                        ? "bg-blue-600 text-white shadow-lg"
-                        : "bg-neutral-200 text-neutral-500"
-                    }`}
-                  >
-                    {s}
-                  </div>
-                  {s < 3 && (
-                    <div
-                      className={`w-16 h-1 mx-2 transition-all duration-300 ${
-                        step > s ? "bg-blue-600" : "bg-neutral-200"
-                      }`}
-                    ></div>
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Form Card */}
@@ -245,283 +204,205 @@ export default function SignupPage() {
             <div className="relative bg-white rounded-3xl shadow-2xl border-2 border-neutral-200 p-8 md:p-10">
               {/* Error Alert */}
               {error && (
-                <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top">
+                <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-center gap-3">
                   <ExclamationCircleIcon className="h-5 w-5 text-red-600 flex-shrink-0" />
                   <p className="text-red-900 text-sm font-medium">{error}</p>
                 </div>
               )}
 
-              {/* Step 1: Role Selection */}
-              {step === 1 && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                      Choose Your Role
-                    </h2>
-                    <p className="text-neutral-600">
-                      Select how you want to use EDMICH
-                    </p>
+              {/* Email Step */}
+              {step === "email" && (
+                <div className="space-y-6">
+                  {/* Google Sign In */}
+                  <button
+                    onClick={handleGoogleSignIn}
+                    className="w-full flex items-center justify-center gap-3 bg-white border-2 border-neutral-200 rounded-xl py-3.5 px-4 font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-all hover:shadow-lg"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      />
+                    </svg>
+                    Continue with Google
+                  </button>
+
+                  {/* Divider */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-neutral-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-4 bg-white text-neutral-500">
+                        Or with email
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {roles.map((role) => {
-                      const Icon = role.icon;
-                      return (
-                        <button
-                          key={role.value}
-                          type="button"
-                          onClick={() => handleRoleSelect(role.value)}
-                          className={`p-6 rounded-2xl border-2 text-left transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${
-                            formData.role === role.value
-                              ? "border-blue-500 bg-blue-50 shadow-md"
-                              : "border-neutral-200 hover:border-blue-300"
-                          }`}
-                        >
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-3 shadow-md">
-                            <Icon className="h-7 w-7 text-white" />
-                          </div>
-                          <h3 className="text-lg font-bold text-neutral-900 mb-1">
-                            {role.label}
-                          </h3>
-                          <p className="text-sm text-neutral-600">
-                            {role.description}
-                          </p>
-                          {formData.role === role.value && (
-                            <div className="mt-3 flex items-center gap-2 text-blue-600 font-semibold text-sm">
-                              <CheckCircleIcon className="h-5 w-5" />
-                              <span>Selected</span>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
+                  {/* Email Input */}
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleEmailSubmit();
+                        }}
+                        placeholder="you@example.com"
+                        className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <button
-                    type="button"
-                    onClick={handleNext}
-                    className="w-full mt-4 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
+                    onClick={handleEmailSubmit}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3.5 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
-                    <span>Continue</span>
-                    <ArrowRightIcon className="h-5 w-5" />
+                    {isLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Sending code...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Continue</span>
+                        <ArrowRightIcon className="h-5 w-5" />
+                      </>
+                    )}
                   </button>
+
+                  {/* Login Link */}
+                  <p className="text-center text-sm text-neutral-600">
+                    Already have an account?{" "}
+                    <Link
+                      href="/login"
+                      className="font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      Sign in
+                    </Link>
+                  </p>
                 </div>
               )}
 
-              {/* Step 2: Personal Info */}
-              {step === 2 && (
+              {/* OTP Step */}
+              {step === "otp" && (
                 <div className="space-y-6">
-                  <div>
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <KeyIcon className="h-8 w-8 text-blue-600" />
+                    </div>
                     <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                      Personal Information
+                      Check your email
                     </h2>
-                    <p className="text-neutral-600">Tell us about yourself</p>
-                  </div>
-
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Full Name *
-                      </label>
-                      <div className="relative">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleChange}
-                          placeholder="John Doe"
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Username *
-                      </label>
-                      <div className="relative">
-                        <AtSymbolIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="text"
-                          name="username"
-                          value={formData.username}
-                          onChange={handleChange}
-                          placeholder="johndoe"
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
-                          required
-                        />
-                      </div>
-                      <p className="mt-1 text-xs text-neutral-500">
-                        3-20 characters, letters, numbers, and underscore only
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Email Address *
-                      </label>
-                      <div className="relative">
-                        <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          placeholder="you@example.com"
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Phone Number *
-                      </label>
-                      <div className="relative">
-                        <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="tel"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          placeholder="+234 800 000 0000"
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 mt-6">
-                    <button
-                      type="button"
-                      onClick={handleBack}
-                      className="flex-1 py-3 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-all"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNext}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold hover:shadow-xl transition-all"
-                    >
-                      <span>Continue</span>
-                      <ArrowRightIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Password */}
-              {step === 3 && (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-                      Create Password
-                    </h2>
-                    <p className="text-neutral-600">
-                      Choose a strong password for your account
+                    <p className="text-neutral-600 text-sm">
+                      We sent a 6-digit code to
+                      <br />
+                      <span className="font-semibold text-neutral-900">
+                        {email}
+                      </span>
                     </p>
                   </div>
 
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Password *
-                      </label>
-                      <div className="relative">
-                        <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                  {/* OTP Input */}
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-700 mb-3 text-center">
+                      Enter verification code
+                    </label>
+                    <div className="flex gap-2 justify-center">
+                      {otp.map((digit, index) => (
                         <input
-                          type="password"
-                          name="password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          placeholder="••••••••"
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
-                          required
+                          key={index}
+                          id={`otp-${index}`}
+                          type="text"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) =>
+                            handleOtpChange(index, e.target.value)
+                          }
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          className="w-12 h-14 text-center text-2xl font-bold bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
                         />
-                      </div>
-                      <p className="mt-2 text-xs text-neutral-500">
-                        Must be at least 8 characters
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                        Confirm Password *
-                      </label>
-                      <div className="relative">
-                        <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                        <input
-                          type="password"
-                          name="confirmPassword"
-                          value={formData.confirmPassword}
-                          onChange={handleChange}
-                          placeholder="••••••••"
-                          className="w-full pl-12 pr-4 py-3 bg-neutral-50 border-2 border-neutral-200 rounded-xl text-neutral-900 placeholder-neutral-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                      <p className="text-sm text-blue-900">
-                        By creating an account, you agree to our{" "}
-                        <Link href="/terms" className="font-semibold underline">
-                          Terms of Service
-                        </Link>{" "}
-                        and{" "}
-                        <Link
-                          href="/privacy"
-                          className="font-semibold underline"
-                        >
-                          Privacy Policy
-                        </Link>
-                      </p>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="flex gap-4 mt-6">
+                  <button
+                    onClick={handleOtpSubmit}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3.5 rounded-xl font-semibold hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Verify & Continue</span>
+                        <CheckCircleIcon className="h-5 w-5" />
+                      </>
+                    )}
+                  </button>
+
+                  {/* Resend */}
+                  <div className="text-center space-y-3">
                     <button
-                      type="button"
-                      onClick={handleBack}
+                      onClick={handleResendOtp}
                       disabled={isLoading}
-                      className="flex-1 py-3 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-all disabled:opacity-50"
+                      className="text-sm text-blue-600 hover:text-blue-700 font-semibold disabled:opacity-50 transition-all"
                     >
-                      Back
+                      Resend code
                     </button>
+
+                    {/* Change Email */}
                     <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => {
+                        setStep("email");
+                        setOtp(["", "", "", "", "", ""]);
+                        setError("");
+                      }}
+                      className="block w-full text-sm text-neutral-600 hover:text-neutral-900 transition-all"
                     >
-                      {isLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Creating Account...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Create Account</span>
-                          <CheckCircleIcon className="h-5 w-5" />
-                        </>
-                      )}
+                      Change email address
                     </button>
                   </div>
-                </form>
+                </div>
               )}
 
-              {/* Login Link */}
-              <p className="mt-8 text-center text-sm text-neutral-600">
-                Already have an account?{" "}
+              {/* Terms */}
+              <p className="mt-6 text-center text-xs text-neutral-500">
+                By continuing, you agree to our{" "}
                 <Link
-                  href="/login"
-                  className="font-semibold text-blue-600 hover:text-blue-700"
+                  href="/terms"
+                  className="underline hover:text-neutral-700"
                 >
-                  Sign in
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/privacy"
+                  className="underline hover:text-neutral-700"
+                >
+                  Privacy Policy
                 </Link>
               </p>
             </div>

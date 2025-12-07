@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { extractFirstNameFromEmail } from "@/utils/extractFirstNameFromEmail";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import {
@@ -256,7 +257,7 @@ export default function SupplierDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-neutral-900 mb-2">
-                Welcome back, {session?.user?.name}! 👋
+                Welcome back! 👋
               </h1>
               <p className="text-lg text-neutral-600">
                 Manage your store and orders

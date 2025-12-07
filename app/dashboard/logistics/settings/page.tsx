@@ -3,6 +3,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 
@@ -23,6 +24,13 @@ export default function LogisticsSettings() {
         <h1 className="text-4xl font-bold text-neutral-900 mb-2">
           Logistics Settings
         </h1>
+        <Link
+          href="/complete-profile"
+          className="block p-4 rounded-xl bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100"
+        >
+          Complete Your Profile
+        </Link>
+
         <p className="text-neutral-600 mb-10">
           Manage your delivery operations
         </p>

@@ -91,6 +91,11 @@ model User {
   orderTrackings         OrderTracking[]
   logisticsReviews       LogisticsReview[]
   vehicles               Vehicle[]
+
+  @@index([email])
+  @@index([username])
+  @@index([verificationCode])
+  @@index([resetToken])
 }
 
 model UserAddress {

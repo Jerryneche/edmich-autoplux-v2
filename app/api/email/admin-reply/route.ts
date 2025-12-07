@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>📧 Reply from EDMICH AutoPlux</h1>
+      <h1>📧 Reply from EDMICH AUTOPLUX</h1>
     </div>
     
     <div class="content">
