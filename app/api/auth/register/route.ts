@@ -3,7 +3,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { generateVerificationCode, sendVerificationEmail } from "@/lib/email";
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 
 export async function POST(req: Request) {
   try {
@@ -188,12 +191,29 @@ export async function POST(req: Request) {
     // Disconnect from database
     await prisma.$disconnect();
 
+    // Generate JWT token for mobile app
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
     return NextResponse.json({
       success: true,
       message:
         "Registration successful! Check your email for verification code.",
-      userId: user.id,
-      email: user.email,
+      userId: user.id, // ← KEEP (web uses this)
+      email: user.email, // ← KEEP (web uses this)
+      token, // ← ADD (mobile uses this, web ignores)
+      user: {
+        // ← ADD (mobile uses this, web ignores)
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        emailVerified: !!user.emailVerified,
+      },
     });
   } catch (error: any) {
     console.error("❌ Unexpected registration error:", error);
