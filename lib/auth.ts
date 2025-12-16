@@ -1,4 +1,4 @@
-// lib/auth.ts - COMPLETE UPDATED VERSION WITH OTP SUPPORT
+// lib/auth.ts - FIXED VERSION WITH ACCOUNT LINKING
 declare module "bcryptjs";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
@@ -12,7 +12,6 @@ type UserRole = "BUYER" | "SUPPLIER" | "MECHANIC" | "LOGISTICS" | "ADMIN";
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
-    // ✅ GOOGLE PROVIDER
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -23,23 +22,21 @@ export const authOptions: NextAuthOptions = {
           response_type: "code",
         },
       },
+      // ✅ CRITICAL: Allow account linking
+      allowDangerousEmailAccountLinking: true,
     }),
 
-    // ✅ CREDENTIALS PROVIDER - Supports both PASSWORD and OTP login
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        // Password login fields
         emailOrUsername: {
           label: "Email or Username",
           type: "text",
           placeholder: "email@example.com or username",
         },
         password: { label: "Password", type: "password" },
-        // OTP login fields
         email: { label: "Email", type: "email" },
         otp: { label: "OTP", type: "text" },
-        // Verified flag (for post-role-selection session creation)
         verified: { label: "Verified", type: "text" },
       },
       async authorize(credentials) {
@@ -47,9 +44,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Please provide credentials");
         }
 
-        // ===============================
-        // OTP LOGIN FLOW or POST-ROLE-SELECTION
-        // ===============================
+        // OTP LOGIN FLOW
         if (credentials.email) {
           console.log("[AUTH] Email-based login attempt:", credentials.email);
 
@@ -66,21 +61,18 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Account not found");
           }
 
-          // Check if email is verified
           if (!user.emailVerified) {
             throw new Error(
               "Email not verified. Please verify your email first."
             );
           }
 
-          // If "verified" flag is set, skip OTP check (post-role-selection)
           if (credentials.verified === "true") {
             console.log(
               "[AUTH] Verified flag set, creating session for:",
               user.email
             );
           } else if (credentials.otp) {
-            // OTP verification happens in verify-otp endpoint
             console.log("[AUTH] OTP login successful:", user.email);
           } else {
             throw new Error("Invalid authentication method");
@@ -101,16 +93,13 @@ export const authOptions: NextAuthOptions = {
           } as any;
         }
 
-        // ===============================
-        // PASSWORD LOGIN FLOW (Existing)
-        // ===============================
+        // PASSWORD LOGIN FLOW
         if (credentials.emailOrUsername && credentials.password) {
           console.log(
             "[AUTH] Password login attempt:",
             credentials.emailOrUsername
           );
 
-          // Find user by EMAIL OR USERNAME
           const user = await prisma.user.findFirst({
             where: {
               OR: [
@@ -129,12 +118,10 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Invalid credentials");
           }
 
-          // Check if email is verified
           if (!user.emailVerified) {
             throw new Error("Please verify your email before logging in");
           }
 
-          // Verify password
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
             user.password
@@ -167,38 +154,51 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider === "credentials") return true;
 
-      // Handle Google Sign In
+      // ✅ IMPROVED GOOGLE SIGN IN HANDLER
       if (account?.provider === "google") {
         const email = user.email;
-        if (!email) return true;
+        if (!email) return false;
 
-        const dbUser = await prisma.user.findUnique({ where: { email } });
+        try {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+          });
 
-        if (!dbUser) {
-          // New Google user - create with default role
-          await prisma.user.create({
-            data: {
-              email: email,
-              name: user.name,
-              image: user.image,
-              emailVerified: new Date(), // Auto-verify Google users
-              isGoogleAuth: true,
-              hasCompletedOnboarding: false, // Needs role selection
-              role: "BUYER", // Default
-            },
-          });
-        } else {
-          // Existing user - update image and verify email
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: {
-              image: user.image,
-              emailVerified: new Date(),
-            },
-          });
+          if (!existingUser) {
+            // New Google user - create account
+            await prisma.user.create({
+              data: {
+                email: email.toLowerCase(),
+                name: user.name || profile?.name || "User",
+                image: user.image || profile?.image,
+                emailVerified: new Date(),
+                isGoogleAuth: true,
+                hasCompletedOnboarding: false,
+                role: "BUYER",
+              },
+            });
+            console.log("[AUTH] New Google user created:", email);
+          } else {
+            // Existing user - update and link Google account
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                name: user.name || existingUser.name,
+                image: user.image || existingUser.image,
+                emailVerified: new Date(),
+                isGoogleAuth: true, // Mark as Google-linked
+              },
+            });
+            console.log("[AUTH] Existing user linked to Google:", email);
+          }
+
+          return true;
+        } catch (error) {
+          console.error("[AUTH] Google sign-in error:", error);
+          return false;
         }
       }
 
@@ -206,7 +206,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, trigger, session }) {
-      // Initial login
       if (user) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
@@ -224,7 +223,6 @@ export const authOptions: NextAuthOptions = {
           token.isGoogleAuth = dbUser.isGoogleAuth ?? false;
           token.hasCompletedOnboarding = dbUser.hasCompletedOnboarding ?? true;
 
-          // Profile checks
           if (dbUser.role === "SUPPLIER") {
             token.hasSupplierProfile = !!dbUser.supplierProfile;
           }
@@ -237,7 +235,6 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // Explicit refresh or update
       if (trigger === "update" || session) {
         const refreshedUser = await prisma.user.findUnique({
           where: { id: token.id as string },
@@ -254,7 +251,6 @@ export const authOptions: NextAuthOptions = {
           token.hasCompletedOnboarding =
             refreshedUser.hasCompletedOnboarding ?? true;
 
-          // Update profile status
           if (refreshedUser.role === "SUPPLIER") {
             token.hasSupplierProfile = !!refreshedUser.supplierProfile;
           }
@@ -280,7 +276,6 @@ export const authOptions: NextAuthOptions = {
         session.user.hasCompletedOnboarding =
           token.hasCompletedOnboarding as boolean;
 
-        // Add profile flags
         if (token.hasSupplierProfile !== undefined) {
           session.user.hasSupplierProfile = token.hasSupplierProfile;
         }
@@ -295,20 +290,20 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      // Handles relative URLs like "/dashboard"
+      // Handle relative URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`;
 
-      // Handles full URLs from our domain
+      // Handle full URLs from our domain
       if (url.startsWith(baseUrl)) return url;
 
-      // Default: after sign-in, send to dashboard
+      // Default redirect after sign-in
       return `${baseUrl}/dashboard`;
     },
   },
 
   pages: {
     signIn: "/login",
-    error: "/login",
+    error: "/login", // ✅ Redirect errors to login page
   },
 
   session: {
