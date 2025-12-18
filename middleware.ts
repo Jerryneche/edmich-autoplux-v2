@@ -8,8 +8,13 @@ export default withAuth(
     const path = req.nextUrl.pathname;
 
     // 1. OAuth users without role → force role selection
-    if (token && !token.role && !path.startsWith("/onboarding/select-role")) {
-      return NextResponse.redirect(new URL("/onboarding/select-role", req.url));
+    if (
+      token &&
+      !token.role &&
+      !path.startsWith("/onboarding/select-role") &&
+      !path.startsWith("/select-role")
+    ) {
+      return NextResponse.redirect(new URL("/select-role", req.url));
     }
 
     // 2. Non-BUYERS: Must complete onboarding
@@ -21,7 +26,7 @@ export default withAuth(
       !path.startsWith("/onboarding") &&
       !path.startsWith("/api")
     ) {
-      const rolePath = token.role.toLowerCase();
+      const rolePath = (token.role as string).toLowerCase();
       return NextResponse.redirect(new URL(`/onboarding/${rolePath}`, req.url));
     }
 
@@ -80,13 +85,19 @@ export default withAuth(
           "/",
           "/login",
           "/signup",
+          "/verify-email",
+          "/select-role",
+          "/forgot-password",
           "/about",
           "/shop",
           "/business",
           "/api/auth",
           "/onboarding/select-role",
         ];
-        if (publicPaths.some((p) => path.startsWith(p))) return true;
+
+        if (publicPaths.some((p) => path === p || path.startsWith(p + "/"))) {
+          return true;
+        }
 
         // All other routes require auth
         return !!token;
@@ -100,7 +111,7 @@ export const config = {
     "/dashboard/:path*",
     "/onboarding/:path*",
     "/profile/:path*",
-    "/api/user/complete-onboarding",
+    "/api/user/:path*",
     "/profile",
     "/products",
     "/logistics",

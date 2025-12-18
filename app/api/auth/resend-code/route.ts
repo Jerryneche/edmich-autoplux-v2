@@ -1,3 +1,4 @@
+// app/api/auth/resend-code/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateVerificationCode, sendVerificationEmail } from "@/lib/email";
@@ -6,42 +7,48 @@ export async function POST(req: Request) {
   try {
     const { email } = await req.json();
 
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "No account found with this email" },
+        { status: 404 }
+      );
     }
 
     if (user.emailVerified) {
       return NextResponse.json(
-        { error: "Email already verified" },
+        { error: "Email already verified. Please login." },
         { status: 400 }
       );
     }
 
-    // Generate new code
     const verificationCode = generateVerificationCode();
-    const verificationExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
     await prisma.user.update({
-      where: { id: user.id },
+      where: { email: normalizedEmail },
       data: {
         verificationCode,
-        verificationExpiry,
+        verificationExpiry: new Date(Date.now() + 15 * 60 * 1000),
       },
     });
 
-    // Send email
-    await sendVerificationEmail(email, verificationCode);
+    await sendVerificationEmail(normalizedEmail, verificationCode);
 
     return NextResponse.json({
       success: true,
-      message: "Verification code sent!",
+      message: "New code sent to your email",
     });
   } catch (error: any) {
-    console.error("Resend code error:", error);
+    console.error("[RESEND-CODE] Error:", error);
     return NextResponse.json(
       { error: "Failed to resend code" },
       { status: 500 }

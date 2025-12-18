@@ -1,8 +1,14 @@
+// app/api/user/profile/route.ts
+// GET USER PROFILE - Works with both NextAuth session and JWT token
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { jwtVerify } from "jose";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,49 +18,49 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (session?.user?.email) {
       userEmail = session.user.email.toLowerCase();
-      console.log("[PROFILE] Using NextAuth session:", userEmail);
     }
 
-    // 2. Try JWT cookies if no NextAuth session
+    // 2. Try auth-token cookie
     if (!userEmail) {
-      const possibleCookies = [
-        "session",
-        "auth-token",
-        "otp-session",
-        "email-session",
-        "tempUser",
-      ];
+      const cookieStore = await cookies();
+      const token = cookieStore.get("auth-token")?.value;
 
-      const cookieName = possibleCookies.find((name) => req.cookies.get(name));
-
-      if (cookieName) {
-        const token = req.cookies.get(cookieName)!.value;
-
+      if (token) {
         try {
-          const secret = new TextEncoder().encode(
-            process.env.NEXTAUTH_SECRET || ""
-          );
-          const { payload } = await jwtVerify(token, secret);
-
-          if (payload.email) {
-            userEmail = String(payload.email).toLowerCase();
-            console.log("[PROFILE] Using JWT cookie:", userEmail);
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          if (decoded.email) {
+            userEmail = decoded.email.toLowerCase();
           }
-        } catch (error) {
-          console.error("[PROFILE] Invalid JWT:", error);
+        } catch (e) {
+          // Token expired or invalid
         }
       }
     }
 
-    // If no valid session/email
+    // 3. Try Authorization header (for mobile)
+    if (!userEmail) {
+      const authHeader = req.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.substring(7);
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          if (decoded.email) {
+            userEmail = decoded.email.toLowerCase();
+          }
+        } catch (e) {
+          // Token expired or invalid
+        }
+      }
+    }
+
     if (!userEmail) {
       return NextResponse.json(
-        { error: "Unauthorized. Please login first." },
+        { error: "Unauthorized. Please login." },
         { status: 401 }
       );
     }
 
-    // 3. Fetch user by email (correct method)
+    // Fetch user
     const user = await prisma.user.findUnique({
       where: { email: userEmail },
       select: {
@@ -66,37 +72,33 @@ export async function GET(req: NextRequest) {
         image: true,
         role: true,
         emailVerified: true,
-        password: true,
+        onboardingStatus: true,
         createdAt: true,
-        updatedAt: true,
+        password: true, // Only to check if exists
       },
     });
 
     if (!user) {
-      console.error("[PROFILE] User not found:", userEmail);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-        phone: user.phone,
-        image: user.image,
-        role: user.role,
-        emailVerified: !!user.emailVerified,
-        hasPassword: !!user.password,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      phone: user.phone,
+      image: user.image,
+      role: user.role,
+      emailVerified: !!user.emailVerified,
+      hasPassword: !!user.password,
+      onboardingStatus: user.onboardingStatus,
+      createdAt: user.createdAt,
+    });
   } catch (error: any) {
     console.error("[PROFILE] Error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch profile. Please try again." },
+      { error: "Failed to fetch profile" },
       { status: 500 }
     );
   }

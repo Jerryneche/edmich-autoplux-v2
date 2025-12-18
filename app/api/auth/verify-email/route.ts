@@ -8,46 +8,51 @@ export async function POST(req: Request) {
 
     if (!email || !code) {
       return NextResponse.json(
-        { error: "Email and code are required" },
+        { error: "Email and verification code are required" },
         { status: 400 }
       );
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedCode = code.toString().trim();
+
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "No account found. Please sign up first." },
+        { status: 404 }
+      );
     }
 
-    // Check if already verified
     if (user.emailVerified) {
       return NextResponse.json({
         success: true,
         message: "Email already verified",
+        email: normalizedEmail,
+        alreadyVerified: true,
       });
     }
 
-    // Check code
-    if (user.verificationCode !== code) {
+    if (!user.verificationCode || user.verificationCode !== normalizedCode) {
       return NextResponse.json(
         { error: "Invalid verification code" },
         { status: 400 }
       );
     }
 
-    // Check expiry
-    if (user.verificationExpiry && user.verificationExpiry < new Date()) {
+    if (user.verificationExpiry && new Date() > user.verificationExpiry) {
       return NextResponse.json(
-        { error: "Verification code expired. Request a new one." },
+        { error: "Code expired. Please request a new one." },
         { status: 400 }
       );
     }
 
-    // Verify email
+    // Mark email as verified
     await prisma.user.update({
-      where: { id: user.id },
+      where: { email: normalizedEmail },
       data: {
         emailVerified: new Date(),
         verificationCode: null,
@@ -55,12 +60,18 @@ export async function POST(req: Request) {
       },
     });
 
+    console.log(`[VERIFY-EMAIL] Verified: ${normalizedEmail}`);
+
     return NextResponse.json({
       success: true,
       message: "Email verified successfully!",
+      email: normalizedEmail,
     });
   } catch (error: any) {
-    console.error("Verification error:", error);
-    return NextResponse.json({ error: "Verification failed" }, { status: 500 });
+    console.error("[VERIFY-EMAIL] Error:", error);
+    return NextResponse.json(
+      { error: "Verification failed. Please try again." },
+      { status: 500 }
+    );
   }
 }

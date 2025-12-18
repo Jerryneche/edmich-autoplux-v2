@@ -1,39 +1,72 @@
 // app/api/auth/me/route.ts
-import { NextResponse } from "next/server";
+// GET CURRENT USER - Alias for /api/user/profile (for mobile compatibility)
+
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    let userEmail: string | null = null;
+
+    // 1. Try NextAuth session
+    const session = await getServerSession(authOptions);
+    if (session?.user?.email) {
+      userEmail = session.user.email.toLowerCase();
+    }
+
+    // 2. Try auth-token cookie
+    if (!userEmail) {
+      const cookieStore = await cookies();
+      const token = cookieStore.get("auth-token")?.value;
+
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          if (decoded.email) {
+            userEmail = decoded.email.toLowerCase();
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 3. Try Authorization header
+    if (!userEmail) {
+      const authHeader = req.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          const decoded = jwt.verify(
+            authHeader.substring(7),
+            JWT_SECRET
+          ) as any;
+          if (decoded.email) {
+            userEmail = decoded.email.toLowerCase();
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (!userEmail) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
-
-    // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      userId: string;
-      email: string;
-      role: string;
-    };
-
-    // Get user from database
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { email: userEmail },
       select: {
         id: true,
-        email: true,
         name: true,
+        email: true,
+        username: true,
         phone: true,
         image: true,
         role: true,
         emailVerified: true,
-        createdAt: true,
+        onboardingStatus: true,
       },
     });
 
@@ -43,12 +76,19 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       user: {
-        ...user,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        phone: user.phone,
+        image: user.image,
+        role: user.role,
         emailVerified: !!user.emailVerified,
+        onboardingStatus: user.onboardingStatus,
       },
     });
   } catch (error: any) {
-    console.error("Get user error:", error);
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    console.error("[ME] Error:", error);
+    return NextResponse.json({ error: "Failed to get user" }, { status: 500 });
   }
 }

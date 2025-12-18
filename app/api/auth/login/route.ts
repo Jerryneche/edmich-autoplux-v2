@@ -2,39 +2,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 
 export async function POST(req: Request) {
   try {
-    const { emailOrUsername, password } = await req.json();
+    const body = await req.json();
+    const email = body.email || body.emailOrUsername;
+    const password = body.password;
 
-    if (!emailOrUsername || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: "Email/username and password are required" },
+        { error: "Email and password are required" },
         { status: 400 }
       );
     }
 
-    // Find user by email or username
+    const normalizedEmail = email.toLowerCase().trim();
+
     const user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email: emailOrUsername.toLowerCase() },
-          { username: emailOrUsername.toLowerCase() },
-        ],
+        OR: [{ email: normalizedEmail }, { username: normalizedEmail }],
       },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Check if user has a password (not Google-only user)
     if (!user.password) {
       return NextResponse.json(
         { error: "Please use Google sign-in for this account" },
@@ -42,50 +38,60 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    // Check if email is verified
     if (!user.emailVerified) {
       return NextResponse.json(
-        { error: "Please verify your email first" },
+        {
+          error: "Please verify your email first",
+          needsVerification: true,
+          email: user.email,
+        },
         { status: 403 }
       );
     }
 
-    // Generate JWT token for mobile
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      JWT_SECRET,
-      { expiresIn: "30d" }
-    );
+    // Determine redirect based on role and onboarding
+    let redirectUrl = "/dashboard";
+    if (user.onboardingStatus === "PENDING" && user.role !== "BUYER") {
+      redirectUrl = `/onboarding/${user.role.toLowerCase()}`;
+    } else {
+      switch (user.role) {
+        case "BUYER":
+          redirectUrl = "/dashboard/buyer";
+          break;
+        case "SUPPLIER":
+          redirectUrl = "/dashboard/supplier";
+          break;
+        case "MECHANIC":
+          redirectUrl = "/dashboard/mechanic";
+          break;
+        case "LOGISTICS":
+          redirectUrl = "/dashboard/logistics";
+          break;
+      }
+    }
 
-    // Return user data and token
     return NextResponse.json({
       success: true,
-      token,
+      message: "Login successful",
+      redirectUrl,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        phone: user.phone,
-        image: user.image,
         role: user.role,
-        emailVerified: !!user.emailVerified,
+        onboardingStatus: user.onboardingStatus,
       },
     });
   } catch (error: any) {
-    console.error("Mobile login error:", error);
+    console.error("[LOGIN] Error:", error);
     return NextResponse.json(
       { error: "Login failed. Please try again." },
       { status: 500 }
