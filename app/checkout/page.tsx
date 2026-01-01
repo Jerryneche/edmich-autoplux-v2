@@ -62,9 +62,9 @@ export default function CheckoutPage() {
   });
 
   const bankDetails = {
-    bankName: "Access Bank",
-    accountNumber: "0084142864",
-    accountName: "Chinecherem Michael Edeh",
+    bankName: "GUARANTY TRUST BANK",
+    accountNumber: "3003002629",
+    accountName: "EDMICH INTL SERVICES LTD",
   };
 
   useEffect(() => {
@@ -168,7 +168,7 @@ export default function CheckoutPage() {
 
     try {
       const shipping = 2500;
-      const tax = Math.round(total * 0.075);
+      const tax = Math.round(total * 0.01);
       const grandTotal = total + shipping + tax;
       const trackingId = generateTrackingId();
 
@@ -763,7 +763,7 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                   <div className="flex justify-between text-neutral-700">
-                    <span>Tax (7.5%)</span>
+                    <span>Tax (1%)</span>
                     <span className="font-semibold">
                       ₦{tax.toLocaleString()}
                     </span>
