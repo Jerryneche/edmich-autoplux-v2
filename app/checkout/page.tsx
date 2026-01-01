@@ -1,3 +1,4 @@
+// app/checkout/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,7 +13,6 @@ import {
   TruckIcon,
   CreditCardIcon,
   MapPinIcon,
-  PhoneIcon,
   UserIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -47,7 +47,6 @@ export default function CheckoutPage() {
   );
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
 
-  // Form state
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -57,19 +56,17 @@ export default function CheckoutPage() {
     state: "",
     zipCode: "",
     deliveryNotes: "",
-    paymentMethod: "bank_transfer",
+    paymentMethod: "paystack", // Default to Paystack
     saveAddress: false,
     setAsDefault: false,
   });
 
-  // Bank details
   const bankDetails = {
     bankName: "Access Bank",
     accountNumber: "0084142864",
     accountName: "Chinecherem Michael Edeh",
   };
 
-  // Redirect if cart is empty
   useEffect(() => {
     if (items.length === 0 && status !== "loading") {
       router.push("/shop");
@@ -77,10 +74,10 @@ export default function CheckoutPage() {
     }
   }, [items, router, status]);
 
-  // Fetch saved addresses
   useEffect(() => {
     if (session?.user) {
       fetchSavedAddresses();
+      setFormData((prev) => ({ ...prev, email: session.user?.email || "" }));
     }
   }, [session]);
 
@@ -90,12 +87,8 @@ export default function CheckoutPage() {
       if (res.ok) {
         const data = await res.json();
         setSavedAddresses(data);
-
-        // Auto-select default address
         const defaultAddr = data.find((addr: SavedAddress) => addr.isDefault);
-        if (defaultAddr) {
-          selectAddress(defaultAddr);
-        }
+        if (defaultAddr) selectAddress(defaultAddr);
       }
     } catch (error) {
       console.error("Failed to fetch addresses:", error);
@@ -125,7 +118,6 @@ export default function CheckoutPage() {
     const { name, value, type } = e.target;
     const checked =
       type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
-
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -159,13 +151,13 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
-    // Show bank details modal for bank transfer
+    // For bank transfer, show bank details
     if (formData.paymentMethod === "bank_transfer") {
       setShowBankDetails(true);
       return;
     }
 
-    // Process other payment methods
+    // For Paystack or cash on delivery
     await processOrder();
   };
 
@@ -181,20 +173,9 @@ export default function CheckoutPage() {
       const trackingId = generateTrackingId();
 
       // Save address if requested
-      // Save address if requested
       if (formData.saveAddress && session?.user) {
-        console.log("Attempting to save address:", {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          zipCode: formData.zipCode,
-          isDefault: formData.setAsDefault,
-        });
-
         try {
-          const addressResponse = await fetch("/api/user/addresses", {
+          await fetch("/api/user/addresses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -207,25 +188,13 @@ export default function CheckoutPage() {
               isDefault: formData.setAsDefault,
             }),
           });
-
-          if (addressResponse.ok) {
-            const savedAddress = await addressResponse.json();
-            console.log("Address saved successfully:", savedAddress);
-            toast.success("Address saved for future use!");
-          } else {
-            const errorData = await addressResponse.json();
-            console.error("Failed to save address:", errorData);
-            toast.error(
-              `Failed to save address: ${errorData.error || "Unknown error"}`
-            );
-          }
         } catch (err) {
           console.error("Error saving address:", err);
-          toast.error("Could not save address");
         }
       }
 
-      const payload = {
+      // Create order
+      const orderPayload = {
         items: items.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
@@ -242,69 +211,72 @@ export default function CheckoutPage() {
           zipCode: formData.zipCode,
         },
         deliveryNotes: formData.deliveryNotes,
-        paymentMethod: formData.paymentMethod.toUpperCase().replace("_", " "),
+        paymentMethod: formData.paymentMethod.toUpperCase(),
         trackingId,
+        paymentStatus:
+          formData.paymentMethod === "cash_on_delivery" ? "PENDING" : "PENDING",
       };
 
-      console.log("Sending order payload:", payload);
-
-      const response = await fetch("/api/orders", {
+      const orderResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(orderPayload),
       });
 
-      console.log("Order response status:", response.status);
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Order error:", errorData);
-
-        // Handle insufficient stock error
         if (errorData.insufficientStock) {
           const stockMessage = errorData.insufficientStock
             .map(
               (item: any) =>
-                `${item.productName}: Only ${item.availableStock} available (you tried to order ${item.requestedQuantity})`
+                `${item.productName}: Only ${item.availableStock} available`
             )
             .join("\n");
-
-          toast.error(
-            `Insufficient Stock!\n${stockMessage}\n\nPlease update your cart.`,
-            { duration: 8000 }
-          );
-
-          // Close the bank details modal if open
+          toast.error(`Insufficient Stock!\n${stockMessage}`, {
+            duration: 8000,
+          });
           setShowBankDetails(false);
-
-          // Optionally redirect to cart after a delay
-          setTimeout(() => {
-            router.push("/cart");
-          }, 3000);
-
           return;
         }
 
-        // Handle other errors
-        toast.error(
-          errorData.message || errorData.error || "Failed to place order"
-        );
-        setShowBankDetails(false);
+        toast.error(errorData.message || "Failed to place order");
         return;
       }
 
-      const data = await response.json();
-      console.log("Order created successfully:", data);
+      const orderData = await orderResponse.json();
 
+      // If Paystack, initialize payment
+      if (formData.paymentMethod === "paystack") {
+        const paymentResponse = await fetch("/api/payment/initialize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: orderData.orderId,
+            amount: grandTotal,
+            email: formData.email,
+          }),
+        });
+
+        const paymentData = await paymentResponse.json();
+
+        if (paymentData.authorization_url) {
+          // Redirect to Paystack checkout
+          window.location.href = paymentData.authorization_url;
+          return;
+        } else {
+          toast.error("Failed to initialize payment");
+          return;
+        }
+      }
+
+      // For cash on delivery or bank transfer confirmation
       clearCart();
       toast.success("Order placed successfully! 🎉");
 
-      // Navigate to success page
-      setTimeout(() => {
-        router.push(
-          `/checkout/success?orderId=${data.orderId}&trackingId=${data.trackingId}&total=${grandTotal}`
-        );
-      }, 500);
+      router.push(
+        `/checkout/success?orderId=${orderData.orderId}&trackingId=${orderData.trackingId}&total=${grandTotal}`
+      );
     } catch (error) {
       console.error("Order processing error:", error);
       toast.error("Network error. Please try again.");
@@ -353,7 +325,6 @@ export default function CheckoutPage() {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Forms */}
             <div className="lg:col-span-2 space-y-6">
               {/* Saved Addresses */}
               {session?.user &&
@@ -420,10 +391,9 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-              {/* New Address Form or Contact Info */}
+              {/* New Address Form */}
               {(showNewAddressForm || savedAddresses.length === 0) && (
                 <>
-                  {/* Contact Information */}
                   <div className="bg-white rounded-2xl border-2 border-neutral-200 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
@@ -496,7 +466,6 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {/* Delivery Address */}
                   <div className="bg-white rounded-2xl border-2 border-neutral-200 p-6 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
@@ -581,7 +550,6 @@ export default function CheckoutPage() {
                         />
                       </div>
 
-                      {/* Save Address Option */}
                       {session?.user && (
                         <div className="border-t border-neutral-200 pt-4 space-y-3">
                           <label className="flex items-center gap-3 cursor-pointer">
@@ -630,7 +598,63 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="flex items-start gap-4 p-4 border-2 border-blue-500 bg-blue-50 rounded-xl cursor-pointer">
+                  {/* Paystack - Card/Bank Transfer */}
+                  <label
+                    className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      formData.paymentMethod === "paystack"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-neutral-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="paystack"
+                      checked={formData.paymentMethod === "paystack"}
+                      onChange={handleInputChange}
+                      className="w-5 h-5 text-blue-600 mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CreditCardIcon className="h-5 w-5 text-blue-600" />
+                        <p className="font-bold text-neutral-900">
+                          Pay with Paystack
+                        </p>
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">
+                          Recommended
+                        </span>
+                      </div>
+                      <p className="text-sm text-neutral-600 mb-2">
+                        Card, Bank Transfer, USSD, Mobile Money
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <img
+                          src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/100px-Visa_Inc._logo.svg.png"
+                          alt="Visa"
+                          className="h-6"
+                        />
+                        <img
+                          src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/100px-Mastercard-logo.svg.png"
+                          alt="Mastercard"
+                          className="h-6"
+                        />
+                        <img
+                          src="https://website-v3-assets.s3.amazonaws.com/assets/img/hero/Paystack-mark-white-twitter.png"
+                          alt="Paystack"
+                          className="h-6 bg-blue-600 rounded px-1"
+                        />
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Bank Transfer (Manual) */}
+                  <label
+                    className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      formData.paymentMethod === "bank_transfer"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-neutral-200 hover:border-blue-300"
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
@@ -643,22 +667,23 @@ export default function CheckoutPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <BuildingLibraryIcon className="h-5 w-5 text-blue-600" />
                         <p className="font-bold text-neutral-900">
-                          Bank Transfer (Recommended)
+                          Direct Bank Transfer
                         </p>
                       </div>
-                      <p className="text-sm text-neutral-600 mb-2">
+                      <p className="text-sm text-neutral-600">
                         Transfer directly to our bank account
                       </p>
-                      <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
-                        <BanknotesIcon className="h-4 w-4 text-green-600" />
-                        <span className="text-xs font-semibold text-green-700">
-                          Instant confirmation • Secure • No fees
-                        </span>
-                      </div>
                     </div>
                   </label>
 
-                  <label className="flex items-center gap-4 p-4 border-2 border-neutral-200 rounded-xl cursor-pointer hover:border-blue-300 transition-colors">
+                  {/* Cash on Delivery */}
+                  <label
+                    className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      formData.paymentMethod === "cash_on_delivery"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-neutral-200 hover:border-blue-300"
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="paymentMethod"
@@ -668,9 +693,12 @@ export default function CheckoutPage() {
                       className="w-5 h-5 text-blue-600"
                     />
                     <div className="flex-1">
-                      <p className="font-semibold text-neutral-900">
-                        Cash on Delivery
-                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <BanknotesIcon className="h-5 w-5 text-green-600" />
+                        <p className="font-semibold text-neutral-900">
+                          Cash on Delivery
+                        </p>
+                      </div>
                       <p className="text-sm text-neutral-600">
                         Pay when you receive your order
                       </p>
@@ -680,7 +708,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Order Summary - Continues... */}
+            {/* Order Summary */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl border-2 border-neutral-200 p-6 shadow-sm sticky top-24">
                 <h2 className="text-xl font-bold text-neutral-900 mb-6">
@@ -761,7 +789,9 @@ export default function CheckoutPage() {
                   ) : (
                     <>
                       <CheckCircleIcon className="h-6 w-6" />
-                      {formData.paymentMethod === "bank_transfer"
+                      {formData.paymentMethod === "paystack"
+                        ? "Pay Now"
+                        : formData.paymentMethod === "bank_transfer"
                         ? "Continue to Payment"
                         : "Place Order"}
                     </>
@@ -835,6 +865,7 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                 </div>
+
                 <div>
                   <label className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">
                     Account Name
@@ -889,10 +920,6 @@ export default function CheckoutPage() {
                 Cancel
               </button>
             </div>
-
-            <p className="text-xs text-center text-neutral-600 mt-4">
-              Your order will be confirmed once we verify your payment
-            </p>
           </div>
         </div>
       )}

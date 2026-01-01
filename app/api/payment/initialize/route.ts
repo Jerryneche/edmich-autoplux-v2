@@ -1,7 +1,8 @@
+// app/api/payment/initialize/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
@@ -10,83 +11,75 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const {
-      amount,
-      orderId,
-      paymentMethod,
-      currency = "NGN",
-    } = await request.json();
+    const { orderId, amount, email } = await request.json();
 
-    // Create payment record
-    const payment = await prisma.payment.create({
-      data: {
+    if (!orderId || !amount) {
+      return NextResponse.json(
+        { error: "Order ID and amount are required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify order exists and belongs to user
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId,
         userId: session.user.id,
-        orderId,
-        amount: parseFloat(amount),
-        currency,
-        method: paymentMethod,
-        status: "pending",
       },
     });
 
-    // Initialize payment with gateway based on method
-    let paymentResponse;
-
-    switch (paymentMethod) {
-      case "card":
-      case "bank_transfer":
-        // Paystack integration
-        paymentResponse = await initializePaystack({
-          email: session.user.email!,
-          amount: amount * 100, // Convert to kobo
-          reference: payment.id,
-          callback_url: `${process.env.NEXTAUTH_URL}/payment/verify`,
-        });
-        break;
-
-      case "mobile_money":
-        // Flutterwave integration
-        paymentResponse = await initializeFlutterwave({
-          email: session.user.email!,
-          amount,
-          reference: payment.id,
-        });
-        break;
-
-      case "ussd":
-        paymentResponse = {
-          ussd_code: "*737*50*" + amount + "#",
-          bank_code: "737",
-        };
-        break;
-
-      case "cash":
-        // No gateway needed
-        paymentResponse = {
-          message: "Cash payment - deliver to complete",
-        };
-        break;
-
-      default:
-        return NextResponse.json(
-          { error: "Invalid payment method" },
-          { status: 400 }
-        );
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Update payment with gateway response
-    await prisma.payment.update({
-      where: { id: payment.id },
+    // Generate unique reference
+    const reference = `EDM-${orderId}-${Date.now()}`;
+
+    // Initialize Paystack transaction
+    const paystackResponse = await fetch(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email || session.user.email,
+          amount: Math.round(amount * 100), // Convert to kobo
+          reference,
+          callback_url: `${process.env.NEXTAUTH_URL}/payment/verify`,
+          metadata: {
+            orderId,
+            userId: session.user.id,
+          },
+        }),
+      }
+    );
+
+    const paystackData = await paystackResponse.json();
+
+    if (!paystackData.status) {
+      console.error("Paystack error:", paystackData);
+      return NextResponse.json(
+        { error: paystackData.message || "Payment initialization failed" },
+        { status: 400 }
+      );
+    }
+
+    // Update order with payment reference
+    await prisma.order.update({
+      where: { id: orderId },
       data: {
-        gatewayReference: paymentResponse.reference || payment.id,
-        gatewayResponse: JSON.stringify(paymentResponse),
+        paymentReference: reference,
       },
     });
 
     return NextResponse.json({
       success: true,
-      payment,
-      gatewayData: paymentResponse,
+      authorization_url: paystackData.data.authorization_url,
+      access_code: paystackData.data.access_code,
+      reference: paystackData.data.reference,
     });
   } catch (error) {
     console.error("Payment initialization error:", error);
@@ -95,55 +88,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-// Helper functions
-async function initializePaystack(data: any) {
-  const response = await fetch(
-    "https://api.paystack.co/transaction/initialize",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    }
-  );
-
-  const result = await response.json();
-  if (!result.status) {
-    throw new Error(result.message);
-  }
-
-  return {
-    authorization_url: result.data.authorization_url,
-    access_code: result.data.access_code,
-    reference: result.data.reference,
-  };
-}
-
-async function initializeFlutterwave(data: any) {
-  const response = await fetch("https://api.flutterwave.com/v3/payments", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      ...data,
-      currency: "NGN",
-      redirect_url: `${process.env.NEXTAUTH_URL}/payment/verify`,
-    }),
-  });
-
-  const result = await response.json();
-  if (result.status !== "success") {
-    throw new Error(result.message);
-  }
-
-  return {
-    payment_link: result.data.link,
-    reference: result.data.tx_ref,
-  };
 }

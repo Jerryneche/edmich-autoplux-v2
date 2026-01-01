@@ -392,6 +392,9 @@ model Order {
   payments           Payment[]
   walletTransactions WalletTransaction[]
   orderTracking      OrderTracking?
+  paymentReference   String?
+  paymentStatus      String?             @default("PENDING")
+  paidAt             DateTime?
 }
 
 model ShippingAddress {
