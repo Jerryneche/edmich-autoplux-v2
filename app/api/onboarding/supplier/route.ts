@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    // Validate required fields
+    // Extract fields from request body
     const {
       businessName,
       businessAddress,
@@ -67,10 +67,8 @@ export async function POST(req: NextRequest) {
       bankName,
       accountNumber,
       accountName,
-      // Mobile app sends these fields
-      phone,
+      // Mobile app may send 'address' instead of 'businessAddress'
       address,
-      businessType,
     } = body;
 
     // Support both web (businessAddress) and mobile (address) field names
@@ -104,8 +102,6 @@ export async function POST(req: NextRequest) {
           bankName: bankName || null,
           accountNumber: accountNumber || null,
           accountName: accountName || null,
-          phone: phone || null,
-          businessType: businessType || null,
         },
       });
     } else {
@@ -122,8 +118,6 @@ export async function POST(req: NextRequest) {
           bankName: bankName || null,
           accountNumber: accountNumber || null,
           accountName: accountName || null,
-          phone: phone || null,
-          businessType: businessType || null,
           verified: false,
           approved: false,
         },
