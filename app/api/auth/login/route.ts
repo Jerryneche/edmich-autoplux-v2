@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { generateToken } from "@/lib/auth-api";
 
 export async function POST(req: Request) {
   try {
@@ -57,6 +58,9 @@ export async function POST(req: Request) {
       );
     }
 
+    // Generate JWT token for mobile app
+    const token = generateToken(user.id, user.email, user.role);
+
     // Determine redirect based on role and onboarding
     let redirectUrl = "/dashboard";
     if (user.onboardingStatus === "PENDING" && user.role !== "BUYER") {
@@ -81,6 +85,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: "Login successful",
+      token, // JWT token for mobile
       redirectUrl,
       user: {
         id: user.id,

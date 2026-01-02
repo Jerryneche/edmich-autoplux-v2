@@ -1,20 +1,22 @@
+// app/api/supplier/products/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 // GET - Fetch supplier's products
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(req);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Find supplier profile
-    const supplierProfile = await prisma.supplierProfile.findUnique({
-      where: { userId: session.user.id },
-    });
+    const supplierProfile =
+      user.supplierProfile ||
+      (await prisma.supplierProfile.findUnique({
+        where: { userId: user.id },
+      }));
 
     if (!supplierProfile) {
       return NextResponse.json(
@@ -42,15 +44,17 @@ export async function GET(req: NextRequest) {
 // POST - Create new product
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(req);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check if user has supplier profile
-    const supplierProfile = await prisma.supplierProfile.findUnique({
-      where: { userId: session.user.id },
-    });
+    const supplierProfile =
+      user.supplierProfile ||
+      (await prisma.supplierProfile.findUnique({
+        where: { userId: user.id },
+      }));
 
     if (!supplierProfile) {
       return NextResponse.json(
