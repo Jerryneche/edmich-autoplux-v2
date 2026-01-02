@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth-api";
+import { getAuthUser } from "@/lib/auth-api"; // Use the new helper
 import { prisma } from "@/lib/prisma";
 
 // ✅ GET - Check supplier onboarding status
@@ -56,7 +56,6 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    // Extract fields from request body
     const {
       businessName,
       businessAddress,
@@ -67,11 +66,11 @@ export async function POST(req: NextRequest) {
       bankName,
       accountNumber,
       accountName,
-      // Mobile app may send 'address' instead of 'businessAddress'
+      // Mobile might send 'address' instead of 'businessAddress'
       address,
     } = body;
 
-    // Support both web (businessAddress) and mobile (address) field names
+    // Support both field names
     const finalAddress = businessAddress || address;
 
     if (!businessName || !finalAddress || !city || !state) {
@@ -89,7 +88,6 @@ export async function POST(req: NextRequest) {
     let supplierProfile;
 
     if (existingProfile) {
-      // Update existing profile
       supplierProfile = await prisma.supplierProfile.update({
         where: { userId: user.id },
         data: {
@@ -105,7 +103,6 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // Create new profile
       supplierProfile = await prisma.supplierProfile.create({
         data: {
           userId: user.id,
@@ -124,7 +121,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ✅ Mark onboarding as completed
+    // Mark onboarding as completed
     await prisma.user.update({
       where: { id: user.id },
       data: { onboardingStatus: "COMPLETED" },
