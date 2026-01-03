@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        shippingAddress: true, // Include shipping address
       },
       orderBy: {
         createdAt: "desc",
