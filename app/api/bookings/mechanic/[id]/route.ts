@@ -1,26 +1,26 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+// app/api/bookings/mechanic/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
+// GET - Get single booking
 export async function GET(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const bookingId = params.id;
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const booking = await prisma.mechanicBooking.findUnique({
-      where: { id: bookingId },
+      where: { id },
       include: {
         user: {
-          select: { name: true, email: true, image: true },
+          select: { name: true, email: true, phone: true, image: true },
         },
         mechanic: {
           select: {
@@ -28,7 +28,11 @@ export async function GET(
             phone: true,
             city: true,
             state: true,
+            specialization: true,
             rating: true,
+            user: {
+              select: { name: true, email: true },
+            },
           },
         },
       },
@@ -38,17 +42,8 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Check authorization
-    if (
-      booking.userId !== session.user.id &&
-      session.user.role !== "MECHANIC" &&
-      session.user.role !== "ADMIN"
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     return NextResponse.json(booking);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching booking:", error);
     return NextResponse.json(
       { error: "Failed to fetch booking" },
@@ -57,20 +52,19 @@ export async function GET(
   }
 }
 
+// PATCH - Update booking status
 export async function PATCH(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const bookingId = params.id;
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const { id } = await params;
+    const body = await request.json();
     const { status } = body;
 
     if (!status) {
@@ -80,69 +74,142 @@ export async function PATCH(
       );
     }
 
-    // Get booking with user info
-    const booking = await prisma.mechanicBooking.findUnique({
-      where: { id: bookingId },
+    // Valid statuses
+    const validStatuses = [
+      "PENDING",
+      "CONFIRMED",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "CANCELLED",
+    ];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    // Get booking first
+    const existingBooking = await prisma.mechanicBooking.findUnique({
+      where: { id },
       include: {
-        user: { select: { id: true, name: true } },
-        mechanic: { select: { businessName: true, userId: true } },
+        mechanic: {
+          select: { userId: true },
+        },
       },
+    });
+
+    if (!existingBooking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    // Check permission - must be the mechanic or the customer
+    const mechanicProfile = await prisma.mechanicProfile.findUnique({
+      where: { userId: user.id },
+    });
+
+    const isMechanic = mechanicProfile?.id === existingBooking.mechanicId;
+    const isCustomer = existingBooking.userId === user.id;
+
+    if (!isMechanic && !isCustomer) {
+      return NextResponse.json(
+        { error: "Not authorized to update this booking" },
+        { status: 403 }
+      );
+    }
+
+    // Update booking
+    const booking = await prisma.mechanicBooking.update({
+      where: { id },
+      data: { status },
+      include: {
+        user: {
+          select: { name: true, email: true },
+        },
+        mechanic: {
+          select: {
+            businessName: true,
+            phone: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    // Send notification to the other party
+    const notifyUserId = isMechanic
+      ? existingBooking.userId
+      : existingBooking.mechanic?.userId;
+
+    if (notifyUserId) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: notifyUserId,
+            type: "BOOKING",
+            title: "Booking Status Updated",
+            message: `Your mechanic booking has been ${status
+              .toLowerCase()
+              .replace("_", " ")}`,
+            link: isMechanic
+              ? `/dashboard/buyer/bookings`
+              : `/dashboard/mechanic/bookings`,
+          },
+        });
+      } catch (notifError) {
+        console.warn("Notification failed:", notifError);
+      }
+    }
+
+    return NextResponse.json(booking);
+  } catch (error: any) {
+    console.error("Error updating booking:", error);
+    return NextResponse.json(
+      { error: "Failed to update booking" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Cancel/delete booking
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const booking = await prisma.mechanicBooking.findUnique({
+      where: { id },
     });
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Update booking
-    const updatedBooking = await prisma.mechanicBooking.update({
-      where: { id: bookingId },
-      data: { status },
-      include: {
-        user: { select: { name: true, email: true, image: true } },
-        mechanic: {
-          select: {
-            businessName: true,
-            phone: true,
-            city: true,
-            state: true,
-          },
-        },
-      },
+    // Check permission
+    const mechanicProfile = await prisma.mechanicProfile.findUnique({
+      where: { userId: user.id },
     });
 
-    // Update mechanic's completedJobs count if status is COMPLETED
-    if (status === "COMPLETED" && booking.mechanicId) {
-      await prisma.mechanicProfile.update({
-        where: { id: booking.mechanicId },
-        data: { completedJobs: { increment: 1 } },
-      });
+    const isMechanic = mechanicProfile?.id === booking.mechanicId;
+    const isCustomer = booking.userId === user.id;
+
+    if (!isMechanic && !isCustomer) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Send notification to customer about status change
-    const statusMessages: Record<string, string> = {
-      CONFIRMED: `Your mechanic service for ${booking.vehicleMake} ${booking.vehicleModel} has been confirmed by ${booking.mechanic?.businessName}. They will arrive on ${booking.date} at ${booking.time}.`,
-      IN_PROGRESS: `Your mechanic ${booking.mechanic?.businessName} has started working on your ${booking.vehicleMake} ${booking.vehicleModel}.`,
-      COMPLETED: `Great news! Your ${booking.vehicleMake} ${booking.vehicleModel} service has been completed by ${booking.mechanic?.businessName}.`,
-      CANCELLED: `Your mechanic booking for ${booking.vehicleMake} ${booking.vehicleModel} has been cancelled.`,
-    };
+    await prisma.mechanicBooking.delete({
+      where: { id },
+    });
 
-    if (statusMessages[status]) {
-      await prisma.notification.create({
-        data: {
-          userId: booking.userId,
-          type: "BOOKING",
-          title: `Service ${status.charAt(0) + status.slice(1).toLowerCase()}`,
-          message: statusMessages[status],
-          link: `/dashboard/buyer/bookings?type=mechanics`,
-        },
-      });
-    }
-
-    return NextResponse.json(updatedBooking);
-  } catch (error) {
-    console.error("Error updating booking:", error);
+    return NextResponse.json({ message: "Booking deleted" });
+  } catch (error: any) {
+    console.error("Error deleting booking:", error);
     return NextResponse.json(
-      { error: "Failed to update booking" },
+      { error: "Failed to delete booking" },
       { status: 500 }
     );
   }

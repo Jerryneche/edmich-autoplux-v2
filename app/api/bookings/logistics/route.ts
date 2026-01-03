@@ -1,13 +1,12 @@
 // app/api/bookings/logistics/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -20,19 +19,21 @@ export async function POST(request: Request) {
       weight,
       pickupAddress,
       pickupCity,
+      pickupState,
       deliveryAddress,
       deliveryCity,
+      deliveryState,
       recipientName,
       recipientPhone,
       specialInstructions,
       estimatedPrice,
+      phone,
     } = body;
 
     // Validate required fields
     if (
       !providerId ||
       !packageType ||
-      !weight ||
       !pickupAddress ||
       !deliveryAddress ||
       !recipientName ||
@@ -57,31 +58,27 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get buyer's name
-    const buyer = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { name: true },
-    });
-
     const trackingNumber = `TRK-${Date.now().toString(36).toUpperCase()}`;
 
     // Create booking
     const booking = await prisma.logisticsBooking.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         driverId: providerId,
         packageType,
-        deliverySpeed,
-        packageDescription,
+        deliverySpeed: deliverySpeed || "standard",
+        packageDescription: packageDescription || "",
         pickupAddress,
         pickupCity,
+        pickupState: pickupState || null,
         deliveryAddress,
         deliveryCity,
+        deliveryState: deliveryState || null,
         recipientName,
         recipientPhone,
-        phone: session.user.email || recipientPhone,
+        phone: phone || user.email || recipientPhone,
         specialInstructions: specialInstructions || null,
-        estimatedPrice: parseFloat(estimatedPrice),
+        estimatedPrice: parseFloat(estimatedPrice) || 5000,
         status: "PENDING",
         trackingNumber,
       },
@@ -100,7 +97,7 @@ export async function POST(request: Request) {
     // Notify buyer
     await prisma.notification.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         type: "BOOKING",
         title: "Delivery Booking Confirmed",
         message: `Your ${packageType} delivery from ${pickupCity} to ${deliveryCity} has been booked. Tracking: ${trackingNumber}`,
@@ -115,7 +112,7 @@ export async function POST(request: Request) {
         type: "BOOKING",
         title: "New Delivery Request",
         message: `New ${packageType} delivery request from ${
-          buyer?.name || "Customer"
+          user.name || "Customer"
         }. Route: ${pickupCity} → ${deliveryCity}`,
         link: `/dashboard/logistics/bookings`,
       },
@@ -132,10 +129,10 @@ export async function POST(request: Request) {
 }
 
 // GET - Fetch bookings based on view
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -147,7 +144,7 @@ export async function GET(request: Request) {
     if (view === "provider" || view === "driver") {
       // For logistics providers - find their profile first
       const profile = await prisma.logisticsProfile.findUnique({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
       });
 
       if (!profile) {
@@ -166,27 +163,10 @@ export async function GET(request: Request) {
         },
         orderBy: { createdAt: "desc" },
       });
-    } else if (view === "customer") {
+    } else {
       // For customers viewing their own bookings
       bookings = await prisma.logisticsBooking.findMany({
-        where: { userId: session.user.id },
-        include: {
-          driver: {
-            select: {
-              companyName: true,
-              phone: true,
-              vehicleType: true,
-              city: true,
-              state: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-    } else {
-      // Default to customer view
-      bookings = await prisma.logisticsBooking.findMany({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         include: {
           driver: {
             select: {

@@ -1,14 +1,13 @@
 // app/api/bookings/mechanic/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 interface MechanicBookingBody {
   mechanicId: string;
   vehicleMake: string;
   vehicleModel: string;
-  vehicleYear: number | string; // Accept both
+  vehicleYear: number | string;
   plateNumber?: string;
   serviceType: string;
   customService?: string;
@@ -23,10 +22,10 @@ interface MechanicBookingBody {
   additionalNotes?: string;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -92,7 +91,7 @@ export async function POST(request: Request) {
 
     const booking = await prisma.mechanicBooking.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         mechanicId,
         vehicleMake: vehicleMake.trim(),
         vehicleModel: vehicleModel.trim(),
@@ -124,7 +123,6 @@ export async function POST(request: Request) {
     });
 
     // Send notification to mechanic
-    // FIXED: Send notification to mechanic using the correct table
     try {
       await prisma.mechanicNotification.create({
         data: {
@@ -132,14 +130,13 @@ export async function POST(request: Request) {
           type: "BOOKING",
           title: "New Service Booking!",
           message: `${
-            session.user.name || "Someone"
+            user.name || "Someone"
           } just booked your service for a ${vehicleMake} ${vehicleModel} (${vehicleYear})`,
           link: `/dashboard/mechanic/bookings`,
         },
       });
     } catch (error) {
       console.warn("Mechanic notification failed (non-critical):", error);
-      // We don't throw — booking still succeeds
     }
 
     return NextResponse.json(booking, { status: 201 });
@@ -153,10 +150,10 @@ export async function POST(request: Request) {
 }
 
 // GET - User or Mechanic view
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -167,7 +164,7 @@ export async function GET(request: Request) {
 
     if (view === "mechanic") {
       const profile = await prisma.mechanicProfile.findUnique({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
       });
 
       if (!profile) {
@@ -188,7 +185,7 @@ export async function GET(request: Request) {
       });
     } else {
       bookings = await prisma.mechanicBooking.findMany({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         include: {
           mechanic: {
             select: {

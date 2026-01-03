@@ -1,26 +1,26 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+// app/api/bookings/logistics/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
+// GET - Get single booking
 export async function GET(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const bookingId = params.id;
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const booking = await prisma.logisticsBooking.findUnique({
-      where: { id: bookingId },
+      where: { id },
       include: {
         user: {
-          select: { name: true, email: true, image: true },
+          select: { name: true, email: true, phone: true, image: true },
         },
         driver: {
           select: {
@@ -28,7 +28,12 @@ export async function GET(
             phone: true,
             city: true,
             state: true,
+            vehicleType: true,
+            vehicleNumber: true,
             rating: true,
+            user: {
+              select: { name: true, email: true },
+            },
           },
         },
       },
@@ -38,17 +43,8 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Check authorization
-    if (
-      booking.userId !== session.user.id &&
-      session.user.role !== "LOGISTICS" &&
-      session.user.role !== "ADMIN"
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     return NextResponse.json(booking);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching booking:", error);
     return NextResponse.json(
       { error: "Failed to fetch booking" },
@@ -57,21 +53,20 @@ export async function GET(
   }
 }
 
+// PATCH - Update booking status
 export async function PATCH(
-  req: Request,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const bookingId = params.id;
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { status } = body;
+    const { id } = await params;
+    const body = await request.json();
+    const { status, currentLocation } = body;
 
     if (!status) {
       return NextResponse.json(
@@ -80,69 +75,147 @@ export async function PATCH(
       );
     }
 
-    // Get booking with user info
-    const booking = await prisma.logisticsBooking.findUnique({
-      where: { id: bookingId },
+    // Valid statuses
+    const validStatuses = [
+      "PENDING",
+      "CONFIRMED",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "CANCELLED",
+    ];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    // Get booking first
+    const existingBooking = await prisma.logisticsBooking.findUnique({
+      where: { id },
       include: {
-        user: { select: { id: true, name: true } },
-        driver: { select: { companyName: true, userId: true } },
+        driver: {
+          select: { userId: true },
+        },
       },
+    });
+
+    if (!existingBooking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    // Check permission - must be the driver or the customer
+    const logisticsProfile = await prisma.logisticsProfile.findUnique({
+      where: { userId: user.id },
+    });
+
+    const isDriver = logisticsProfile?.id === existingBooking.driverId;
+    const isCustomer = existingBooking.userId === user.id;
+
+    if (!isDriver && !isCustomer) {
+      return NextResponse.json(
+        { error: "Not authorized to update this booking" },
+        { status: 403 }
+      );
+    }
+
+    // Update booking
+    const updateData: any = { status };
+    if (currentLocation) {
+      updateData.currentLocation = currentLocation;
+    }
+
+    const booking = await prisma.logisticsBooking.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: {
+          select: { name: true, email: true },
+        },
+        driver: {
+          select: {
+            companyName: true,
+            phone: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    // Send notification to the other party
+    const notifyUserId = isDriver
+      ? existingBooking.userId
+      : existingBooking.driver?.userId;
+
+    if (notifyUserId) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: notifyUserId,
+            type: "DELIVERY",
+            title: "Delivery Status Updated",
+            message: `Your delivery has been ${status
+              .toLowerCase()
+              .replace("_", " ")}`,
+            link: isDriver
+              ? `/dashboard/buyer/bookings`
+              : `/dashboard/logistics/bookings`,
+          },
+        });
+      } catch (notifError) {
+        console.warn("Notification failed:", notifError);
+      }
+    }
+
+    return NextResponse.json(booking);
+  } catch (error: any) {
+    console.error("Error updating booking:", error);
+    return NextResponse.json(
+      { error: "Failed to update booking" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Cancel/delete booking
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const booking = await prisma.logisticsBooking.findUnique({
+      where: { id },
     });
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Update booking
-    const updatedBooking = await prisma.logisticsBooking.update({
-      where: { id: bookingId },
-      data: { status },
-      include: {
-        user: { select: { name: true, email: true, image: true } },
-        driver: {
-          select: {
-            companyName: true,
-            phone: true,
-            city: true,
-            state: true,
-          },
-        },
-      },
+    // Check permission
+    const logisticsProfile = await prisma.logisticsProfile.findUnique({
+      where: { userId: user.id },
     });
 
-    // Update logistics provider's completedDeliveries count if status is COMPLETED
-    if (status === "COMPLETED" && booking.driverId) {
-      await prisma.logisticsProfile.update({
-        where: { id: booking.driverId },
-        data: { completedDeliveries: { increment: 1 } },
-      });
+    const isDriver = logisticsProfile?.id === booking.driverId;
+    const isCustomer = booking.userId === user.id;
+
+    if (!isDriver && !isCustomer) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Send notification to customer about status change
-    const statusMessages: Record<string, string> = {
-      CONFIRMED: `Your delivery (${booking.trackingNumber}) has been confirmed by ${booking.driver?.companyName}. Pickup from ${booking.pickupCity} to ${booking.deliveryCity}.`,
-      IN_PROGRESS: `Your package (${booking.trackingNumber}) is now in transit from ${booking.pickupCity} to ${booking.deliveryCity}.`,
-      COMPLETED: `Your package (${booking.trackingNumber}) has been successfully delivered to ${booking.deliveryCity}!`,
-      CANCELLED: `Your delivery booking (${booking.trackingNumber}) has been cancelled.`,
-    };
+    await prisma.logisticsBooking.delete({
+      where: { id },
+    });
 
-    if (statusMessages[status]) {
-      await prisma.notification.create({
-        data: {
-          userId: booking.userId,
-          type: "DELIVERY",
-          title: `Delivery ${status.charAt(0) + status.slice(1).toLowerCase()}`,
-          message: statusMessages[status],
-          link: `/dashboard/buyer/bookings?type=logistics`,
-        },
-      });
-    }
-
-    return NextResponse.json(updatedBooking);
-  } catch (error) {
-    console.error("Error updating booking:", error);
+    return NextResponse.json({ message: "Booking deleted" });
+  } catch (error: any) {
+    console.error("Error deleting booking:", error);
     return NextResponse.json(
-      { error: "Failed to update booking" },
+      { error: "Failed to delete booking" },
       { status: 500 }
     );
   }
