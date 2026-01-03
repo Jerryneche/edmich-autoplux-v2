@@ -1,13 +1,13 @@
+// app/api/orders/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthUser(req);
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       // Create the order
       const order = await tx.order.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           trackingId,
           total,
           status: paymentMethod === "BANK TRANSFER" ? "PENDING" : "CONFIRMED",
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     try {
       await prisma.notification.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           type: "ORDER",
           title: "Order Placed Successfully",
           message: `Your order ${trackingId} has been placed. Total: ₦${total.toLocaleString()}`,
@@ -205,14 +205,14 @@ export async function POST(req: NextRequest) {
 // GET - Fetch user's orders
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthUser(req);
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const orders = await prisma.order.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       include: {
         items: {
           include: {

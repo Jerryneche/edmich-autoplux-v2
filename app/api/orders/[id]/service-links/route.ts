@@ -1,21 +1,18 @@
+// app/api/orders/[id]/service-links/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const orderId = params.id;
+    const { id: orderId } = await params;
+    console.log("GET service-links - orderId:", orderId);
 
-    console.log("GET service-links - orderId:", orderId); // Debug log
-
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -61,7 +58,7 @@ export async function GET(
     }
 
     // Check authorization
-    if (order.userId !== session.user.id && session.user.role !== "ADMIN") {
+    if (order.userId !== user.id && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -76,22 +73,19 @@ export async function GET(
 }
 
 export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const orderId = params.id;
-
+    const { id: orderId } = await params;
     console.log("POST service-links - orderId:", orderId);
 
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
     const { bookingId, type } = body as {
       bookingId: string;
       type: "MECHANIC" | "LOGISTICS";
@@ -109,7 +103,7 @@ export async function POST(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.userId !== session.user.id) {
+    if (order.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -196,20 +190,18 @@ export async function POST(
 }
 
 export async function DELETE(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await context.params;
-    const orderId = params.id;
+    const { id: orderId } = await params;
 
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") as "MECHANIC" | "LOGISTICS";
 
     if (!type) {
@@ -228,7 +220,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.userId !== session.user.id) {
+    if (order.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

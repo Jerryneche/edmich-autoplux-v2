@@ -1,21 +1,19 @@
 // app/api/orders/[id]/assign-logistics/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> } // Next.js 16 fix
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const params = await context.params;
-    const { id: raw } = params;
+    const { id: raw } = await params;
     const orderIdOrTracking = raw?.trim();
     if (!orderIdOrTracking) {
       return NextResponse.json(
@@ -38,14 +36,14 @@ export async function POST(
       where: {
         OR: [{ id: orderIdOrTracking }, { trackingId: orderIdOrTracking }],
       },
-      include: { shippingAddress: true }, // ← Include full address
+      include: { shippingAddress: true },
     });
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.userId !== session.user.id && session.user.role !== "ADMIN") {
+    if (order.userId !== user.id && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -72,22 +70,22 @@ export async function POST(
     // BUILD FULL ADDRESS STRING
     const formatAddress = (addr: typeof order.shippingAddress) => {
       if (!addr) return "Address not provided";
-      return `${addr.city}, ${addr.state} ${addr.zipCode}`;
+      return `${addr.city}, ${addr.state} ${addr.zipCode || ""}`.trim();
     };
 
     const logisticsRequest = await prisma.logisticsRequest.create({
       data: {
-        name: session.user.name ?? "Buyer",
-        email: session.user.email ?? "",
+        name: user.name ?? "Buyer",
+        email: user.email ?? "",
         phone: "",
-        pickup: formatAddress(order.shippingAddress), // Full pickup
-        dropoff: formatAddress(order.shippingAddress), // Same for now (or use seller address later)
+        pickup: formatAddress(order.shippingAddress),
+        dropoff: formatAddress(order.shippingAddress),
         vehicle: "Standard",
         deliveryDate: new Date(),
         notes: providerMessage ?? `Assigned for order ${trackingNumber}`,
         status: "PENDING",
         trackingNumber,
-        userId: session.user.id,
+        userId: user.id,
         logisticsId: provider.id,
       },
     });
@@ -107,7 +105,7 @@ export async function POST(
           link: `/dashboard/logistics/requests/${logisticsRequest.id}`,
         },
         {
-          userId: session.user.id,
+          userId: user.id,
           type: "ORDER",
           title: `Delivery assigned: ${trackingNumber}`,
           message: `A logistics partner has been assigned to your order.`,

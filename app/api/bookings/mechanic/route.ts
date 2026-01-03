@@ -89,6 +89,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get mechanic profile for notifications
+    const mechanicProfile = await prisma.mechanicProfile.findUnique({
+      where: { id: mechanicId },
+      select: { userId: true, businessName: true },
+    });
+
+    if (!mechanicProfile) {
+      return NextResponse.json(
+        { error: "Mechanic not found" },
+        { status: 404 }
+      );
+    }
+
     const booking = await prisma.mechanicBooking.create({
       data: {
         userId: user.id,
@@ -122,22 +135,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send notification to mechanic
-    try {
-      await prisma.mechanicNotification.create({
-        data: {
-          mechanicId: mechanicId,
-          type: "BOOKING",
-          title: "New Service Booking!",
-          message: `${
-            user.name || "Someone"
-          } just booked your service for a ${vehicleMake} ${vehicleModel} (${vehicleYear})`,
-          link: `/dashboard/mechanic/bookings`,
-        },
-      });
-    } catch (error) {
-      console.warn("Mechanic notification failed (non-critical):", error);
-    }
+    // ✅ Notify the BUYER (user who booked)
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: "BOOKING",
+        title: "Booking Confirmed",
+        message: `Your ${serviceType} service with ${mechanicProfile.businessName} on ${date} at ${time} has been booked successfully.`,
+        link: `/bookings/mechanic/${booking.id}`,
+      },
+    });
+
+    // ✅ Notify the MECHANIC
+    await prisma.notification.create({
+      data: {
+        userId: mechanicProfile.userId,
+        type: "BOOKING",
+        title: "New Service Booking!",
+        message: `${
+          user.name || "A customer"
+        } booked ${serviceType} for ${vehicleMake} ${vehicleModel} (${vehicleYear}) on ${date} at ${time}`,
+        link: `/dashboard/mechanic/bookings`,
+      },
+    });
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error: any) {
@@ -163,6 +183,7 @@ export async function GET(request: NextRequest) {
     let bookings;
 
     if (view === "mechanic") {
+      // Mechanic viewing their received bookings
       const profile = await prisma.mechanicProfile.findUnique({
         where: { userId: user.id },
       });
@@ -178,12 +199,13 @@ export async function GET(request: NextRequest) {
         where: { mechanicId: profile.id },
         include: {
           user: {
-            select: { name: true, email: true, image: true },
+            select: { name: true, email: true, image: true, phone: true },
           },
         },
         orderBy: { createdAt: "desc" },
       });
     } else {
+      // Buyer viewing their bookings (default)
       bookings = await prisma.mechanicBooking.findMany({
         where: { userId: user.id },
         include: {
@@ -195,6 +217,9 @@ export async function GET(request: NextRequest) {
               state: true,
               specialization: true,
               rating: true,
+              user: {
+                select: { name: true, image: true },
+              },
             },
           },
         },

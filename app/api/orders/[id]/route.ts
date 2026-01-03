@@ -1,7 +1,6 @@
 // app/api/orders/[id]/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -9,18 +8,17 @@ import { prisma } from "@/lib/prisma";
  * - `:id` can be either internal order id (cuid) or trackingId (EDM-...)
  * - The route will find the order and ensure the current session user is the owner.
  */
-
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params; // unwrap dynamic params
+    const { id } = await params;
 
     // Attempt to fetch by internal id first, then by trackingId
     const order =
@@ -55,8 +53,8 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Ensure current user owns the order (buyer)
-    if (order.userId !== session.user.id) {
+    // Ensure current user owns the order (buyer) or is admin
+    if (order.userId !== user.id && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -65,6 +63,85 @@ export async function GET(
     console.error("Error fetching order:", error);
     return NextResponse.json(
       { error: "Failed to fetch order" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/orders/:id
+ * - Update order status (for admin/supplier use)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { status, paymentStatus } = body;
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    // Only allow owner, admin, or supplier to update
+    if (
+      order.userId !== user.id &&
+      user.role !== "ADMIN" &&
+      user.role !== "SUPPLIER"
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (paymentStatus) updateData.paymentStatus = paymentStatus;
+
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: updateData,
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, image: true, price: true },
+            },
+          },
+        },
+        shippingAddress: true,
+      },
+    });
+
+    // Notify buyer of status change
+    if (status && order.userId !== user.id) {
+      await prisma.notification.create({
+        data: {
+          userId: order.userId,
+          type: "ORDER",
+          title: "Order Status Updated",
+          message: `Your order ${
+            order.trackingId || order.id
+          } status has been updated to ${status}`,
+          link: `/orders/${order.id}`,
+        },
+      });
+    }
+
+    return NextResponse.json(updatedOrder);
+  } catch (error: any) {
+    console.error("Error updating order:", error);
+    return NextResponse.json(
+      { error: "Failed to update order" },
       { status: 500 }
     );
   }
