@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+// app/api/onboarding/logistics/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 // ✅ GET - Check logistics onboarding status
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthUser(request);
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json(
         { hasProfile: false, logisticsProfile: null },
         { status: 200 }
@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     const logisticsProfile = await prisma.logisticsProfile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!logisticsProfile) {
@@ -40,15 +40,15 @@ export async function GET() {
 }
 
 // ✅ POST - Create or update logistics profile
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthUser(request);
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "LOGISTICS") {
+    if (user.role !== "LOGISTICS") {
       return NextResponse.json(
         { error: "Only logistics providers can create profiles" },
         { status: 403 }
@@ -57,15 +57,46 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
+    // Extract and validate fields from body
+    const {
+      companyName,
+      phone,
+      address,
+      city,
+      state,
+      description,
+      vehicleType,
+      vehicleNumber,
+      licenseNumber,
+      vehicleTypes,
+      coverageAreas,
+    } = body;
+
+    // Build the profile data
+    const profileData = {
+      companyName: companyName || "",
+      phone: phone || "",
+      address: address || "",
+      city: city || "",
+      state: state || "",
+      description: description || "",
+      vehicleType: vehicleType || vehicleTypes?.[0] || "Van",
+      vehicleNumber: vehicleNumber || "",
+      licenseNumber: licenseNumber || "",
+      vehicleTypes: vehicleTypes || [],
+      coverageAreas: coverageAreas || [],
+      isAvailable: true,
+      available: true,
+    };
+
     const logisticsProfile = await prisma.logisticsProfile.upsert({
-      where: { userId: session.user.id },
-      update: { ...body },
+      where: { userId: user.id },
+      update: profileData,
       create: {
-        ...body,
-        userId: session.user.id,
+        ...profileData,
+        userId: user.id,
         verified: false,
         approved: true, // Auto-approve for now
-        available: true,
         rating: 0,
         completedDeliveries: 0,
       },
@@ -73,8 +104,11 @@ export async function POST(request: Request) {
 
     // ✅ Mark onboarding as completed
     await prisma.user.update({
-      where: { id: session.user.id },
-      data: { onboardingStatus: "COMPLETED" },
+      where: { id: user.id },
+      data: {
+        onboardingStatus: "COMPLETED",
+        hasCompletedOnboarding: true,
+      },
     });
 
     return NextResponse.json(

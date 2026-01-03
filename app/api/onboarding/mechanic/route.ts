@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+// app/api/onboarding/mechanic/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 // ✅ GET - Check mechanic onboarding status
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthUser(request);
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json(
         { hasProfile: false, mechanicProfile: null },
         { status: 200 }
@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     const mechanicProfile = await prisma.mechanicProfile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!mechanicProfile) {
@@ -40,15 +40,15 @@ export async function GET() {
 }
 
 // ✅ POST - Create or update mechanic profile
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthUser(request);
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "MECHANIC") {
+    if (user.role !== "MECHANIC") {
       return NextResponse.json(
         { error: "Only mechanics can create profiles" },
         { status: 403 }
@@ -57,15 +57,45 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
+    // Extract and validate fields from body
+    const {
+      businessName,
+      phone,
+      address,
+      city,
+      state,
+      experience,
+      description,
+      specializations,
+      mobileService,
+      hourlyRate,
+    } = body;
+
+    // Build the profile data
+    const profileData = {
+      businessName: businessName || "",
+      phone: phone || "",
+      address: address || "",
+      city: city || "",
+      state: state || "",
+      experience: experience || 0,
+      description: description || "",
+      specialization: specializations || [], // Maps to specialization field in schema
+      specialty: specializations?.[0] || "General Repairs", // Primary specialty
+      location: `${city}, ${state}`,
+      hourlyRate: hourlyRate || 0,
+      isAvailable: true,
+      available: mobileService ?? true,
+    };
+
     const mechanicProfile = await prisma.mechanicProfile.upsert({
-      where: { userId: session.user.id },
-      update: { ...body },
+      where: { userId: user.id },
+      update: profileData,
       create: {
-        ...body,
-        userId: session.user.id,
+        ...profileData,
+        userId: user.id,
         verified: false,
         approved: true, // Auto-approve for now
-        available: true,
         rating: 0,
         completedJobs: 0,
       },
@@ -73,8 +103,11 @@ export async function POST(request: Request) {
 
     // ✅ Mark onboarding as completed
     await prisma.user.update({
-      where: { id: session.user.id },
-      data: { onboardingStatus: "COMPLETED" },
+      where: { id: user.id },
+      data: {
+        onboardingStatus: "COMPLETED",
+        hasCompletedOnboarding: true,
+      },
     });
 
     return NextResponse.json(
