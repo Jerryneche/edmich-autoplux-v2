@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSeedProducts } from "@/lib/seed-data";
 
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.edmich.com";
+
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
@@ -16,8 +18,8 @@ export async function GET() {
         stock: true,
         supplier: {
           select: {
-            id: true, // ← ADD THIS
-            businessName: true, // ← Keep this
+            id: true,
+            businessName: true,
           },
         },
       },
@@ -28,17 +30,29 @@ export async function GET() {
       return NextResponse.json(seed);
     }
 
-    const formatted = products.map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description ?? "",
-      price: p.price,
-      category: p.category,
-      image: p.image || "/placeholder.jpg",
-      stock: p.stock,
-      supplierId: p.supplier?.id || "", // ← Now safe
-      supplier: p.supplier?.businessName || "AutoParts Ltd",
-    }));
+    const formatted = products.map((p) => {
+      // Handle image URL - ensure it's a full URL
+      let imageUrl = p.image;
+      if (!imageUrl) {
+        imageUrl = null; // Let the client handle the placeholder
+      } else if (imageUrl.startsWith("/")) {
+        // Relative path - convert to full URL
+        imageUrl = `${BASE_URL}${imageUrl}`;
+      }
+      // If it's already a full URL (Cloudinary, etc.), leave it as is
+
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description ?? "",
+        price: p.price,
+        category: p.category,
+        image: imageUrl,
+        stock: p.stock,
+        supplierId: p.supplier?.id || "",
+        supplier: p.supplier?.businessName || "AutoParts Ltd",
+      };
+    });
 
     return NextResponse.json(formatted);
   } catch (error) {
