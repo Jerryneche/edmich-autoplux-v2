@@ -1,19 +1,18 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+// app/api/supplier/orders/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-// GET - Fetch orders for supplier's products
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!supplierProfile) {
@@ -50,21 +49,21 @@ export async function GET(request: Request) {
           include: {
             product: {
               select: {
+                id: true,
                 name: true,
-                price: true,
                 image: true,
+                price: true,
               },
             },
           },
         },
-        shippingAddress: true,
       },
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    // Calculate supplier's share for each order
+    // Calculate supplier total for each order
     const ordersWithSupplierTotal = orders.map((order) => {
       const supplierTotal = order.items.reduce(
         (sum, item) => sum + item.price * item.quantity,
@@ -72,14 +71,21 @@ export async function GET(request: Request) {
       );
 
       return {
-        ...order,
+        id: order.id,
+        trackingId: order.trackingId,
+        status: order.status,
+        total: order.total,
         supplierTotal,
+        createdAt: order.createdAt,
+        user: order.user,
+        items: order.items,
+        shippingAddress: order.shippingAddress,
       };
     });
 
     return NextResponse.json(ordersWithSupplierTotal);
   } catch (error: any) {
-    console.error("Error fetching supplier orders:", error);
+    console.error("Supplier orders error:", error);
     return NextResponse.json(
       { error: "Failed to fetch orders" },
       { status: 500 }
