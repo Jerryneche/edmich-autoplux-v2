@@ -1,9 +1,8 @@
-// app/api/bookings/logistics/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-// GET - Get single booking
+// GET single logistics booking
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,22 +18,17 @@ export async function GET(
     const booking = await prisma.logisticsBooking.findUnique({
       where: { id },
       include: {
-        user: {
-          select: { name: true, email: true, phone: true, image: true },
-        },
         driver: {
           select: {
             companyName: true,
             phone: true,
             city: true,
             state: true,
-            vehicleType: true,
-            vehicleNumber: true,
-            rating: true,
-            user: {
-              select: { name: true, email: true },
-            },
+            vehicleTypes: true,
           },
+        },
+        user: {
+          select: { name: true, email: true, phone: true },
         },
       },
     });
@@ -43,9 +37,18 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
+    // Check authorization
+    const isProvider = await prisma.logisticsProfile.findFirst({
+      where: { userId: user.id, id: booking.providerId },
+    });
+
+    if (booking.userId !== user.id && !isProvider && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(booking);
   } catch (error: any) {
-    console.error("Error fetching booking:", error);
+    console.error("Error fetching logistics booking:", error);
     return NextResponse.json(
       { error: "Failed to fetch booking" },
       { status: 500 }
@@ -68,105 +71,73 @@ export async function PATCH(
     const body = await request.json();
     const { status, currentLocation } = body;
 
-    if (!status) {
-      return NextResponse.json(
-        { error: "Status is required" },
-        { status: 400 }
-      );
-    }
-
-    // Valid statuses
-    const validStatuses = [
-      "PENDING",
-      "CONFIRMED",
-      "IN_PROGRESS",
-      "COMPLETED",
-      "CANCELLED",
-    ];
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-    }
-
-    // Get booking first
-    const existingBooking = await prisma.logisticsBooking.findUnique({
+    const booking = await prisma.logisticsBooking.findUnique({
       where: { id },
-      include: {
-        driver: {
-          select: { userId: true },
-        },
-      },
+      include: { driver: { select: { userId: true, companyName: true } } },
     });
 
-    if (!existingBooking) {
+    if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Check permission - must be the driver or the customer
-    const logisticsProfile = await prisma.logisticsProfile.findUnique({
-      where: { userId: user.id },
-    });
+    const isProvider = booking.driver?.userId === user.id;
+    const isBuyer = booking.userId === user.id;
 
-    const isDriver = logisticsProfile?.id === existingBooking.driverId;
-    const isCustomer = existingBooking.userId === user.id;
-
-    if (!isDriver && !isCustomer) {
-      return NextResponse.json(
-        { error: "Not authorized to update this booking" },
-        { status: 403 }
-      );
+    if (!isProvider && !isBuyer && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Update booking
-    const updateData: any = { status };
-    if (currentLocation) {
-      updateData.currentLocation = currentLocation;
-    }
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (currentLocation) updateData.currentLocation = currentLocation;
 
-    const booking = await prisma.logisticsBooking.update({
+    const updatedBooking = await prisma.logisticsBooking.update({
       where: { id },
       data: updateData,
       include: {
-        user: {
-          select: { name: true, email: true },
-        },
         driver: {
-          select: {
-            companyName: true,
-            phone: true,
-            userId: true,
-          },
+          select: { companyName: true, phone: true, city: true, state: true },
         },
       },
     });
 
-    // Send notification to the other party
-    const notifyUserId = isDriver
-      ? existingBooking.userId
-      : existingBooking.driver?.userId;
+    // Notifications
+    if (status) {
+      const statusMessages: Record<string, string> = {
+        CONFIRMED: "Your delivery has been confirmed",
+        IN_PROGRESS: "Your package is now in transit",
+        COMPLETED: "Your delivery has been completed",
+        CANCELLED: "Your delivery has been cancelled",
+      };
 
-    if (notifyUserId) {
-      try {
+      if (isProvider && statusMessages[status]) {
         await prisma.notification.create({
           data: {
-            userId: notifyUserId,
-            type: "DELIVERY",
-            title: "Delivery Status Updated",
-            message: `Your delivery has been ${status
-              .toLowerCase()
-              .replace("_", " ")}`,
-            link: isDriver
-              ? `/dashboard/buyer/bookings`
-              : `/dashboard/logistics/bookings`,
+            userId: booking.userId,
+            type: "BOOKING",
+            title: `Delivery ${status.replace("_", " ")}`,
+            message: statusMessages[status],
+            link: `/bookings/logistics/${booking.id}`,
           },
         });
-      } catch (notifError) {
-        console.warn("Notification failed:", notifError);
+      }
+
+      if (isBuyer && status === "CANCELLED" && booking.driver) {
+        await prisma.notification.create({
+          data: {
+            userId: booking.driver.userId,
+            type: "BOOKING",
+            title: "Delivery Cancelled",
+            message: "A delivery booking has been cancelled",
+            link: `/dashboard/logistics/bookings`,
+          },
+        });
       }
     }
 
-    return NextResponse.json(booking);
+    return NextResponse.json(updatedBooking);
   } catch (error: any) {
-    console.error("Error updating booking:", error);
+    console.error("Error updating logistics booking:", error);
     return NextResponse.json(
       { error: "Failed to update booking" },
       { status: 500 }
@@ -174,7 +145,7 @@ export async function PATCH(
   }
 }
 
-// DELETE - Cancel/delete booking
+// DELETE
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -187,33 +158,28 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const booking = await prisma.logisticsBooking.findUnique({
-      where: { id },
-    });
+    const booking = await prisma.logisticsBooking.findUnique({ where: { id } });
 
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Check permission
-    const logisticsProfile = await prisma.logisticsProfile.findUnique({
-      where: { userId: user.id },
-    });
-
-    const isDriver = logisticsProfile?.id === booking.driverId;
-    const isCustomer = booking.userId === user.id;
-
-    if (!isDriver && !isCustomer) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    if (booking.userId !== user.id && user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.logisticsBooking.delete({
-      where: { id },
-    });
+    if (booking.status !== "PENDING") {
+      return NextResponse.json(
+        { error: "Can only delete pending bookings" },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ message: "Booking deleted" });
+    await prisma.logisticsBooking.delete({ where: { id } });
+
+    return NextResponse.json({ success: true, message: "Booking deleted" });
   } catch (error: any) {
-    console.error("Error deleting booking:", error);
+    console.error("Error deleting logistics booking:", error);
     return NextResponse.json(
       { error: "Failed to delete booking" },
       { status: 500 }
