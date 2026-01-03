@@ -1,49 +1,35 @@
-import { NextResponse } from "next/server";
+// app/api/logistics/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(request: Request) {
+// GET - List logistics providers (public or filtered)
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get("city");
     const state = searchParams.get("state");
-    const verified = searchParams.get("verified");
     const available = searchParams.get("available");
-    const limit = searchParams.get("limit");
 
     const where: any = {
       approved: true,
     };
 
-    if (city) {
-      where.city = { contains: city, mode: "insensitive" };
-    }
-
-    if (state) {
-      where.state = state;
-    }
-
-    if (verified === "true") {
-      where.verified = true;
-    }
-
-    if (available === "true") {
-      where.available = true;
-    }
+    if (city) where.city = { contains: city, mode: "insensitive" };
+    if (state) where.state = { contains: state, mode: "insensitive" };
+    if (available === "true") where.isAvailable = true;
 
     const providers = await prisma.logisticsProfile.findMany({
       where,
-      take: limit ? parseInt(limit) : undefined,
       include: {
         user: {
           select: {
             name: true,
-            email: true,
+            image: true,
           },
         },
       },
-      orderBy: {
-        rating: "desc",
-      },
+      orderBy: [{ rating: "desc" }, { completedDeliveries: "desc" }],
     });
 
     return NextResponse.json(providers);

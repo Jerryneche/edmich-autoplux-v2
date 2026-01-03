@@ -1,19 +1,18 @@
+// app/api/user/addresses/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 // GET - Fetch all saved addresses for the user
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const addresses = await prisma.userAddress.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
 
@@ -28,15 +27,14 @@ export async function GET(req: NextRequest) {
 }
 
 // POST - Create a new address
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
     const { fullName, phone, address, city, state, zipCode, isDefault } = body;
 
     // Validate required fields
@@ -51,7 +49,7 @@ export async function POST(req: NextRequest) {
     if (isDefault) {
       await prisma.userAddress.updateMany({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           isDefault: true,
         },
         data: { isDefault: false },
@@ -60,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const newAddress = await prisma.userAddress.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         fullName: fullName.trim(),
         phone: phone.trim(),
         address: address.trim(),
@@ -70,8 +68,6 @@ export async function POST(req: NextRequest) {
         isDefault: isDefault || false,
       },
     });
-
-    console.log("Address created successfully:", newAddress);
 
     return NextResponse.json(newAddress, { status: 201 });
   } catch (error) {

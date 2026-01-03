@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+// app/api/kyc/submit/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     // Check if already submitted
     const existing = await prisma.kYC.findFirst({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         status: { in: ["pending", "approved"] },
       },
     });
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
     const kyc = await prisma.kYC.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         idType,
         idNumber,
         businessName,
