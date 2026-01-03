@@ -3,32 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-interface LogisticsBookingBody {
-  providerId: string;
-  packageType: string;
-  deliverySpeed: string;
-  packageDescription?: string;
-  weight?: number;
-  pickupAddress: string;
-  pickupCity: string;
-  pickupState?: string;
-  deliveryAddress: string;
-  deliveryCity: string;
-  deliveryState?: string;
-  phone: string;
-  recipientName: string;
-  recipientPhone: string;
-  specialInstructions?: string;
-  estimatedPrice: number;
-}
-
-function generateTrackingNumber(): string {
-  const prefix = "EDM";
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `${prefix}-${timestamp}-${random}`;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
@@ -36,8 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: LogisticsBookingBody = await request.json();
-
+    const body = await request.json();
     const {
       providerId,
       packageType,
@@ -50,80 +23,64 @@ export async function POST(request: NextRequest) {
       deliveryAddress,
       deliveryCity,
       deliveryState,
-      phone,
       recipientName,
       recipientPhone,
       specialInstructions,
       estimatedPrice,
+      phone,
     } = body;
 
-    // Required fields validation
-    const required = [
-      providerId,
-      packageType,
-      deliverySpeed,
-      pickupAddress,
-      pickupCity,
-      deliveryAddress,
-      deliveryCity,
-      phone,
-      recipientName,
-      recipientPhone,
-      estimatedPrice,
-    ];
-
-    if (required.some((f) => f === undefined || f === null || f === "")) {
+    // Validate required fields
+    if (
+      !providerId ||
+      !packageType ||
+      !pickupAddress ||
+      !deliveryAddress ||
+      !recipientName ||
+      !recipientPhone
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    const price = parseFloat(estimatedPrice as any);
-    if (isNaN(price) || price < 0) {
-      return NextResponse.json(
-        { error: "Invalid estimated price" },
-        { status: 400 }
-      );
-    }
-
-    // Get logistics provider for notifications
-    const logisticsProfile = await prisma.logisticsProfile.findUnique({
+    // Validate provider exists
+    const provider = await prisma.logisticsProfile.findUnique({
       where: { id: providerId },
       select: { userId: true, companyName: true },
     });
 
-    if (!logisticsProfile) {
+    if (!provider) {
       return NextResponse.json(
         { error: "Logistics provider not found" },
         { status: 404 }
       );
     }
 
-    const trackingNumber = generateTrackingNumber();
+    const trackingNumber = `TRK-${Date.now().toString(36).toUpperCase()}`;
 
+    // Create booking
     const booking = await prisma.logisticsBooking.create({
       data: {
         userId: user.id,
-        providerId,
+        driverId: providerId,
         packageType,
-        deliverySpeed,
-        packageDescription: packageDescription || null,
-        weight: weight ? parseFloat(weight as any) : null,
+        deliverySpeed: deliverySpeed || "standard",
+        packageDescription: packageDescription || "",
         pickupAddress,
         pickupCity,
         pickupState: pickupState || null,
         deliveryAddress,
         deliveryCity,
         deliveryState: deliveryState || null,
-        phone,
         recipientName,
         recipientPhone,
+        phone: phone || user.email || recipientPhone,
         specialInstructions: specialInstructions || null,
-        estimatedPrice: price,
-        trackingNumber,
+        estimatedPrice: parseFloat(estimatedPrice) || 5000,
         status: "PENDING",
-        currentLocation: pickupCity,
+        trackingNumber,
       },
       include: {
         driver: {
@@ -137,33 +94,33 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ✅ Notify the BUYER (user who booked)
+    // Notify buyer
     await prisma.notification.create({
       data: {
         userId: user.id,
         type: "BOOKING",
-        title: "Delivery Booked Successfully",
+        title: "Delivery Booking Confirmed",
         message: `Your ${packageType} delivery from ${pickupCity} to ${deliveryCity} has been booked. Tracking: ${trackingNumber}`,
-        link: `/bookings/logistics/${booking.id}`,
+        link: `/dashboard/buyer/bookings?type=logistics`,
       },
     });
 
-    // ✅ Notify the LOGISTICS PROVIDER
+    // Notify logistics provider
     await prisma.notification.create({
       data: {
-        userId: logisticsProfile.userId,
+        userId: provider.userId,
         type: "BOOKING",
-        title: "New Delivery Request!",
-        message: `${
-          user.name || "A customer"
-        } booked ${packageType} delivery from ${pickupCity} to ${deliveryCity}`,
+        title: "New Delivery Request",
+        message: `New ${packageType} delivery request from ${
+          user.name || "Customer"
+        }. Route: ${pickupCity} → ${deliveryCity}`,
         link: `/dashboard/logistics/bookings`,
       },
     });
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating logistics booking:", error);
+    console.error("Booking creation error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create booking" },
       { status: 500 }
@@ -171,7 +128,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - User or Provider view
+// GET - Fetch bookings based on view
 export async function GET(request: NextRequest) {
   try {
     const user = await getAuthUser(request);
@@ -184,8 +141,8 @@ export async function GET(request: NextRequest) {
 
     let bookings;
 
-    if (view === "provider") {
-      // Logistics provider viewing their received bookings
+    if (view === "provider" || view === "driver") {
+      // For logistics providers - find their profile first
       const profile = await prisma.logisticsProfile.findUnique({
         where: { userId: user.id },
       });
@@ -198,16 +155,16 @@ export async function GET(request: NextRequest) {
       }
 
       bookings = await prisma.logisticsBooking.findMany({
-        where: { providerId: profile.id },
+        where: { driverId: profile.id },
         include: {
           user: {
-            select: { name: true, email: true, image: true, phone: true },
+            select: { name: true, email: true, image: true },
           },
         },
         orderBy: { createdAt: "desc" },
       });
     } else {
-      // Buyer viewing their bookings (default)
+      // For customers viewing their own bookings
       bookings = await prisma.logisticsBooking.findMany({
         where: { userId: user.id },
         include: {
@@ -215,12 +172,9 @@ export async function GET(request: NextRequest) {
             select: {
               companyName: true,
               phone: true,
+              vehicleType: true,
               city: true,
               state: true,
-              vehicleTypes: true,
-              user: {
-                select: { name: true, image: true },
-              },
             },
           },
         },
