@@ -1,25 +1,24 @@
 // app/api/notifications/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const [notifications, unreadCount] = await prisma.$transaction([
       prisma.notification.findMany({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         orderBy: { createdAt: "desc" },
         take: 50,
       }),
       prisma.notification.count({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           read: false,
         },
       }),
@@ -39,10 +38,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -59,12 +58,12 @@ export async function POST(request: Request) {
 
     const notification = await prisma.notification.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         title,
         message,
-        type, // ← this is correct (NotificationType enum)
-        link, // ← this is the correct field name in your schema
-        read: false, // explicit default
+        type,
+        link,
+        read: false,
       },
     });
 
@@ -78,10 +77,10 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -91,17 +90,16 @@ export async function PATCH(request: Request) {
     if (markAllRead) {
       await prisma.notification.updateMany({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           read: false,
         },
         data: { read: true },
       });
     } else if (notificationId) {
-      // Extra safety: make sure the notification belongs to the user
       await prisma.notification.update({
         where: {
           id: notificationId,
-          userId: session.user.id, // prevents marking other users' notifications
+          userId: user.id,
         },
         data: { read: true },
       });

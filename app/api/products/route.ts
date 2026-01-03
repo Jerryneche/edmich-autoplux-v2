@@ -1,13 +1,18 @@
 // app/api/products/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSeedProducts } from "@/lib/seed-data";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.edmich.com";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const limit = searchParams.get("limit");
+
     const products = await prisma.product.findMany({
+      where: {
+        status: "ACTIVE",
+      },
       select: {
         id: true,
         name: true,
@@ -16,22 +21,21 @@ export async function GET() {
         category: true,
         image: true,
         stock: true,
+        createdAt: true,
         supplier: {
           select: {
             id: true,
             businessName: true,
+            verified: true,
           },
         },
       },
+      orderBy: { createdAt: "desc" }, // NEWEST FIRST
+      ...(limit && { take: parseInt(limit) }),
     });
 
-    if (products.length === 0) {
-      const seed = await getSeedProducts();
-      return NextResponse.json(seed);
-    }
-
     const formatted = products.map((p) => {
-      // Handle image URL - ensure it's a full URL
+      // Handle image URL - ensure it's a full URL for mobile
       let imageUrl = p.image;
       if (!imageUrl) {
         imageUrl = null; // Let the client handle the placeholder
@@ -51,13 +55,13 @@ export async function GET() {
         stock: p.stock,
         supplierId: p.supplier?.id || "",
         supplier: p.supplier?.businessName || "AutoParts Ltd",
+        verified: p.supplier?.verified || false,
       };
     });
 
     return NextResponse.json(formatted);
   } catch (error) {
     console.error("Products API error:", error);
-    const seed = await getSeedProducts();
-    return NextResponse.json(seed);
+    return NextResponse.json([]);
   }
 }

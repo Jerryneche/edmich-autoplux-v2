@@ -1,18 +1,16 @@
 // app/api/notifications/[id]/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 // PATCH - Mark notification as read
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -29,7 +27,7 @@ export async function PATCH(
       );
     }
 
-    if (notification.userId !== session.user.id) {
+    if (notification.userId !== user.id) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
@@ -50,13 +48,12 @@ export async function PATCH(
 
 // DELETE - Delete notification
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -73,7 +70,7 @@ export async function DELETE(
       );
     }
 
-    if (notification.userId !== session.user.id) {
+    if (notification.userId !== user.id) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 

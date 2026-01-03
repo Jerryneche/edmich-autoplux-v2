@@ -1,13 +1,12 @@
 // app/api/payment/initialize/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
-        userId: session.user.id,
+        userId: user.id,
       },
     });
 
@@ -45,13 +44,13 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email || session.user.email,
+          email: email || user.email,
           amount: Math.round(amount * 100), // Convert to kobo
           reference,
           callback_url: `${process.env.NEXTAUTH_URL}/payment/verify`,
           metadata: {
             orderId,
-            userId: session.user.id,
+            userId: user.id,
           },
         }),
       }
