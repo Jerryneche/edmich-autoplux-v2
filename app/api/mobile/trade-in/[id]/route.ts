@@ -6,9 +6,10 @@ import { prisma } from "@/lib/prisma";
 // GET - Get single trade-in details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const user = await getAuthUser(request);
 
     if (!user) {
@@ -16,16 +17,8 @@ export async function GET(
     }
 
     const tradeIn = await prisma.tradeIn.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
-        supplier: {
-          select: {
-            id: true,
-            businessName: true,
-            city: true,
-            state: true,
-          },
-        },
         user: {
           select: {
             id: true,
@@ -43,8 +36,8 @@ export async function GET(
       );
     }
 
-    // Only allow owner or assigned supplier to view
-    if (tradeIn.userId !== user.id && tradeIn.supplierId !== user.id) {
+    // Only allow owner to view
+    if (tradeIn.userId !== user.id) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
@@ -58,12 +51,13 @@ export async function GET(
   }
 }
 
-// PATCH - Update trade-in (for user to cancel or supplier to make offer)
+// PATCH - Update trade-in (for user to cancel)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const user = await getAuthUser(request);
 
     if (!user) {
@@ -71,10 +65,10 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { action, offerAmount, offerNote, responseNote } = body;
+    const { action } = body;
 
     const tradeIn = await prisma.tradeIn.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!tradeIn) {
@@ -84,14 +78,15 @@ export async function PATCH(
       );
     }
 
+    // Only owner can modify
+    if (tradeIn.userId !== user.id) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
     // Handle different actions
     switch (action) {
       case "CANCEL":
-        // Only owner can cancel
-        if (tradeIn.userId !== user.id) {
-          return NextResponse.json({ error: "Access denied" }, { status: 403 });
-        }
-        if (tradeIn.status !== "PENDING" && tradeIn.status !== "REVIEWING") {
+        if (tradeIn.status !== "PENDING") {
           return NextResponse.json(
             { error: "Cannot cancel at this stage" },
             { status: 400 },
@@ -99,90 +94,12 @@ export async function PATCH(
         }
 
         const cancelledTradeIn = await prisma.tradeIn.update({
-          where: { id: params.id },
+          where: { id },
           data: { status: "CANCELLED" },
         });
         return NextResponse.json({
           message: "Trade-in cancelled",
           tradeIn: cancelledTradeIn,
-        });
-
-      case "ACCEPT_OFFER":
-        // Only owner can accept offer
-        if (tradeIn.userId !== user.id) {
-          return NextResponse.json({ error: "Access denied" }, { status: 403 });
-        }
-        if (tradeIn.status !== "OFFER_MADE") {
-          return NextResponse.json(
-            { error: "No offer to accept" },
-            { status: 400 },
-          );
-        }
-
-        const acceptedTradeIn = await prisma.tradeIn.update({
-          where: { id: params.id },
-          data: {
-            status: "ACCEPTED",
-            responseNote: responseNote || null,
-          },
-        });
-        return NextResponse.json({
-          message: "Offer accepted",
-          tradeIn: acceptedTradeIn,
-        });
-
-      case "REJECT_OFFER":
-        // Only owner can reject offer
-        if (tradeIn.userId !== user.id) {
-          return NextResponse.json({ error: "Access denied" }, { status: 403 });
-        }
-        if (tradeIn.status !== "OFFER_MADE") {
-          return NextResponse.json(
-            { error: "No offer to reject" },
-            { status: 400 },
-          );
-        }
-
-        const rejectedTradeIn = await prisma.tradeIn.update({
-          where: { id: params.id },
-          data: {
-            status: "REJECTED",
-            responseNote: responseNote || null,
-          },
-        });
-        return NextResponse.json({
-          message: "Offer rejected",
-          tradeIn: rejectedTradeIn,
-        });
-
-      case "MAKE_OFFER":
-        // Only supplier can make offer
-        if (user.role !== "SUPPLIER") {
-          return NextResponse.json(
-            { error: "Only suppliers can make offers" },
-            { status: 403 },
-          );
-        }
-        if (!offerAmount || offerAmount <= 0) {
-          return NextResponse.json(
-            { error: "Valid offer amount required" },
-            { status: 400 },
-          );
-        }
-
-        const offerTradeIn = await prisma.tradeIn.update({
-          where: { id: params.id },
-          data: {
-            status: "OFFER_MADE",
-            supplierId: user.id,
-            offerAmount: parseFloat(offerAmount),
-            offerNote: offerNote || null,
-            offerDate: new Date(),
-          },
-        });
-        return NextResponse.json({
-          message: "Offer submitted",
-          tradeIn: offerTradeIn,
         });
 
       default:
@@ -200,9 +117,10 @@ export async function PATCH(
 // DELETE - Delete trade-in (only if pending)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const user = await getAuthUser(request);
 
     if (!user) {
@@ -210,7 +128,7 @@ export async function DELETE(
     }
 
     const tradeIn = await prisma.tradeIn.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!tradeIn) {
@@ -232,7 +150,7 @@ export async function DELETE(
     }
 
     await prisma.tradeIn.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json(
