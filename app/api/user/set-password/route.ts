@@ -1,91 +1,91 @@
 // app/api/user/set-password/route.ts
-// ===========================================
-// Set Password for Google Users
-// ===========================================
-
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
+// Helper to extract user from token
+async function getAuthUserFromToken(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
 
-// Helper to verify JWT token
-async function verifyToken(token: string): Promise<{ userId: string } | null> {
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    return decoded;
-  } catch {
-    return null;
+  if (!authHeader) {
+    return { user: null, error: "No authorization header" };
   }
-}
 
-export async function POST(request: Request) {
+  let token = authHeader;
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  }
+
   try {
-    // Try session auth first (web), then JWT (mobile)
-    let userId: string | null = null;
-
-    const session = await getServerSession(authOptions);
-    if (session?.user?.id) {
-      userId = session.user.id;
-    } else {
-      // Try JWT token for mobile
-      const authHeader = request.headers.get("authorization");
-      if (authHeader?.startsWith("Bearer ")) {
-        const token = authHeader.replace("Bearer ", "");
-        const decoded = await verifyToken(token);
-        if (decoded?.userId) {
-          userId = decoded.userId;
-        }
-      }
+    const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      return { user: null, error: "Server config error" };
     }
+
+    const decoded = jwt.verify(token, secret) as {
+      userId?: string;
+      id?: string;
+      sub?: string;
+    };
+    const userId = decoded.userId || decoded.id || decoded.sub;
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return { user: null, error: "No user ID in token" };
     }
 
-    // Parse body
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid request body" },
-        { status: 400 },
-      );
-    }
-
-    const { password } = body;
-
-    // Validate password
-    if (!password || password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 },
-      );
-    }
-
-    // Get user to check if they're a Google user
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        isGoogleAuth: true,
-        hasPassword: true,
-        password: true,
-      },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return { user: null, error: "User not found" };
+    }
+
+    return { user, error: null };
+  } catch (err: any) {
+    return { user: null, error: err.message };
+  }
+}
+
+// POST - Set password for Google OAuth users
+export async function POST(req: NextRequest) {
+  console.log("[SET PASSWORD] Starting...");
+
+  try {
+    const { user, error } = await getAuthUserFromToken(req);
+
+    if (!user) {
+      console.log("[SET PASSWORD] Auth failed:", error);
+      return NextResponse.json(
+        { error: "Unauthorized", debug: error },
+        { status: 401 },
+      );
     }
 
     // Check if user already has a password
-    if (user.hasPassword || user.password) {
+    if (user.hasPassword && user.password) {
       return NextResponse.json(
-        { error: "Password already set. Use change-password instead." },
+        {
+          error: "Password already set. Use change-password endpoint instead.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const body = await req.json();
+    const { password } = body;
+
+    if (!password) {
+      return NextResponse.json(
+        { error: "Password is required" },
+        { status: 400 },
+      );
+    }
+
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters" },
         { status: 400 },
       );
     }
@@ -93,24 +93,25 @@ export async function POST(request: Request) {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Update user with new password
+    // Update user
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: {
         password: hashedPassword,
         hasPassword: true,
       },
     });
 
+    console.log("[SET PASSWORD] Success for user:", user.id);
+
     return NextResponse.json({
       success: true,
-      message: "Password set successfully",
+      message:
+        "Password set successfully. You can now login with email and password.",
     });
-  } catch (error: any) {
-    console.error("[SET-PASSWORD] Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to set password" },
-      { status: 500 },
-    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[SET PASSWORD] Error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

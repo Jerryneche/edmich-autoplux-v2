@@ -1,105 +1,164 @@
 // app/api/user/profile/route.ts
-// GET USER PROFILE - Works with both NextAuth session and JWT token
-
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
+// Helper to extract user from token
+async function getAuthUserFromToken(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
 
+  if (!authHeader) {
+    return { user: null, error: "No authorization header" };
+  }
+
+  let token = authHeader;
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  }
+
+  try {
+    const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      return { user: null, error: "Server config error" };
+    }
+
+    const decoded = jwt.verify(token, secret) as {
+      userId?: string;
+      id?: string;
+      sub?: string;
+    };
+    const userId = decoded.userId || decoded.id || decoded.sub;
+
+    if (!userId) {
+      return { user: null, error: "No user ID in token" };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return { user: null, error: "User not found" };
+    }
+
+    return { user, error: null };
+  } catch (err: any) {
+    return { user: null, error: err.message };
+  }
+}
+
+// GET - Fetch user profile
 export async function GET(req: NextRequest) {
   try {
-    let userEmail: string | null = null;
+    const { user, error } = await getAuthUserFromToken(req);
 
-    // 1. Try NextAuth session first
-    const session = await getServerSession(authOptions);
-    if (session?.user?.email) {
-      userEmail = session.user.email.toLowerCase();
-    }
-
-    // 2. Try auth-token cookie
-    if (!userEmail) {
-      const cookieStore = await cookies();
-      const token = cookieStore.get("auth-token")?.value;
-
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, JWT_SECRET) as any;
-          if (decoded.email) {
-            userEmail = decoded.email.toLowerCase();
-          }
-        } catch (e) {
-          // Token expired or invalid
-        }
-      }
-    }
-
-    // 3. Try Authorization header (for mobile)
-    if (!userEmail) {
-      const authHeader = req.headers.get("authorization");
-      if (authHeader?.startsWith("Bearer ")) {
-        const token = authHeader.substring(7);
-        try {
-          const decoded = jwt.verify(token, JWT_SECRET) as any;
-          if (decoded.email) {
-            userEmail = decoded.email.toLowerCase();
-          }
-        } catch (e) {
-          // Token expired or invalid
-        }
-      }
-    }
-
-    if (!userEmail) {
+    if (!user) {
       return NextResponse.json(
-        { error: "Unauthorized. Please login." },
-        { status: 401 }
+        { error: "Unauthorized", debug: error },
+        { status: 401 },
       );
     }
 
-    // Fetch user
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
+    // Get profile based on role
+    let profile = null;
+
+    if (user.role === "SUPPLIER") {
+      profile = await prisma.supplierProfile.findUnique({
+        where: { userId: user.id },
+      });
+    } else if (user.role === "MECHANIC") {
+      profile = await prisma.mechanicProfile.findUnique({
+        where: { userId: user.id },
+      });
+    } else if (user.role === "LOGISTICS") {
+      profile = await prisma.logisticsProfile.findUnique({
+        where: { userId: user.id },
+      });
+    }
+
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        image: user.image,
+        role: user.role,
+        isGoogleAuth: user.isGoogleAuth,
+        hasPassword: user.hasPassword,
+        onboardingStatus: user.onboardingStatus,
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
+      },
+      profile,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// PATCH - Update user profile
+export async function PATCH(req: NextRequest) {
+  console.log("[USER PROFILE PATCH] Starting...");
+
+  try {
+    const { user, error } = await getAuthUserFromToken(req);
+
+    if (!user) {
+      console.log("[USER PROFILE PATCH] Auth failed:", error);
+      return NextResponse.json(
+        { error: "Unauthorized", debug: error },
+        { status: 401 },
+      );
+    }
+
+    const body = await req.json();
+    console.log("[USER PROFILE PATCH] Body:", JSON.stringify(body));
+
+    const { name, phone } = body;
+
+    // Build update data (only include fields that are provided)
+    const updateData: { name?: string; phone?: string | null } = {};
+
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+
+    if (phone !== undefined) {
+      updateData.phone = phone || null;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No fields to update" },
+        { status: 400 },
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: updateData,
       select: {
         id: true,
         name: true,
         email: true,
-        username: true,
         phone: true,
         image: true,
         role: true,
-        emailVerified: true,
-        onboardingStatus: true,
-        createdAt: true,
-        password: true, // Only to check if exists
+        isGoogleAuth: true,
+        hasPassword: true,
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    console.log("[USER PROFILE PATCH] Success:", updatedUser.id);
 
     return NextResponse.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      username: user.username,
-      phone: user.phone,
-      image: user.image,
-      role: user.role,
-      emailVerified: !!user.emailVerified,
-      hasPassword: !!user.password,
-      onboardingStatus: user.onboardingStatus,
-      createdAt: user.createdAt,
+      success: true,
+      user: updatedUser,
     });
-  } catch (error: any) {
-    console.error("[PROFILE] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch profile" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[USER PROFILE PATCH] Error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

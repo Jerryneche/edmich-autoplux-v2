@@ -1,68 +1,89 @@
 // app/api/user/change-password/route.ts
-// ===========================================
-// Change Password for users who have one
-// ===========================================
-
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
+// Helper to extract user from token
+async function getAuthUserFromToken(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
 
-// Helper to verify JWT token
-async function verifyToken(token: string): Promise<{ userId: string } | null> {
+  if (!authHeader) {
+    return { user: null, error: "No authorization header" };
+  }
+
+  let token = authHeader;
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  }
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    return decoded;
-  } catch {
-    return null;
+    const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      return { user: null, error: "Server config error" };
+    }
+
+    const decoded = jwt.verify(token, secret) as {
+      userId?: string;
+      id?: string;
+      sub?: string;
+    };
+    const userId = decoded.userId || decoded.id || decoded.sub;
+
+    if (!userId) {
+      return { user: null, error: "No user ID in token" };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return { user: null, error: "User not found" };
+    }
+
+    return { user, error: null };
+  } catch (err: any) {
+    return { user: null, error: err.message };
   }
 }
 
-export async function POST(request: Request) {
+// POST - Change password for users with existing password
+export async function POST(req: NextRequest) {
+  console.log("[CHANGE PASSWORD] Starting...");
+
   try {
-    // Try session auth first (web), then JWT (mobile)
-    let userId: string | null = null;
+    const { user, error } = await getAuthUserFromToken(req);
 
-    const session = await getServerSession(authOptions);
-    if (session?.user?.id) {
-      userId = session.user.id;
-    } else {
-      // Try JWT token for mobile
-      const authHeader = request.headers.get("authorization");
-      if (authHeader?.startsWith("Bearer ")) {
-        const token = authHeader.replace("Bearer ", "");
-        const decoded = await verifyToken(token);
-        if (decoded?.userId) {
-          userId = decoded.userId;
-        }
-      }
-    }
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Parse body
-    let body;
-    try {
-      body = await request.json();
-    } catch {
+    if (!user) {
+      console.log("[CHANGE PASSWORD] Auth failed:", error);
       return NextResponse.json(
-        { error: "Invalid request body" },
+        { error: "Unauthorized", debug: error },
+        { status: 401 },
+      );
+    }
+
+    // Check if user has a password to change
+    if (!user.password) {
+      return NextResponse.json(
+        { error: "No password set. Use set-password endpoint instead." },
         { status: 400 },
       );
     }
 
+    const body = await req.json();
     const { currentPassword, newPassword } = body;
 
-    // Validate inputs
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword) {
       return NextResponse.json(
-        { error: "Current password and new password are required" },
+        { error: "Current password is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!newPassword) {
+      return NextResponse.json(
+        { error: "New password is required" },
         { status: 400 },
       );
     }
@@ -74,69 +95,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get user with current password
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        password: true,
-        hasPassword: true,
-        isGoogleAuth: true,
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Check if user has a password
-    if (!user.password) {
-      if (user.isGoogleAuth) {
-        return NextResponse.json(
-          { error: "No password set. Use set-password to create one." },
-          { status: 400 },
-        );
-      }
-      return NextResponse.json(
-        { error: "No password set for this account" },
-        { status: 400 },
-      );
-    }
-
     // Verify current password
-    const isPasswordValid = await bcrypt.compare(
+    const isValidPassword = await bcrypt.compare(
       currentPassword,
       user.password,
     );
-
-    if (!isPasswordValid) {
+    if (!isValidPassword) {
       return NextResponse.json(
         { error: "Current password is incorrect" },
         { status: 400 },
       );
     }
 
-    // Hash new password
+    // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    // Update password
+    // Update user
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: {
         password: hashedPassword,
         hasPassword: true,
       },
     });
 
+    console.log("[CHANGE PASSWORD] Success for user:", user.id);
+
     return NextResponse.json({
       success: true,
       message: "Password changed successfully",
     });
-  } catch (error: any) {
-    console.error("[CHANGE-PASSWORD] Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to change password" },
-      { status: 500 },
-    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[CHANGE PASSWORD] Error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
