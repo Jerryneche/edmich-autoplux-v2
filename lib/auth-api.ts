@@ -5,7 +5,9 @@ import jwt from "jsonwebtoken";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET!;
+// IMPORTANT: Use JWT_SECRET first (for mobile tokens), fallback to NEXTAUTH_SECRET (for web)
+// Mobile tokens are signed with JWT_SECRET, so we must verify with the same secret
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 
 // Log the secret length on startup (don't log the actual secret!)
 console.log("[AUTH-API] JWT_SECRET length:", JWT_SECRET?.length || 0);
@@ -14,7 +16,7 @@ console.log("[AUTH-API] JWT_SECRET length:", JWT_SECRET?.length || 0);
 export function generateToken(
   userId: string,
   email: string,
-  role: string
+  role: string,
 ): string {
   console.log("[AUTH-API] Generating token for:", userId, email, role);
   return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: "30d" });
@@ -28,7 +30,7 @@ export async function getAuthUser(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   console.log(
     "[AUTH-API] Auth header:",
-    authHeader ? authHeader.substring(0, 30) + "..." : "NONE"
+    authHeader ? authHeader.substring(0, 30) + "..." : "NONE",
   );
 
   if (authHeader?.startsWith("Bearer ")) {
@@ -39,7 +41,7 @@ export async function getAuthUser(req: NextRequest) {
     try {
       console.log(
         "[AUTH-API] Attempting JWT verify with secret length:",
-        JWT_SECRET?.length
+        JWT_SECRET?.length,
       );
       const decoded = jwt.verify(token, JWT_SECRET) as {
         userId: string;
