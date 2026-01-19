@@ -24,7 +24,6 @@ export async function GET(
             businessName: true,
             city: true,
             state: true,
-            phone: true,
           },
         },
         user: {
