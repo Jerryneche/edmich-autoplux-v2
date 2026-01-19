@@ -4,27 +4,51 @@ import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 import { v2 as cloudinary } from "cloudinary";
 
-// Configure Cloudinary
+// Configure Cloudinary - support both naming conventions
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
+  cloud_name:
+    process.env.CLOUDINARY_CLOUD_NAME ||
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY || process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 export async function POST(req: NextRequest) {
   try {
-    // Check Cloudinary configuration
-    if (
-      !process.env.CLOUDINARY_CLOUD_NAME ||
-      !process.env.CLOUDINARY_API_KEY ||
-      !process.env.CLOUDINARY_API_SECRET
-    ) {
+    // Check Cloudinary configuration - support both naming conventions
+    const cloudName =
+      process.env.CLOUDINARY_CLOUD_NAME ||
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    console.log("[MOBILE PROFILE PHOTO] Cloudinary config check:", {
+      cloudName: cloudName ? "SET" : "NOT SET",
+      apiKey: apiKey ? "SET" : "NOT SET",
+      apiSecret: apiSecret ? "SET" : "NOT SET",
+    });
+
+    if (!cloudName || !apiKey || !apiSecret) {
       console.error("[MOBILE PROFILE PHOTO] Cloudinary not configured");
       return NextResponse.json(
-        { error: "Image upload service not configured" },
+        {
+          error: "Image upload service not configured",
+          debug: {
+            cloudName: !!cloudName,
+            apiKey: !!apiKey,
+            apiSecret: !!apiSecret,
+          },
+        },
         { status: 500 },
       );
     }
+
+    // Re-configure with correct values (in case initial config failed)
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+    });
 
     // Authenticate user
     const user = await getAuthUser(req);
