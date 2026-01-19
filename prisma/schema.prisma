@@ -91,6 +91,8 @@ model User {
   orderTrackings         OrderTracking[]
   logisticsReviews       LogisticsReview[]
   vehicles               Vehicle[]
+  hasPassword            Boolean           @default(false)
+  googleId               String?           @unique
 
   @@index([email])
   @@index([username])

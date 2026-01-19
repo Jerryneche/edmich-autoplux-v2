@@ -1,7 +1,7 @@
-// app/api/user/change-password/route.ts
+// app/api/user/set-password/route.ts
 // ===========================================
-// Change Password
-// For users who already have a password set
+// Set Password for Google Users
+// Allows Google OAuth users to set a password
 // ===========================================
 
 import { NextResponse } from "next/server";
@@ -35,31 +35,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { currentPassword, newPassword } = await request.json();
+    const { password } = await request.json();
 
-    // Validate inputs
-    if (!currentPassword || !newPassword) {
+    // Validate password
+    if (!password || password.length < 8) {
       return NextResponse.json(
-        { error: "Current password and new password are required" },
+        { error: "Password must be at least 8 characters" },
         { status: 400 },
       );
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "New password must be at least 8 characters" },
-        { status: 400 },
-      );
-    }
-
-    // Get user with current password
+    // Get user to check if they're a Google user
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
-        password: true,
-        hasPassword: true,
         isGoogleAuth: true,
+        hasPassword: true,
+        password: true,
       },
     });
 
@@ -67,56 +60,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check if user has a password
-    if (!user.password) {
-      // If Google user without password, redirect them to set-password
-      if (user.isGoogleAuth) {
-        return NextResponse.json(
-          {
-            error: "No password set. Use set-password endpoint to create one.",
-          },
-          { status: 400 },
-        );
-      }
+    // Check if user already has a password
+    if (user.hasPassword || user.password) {
       return NextResponse.json(
-        { error: "No password set for this account" },
+        { error: "Password already set. Use change-password endpoint." },
         { status: 400 },
       );
     }
 
-    // Verify current password
-    const isPasswordValid = await bcrypt.compare(
-      currentPassword,
-      user.password,
-    );
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: "Current password is incorrect" },
-        { status: 400 },
-      );
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-    // Update password
+    // Update user with new password
     await prisma.user.update({
       where: { id: userId },
       data: {
         password: hashedPassword,
-        hasPassword: true, // Ensure this is set
+        hasPassword: true,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: "Password changed successfully",
+      message:
+        "Password set successfully. You can now login with email and password.",
     });
   } catch (error: any) {
-    console.error("Password change error:", error);
+    console.error("Set password error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to change password" },
+      { error: error.message || "Failed to set password" },
       { status: 500 },
     );
   }

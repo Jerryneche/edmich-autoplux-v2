@@ -5,6 +5,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
 type UserRole = "BUYER" | "SUPPLIER" | "MECHANIC" | "LOGISTICS" | "ADMIN";
@@ -63,14 +64,14 @@ export const authOptions: NextAuthOptions = {
 
           if (!user.emailVerified) {
             throw new Error(
-              "Email not verified. Please verify your email first."
+              "Email not verified. Please verify your email first.",
             );
           }
 
           if (credentials.verified === "true") {
             console.log(
               "[AUTH] Verified flag set, creating session for:",
-              user.email
+              user.email,
             );
           } else if (credentials.otp) {
             console.log("[AUTH] OTP login successful:", user.email);
@@ -97,7 +98,7 @@ export const authOptions: NextAuthOptions = {
         if (credentials.emailOrUsername && credentials.password) {
           console.log(
             "[AUTH] Password login attempt:",
-            credentials.emailOrUsername
+            credentials.emailOrUsername,
           );
 
           const user = await prisma.user.findFirst({
@@ -124,7 +125,7 @@ export const authOptions: NextAuthOptions = {
 
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
-            user.password
+            user.password,
           );
 
           if (!isPasswordValid) {
@@ -314,3 +315,20 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 };
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
+
+export async function verifyToken(
+  token: string,
+): Promise<{ userId: string; email: string; role: string } | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      email: string;
+      role: string;
+    };
+    return decoded;
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return null;
+  }
+}
