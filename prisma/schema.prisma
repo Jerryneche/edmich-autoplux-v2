@@ -509,10 +509,11 @@ model SupplierProfile {
   metaDescription String?
   keywords        String[] @default([])
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  user      User      @relation(fields: [userId], references: [id])
-  products  Product[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id])
+  products      Product[]
+  tradeInOffers TradeIn[]
 }
 
 model OrderServiceLink {
@@ -588,18 +589,48 @@ model ContactSubmission {
 }
 
 model TradeIn {
-  id             String        @id @default(cuid())
-  userId         String
-  user           User          @relation(fields: [userId], references: [id])
-  oldPart        String
-  condition      String
-  estimatedValue Decimal       @default(0.0)
-  status         TradeInStatus @default(PENDING)
-  photos         String[]      @default([])
-  createdAt      DateTime      @default(now())
-  approvedAt     DateTime?
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("trade_ins")
+  // Item details
+  itemName    String
+  category    String
+  brand       String?
+  condition   String // EXCELLENT, GOOD, FAIR, POOR
+  description String?  @db.Text
+  images      String[]
+  partNumber  String?
+
+  // Vehicle compatibility
+  vehicleMake  String?
+  vehicleModel String?
+  vehicleYear  Int?
+
+  // Pricing
+  askingPrice     Float?
+  preferredMethod String @default("CREDIT") // CREDIT, CASH, EXCHANGE
+
+  // Offer from supplier
+  supplierId  String?
+  supplier    SupplierProfile? @relation(fields: [supplierId], references: [id])
+  offerAmount Float?
+  offerNote   String?          @db.Text
+  offerDate   DateTime?
+
+  // Response
+  responseNote String? @db.Text
+
+  // Status tracking
+  status String @default("PENDING") // PENDING, REVIEWING, OFFER_MADE, ACCEPTED, REJECTED, COMPLETED, CANCELLED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([category])
 }
 
 /**
