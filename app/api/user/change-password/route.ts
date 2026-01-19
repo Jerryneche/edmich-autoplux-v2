@@ -1,14 +1,26 @@
 // app/api/user/change-password/route.ts
 // ===========================================
-// Change Password
-// For users who already have a password set
+// Change Password for users who have one
 // ===========================================
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, verifyToken } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
+
+// Helper to verify JWT token
+async function verifyToken(token: string): Promise<{ userId: string } | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    return decoded;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -20,10 +32,9 @@ export async function POST(request: Request) {
       userId = session.user.id;
     } else {
       // Try JWT token for mobile
-      const token = request.headers
-        .get("authorization")
-        ?.replace("Bearer ", "");
-      if (token) {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "");
         const decoded = await verifyToken(token);
         if (decoded?.userId) {
           userId = decoded.userId;
@@ -35,7 +46,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { currentPassword, newPassword } = await request.json();
+    // Parse body
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 },
+      );
+    }
+
+    const { currentPassword, newPassword } = body;
 
     // Validate inputs
     if (!currentPassword || !newPassword) {
@@ -69,12 +91,9 @@ export async function POST(request: Request) {
 
     // Check if user has a password
     if (!user.password) {
-      // If Google user without password, redirect them to set-password
       if (user.isGoogleAuth) {
         return NextResponse.json(
-          {
-            error: "No password set. Use set-password endpoint to create one.",
-          },
+          { error: "No password set. Use set-password to create one." },
           { status: 400 },
         );
       }
@@ -105,7 +124,7 @@ export async function POST(request: Request) {
       where: { id: userId },
       data: {
         password: hashedPassword,
-        hasPassword: true, // Ensure this is set
+        hasPassword: true,
       },
     });
 
@@ -114,7 +133,7 @@ export async function POST(request: Request) {
       message: "Password changed successfully",
     });
   } catch (error: any) {
-    console.error("Password change error:", error);
+    console.error("[CHANGE-PASSWORD] Error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to change password" },
       { status: 500 },

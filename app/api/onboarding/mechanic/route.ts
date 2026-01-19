@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { hasProfile: false, mechanicProfile: null },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -22,19 +22,19 @@ export async function GET(request: NextRequest) {
     if (!mechanicProfile) {
       return NextResponse.json(
         { hasProfile: false, mechanicProfile: null },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
     return NextResponse.json(
       { hasProfile: true, mechanicProfile },
-      { status: 200 }
+      { status: 200 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error checking mechanic profile:", error);
     return NextResponse.json(
       { hasProfile: false, mechanicProfile: null },
-      { status: 200 }
+      { status: 200 },
     );
   }
 }
@@ -51,41 +51,85 @@ export async function POST(request: NextRequest) {
     if (user.role !== "MECHANIC") {
       return NextResponse.json(
         { error: "Only mechanics can create profiles" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const body = await request.json();
 
-    // Extract and validate fields from body
+    // Extract fields - supporting both mobile and web field names
     const {
+      // Required fields per schema
       businessName,
       phone,
       address,
       city,
       state,
       experience,
-      description,
-      specializations,
-      mobileService,
       hourlyRate,
+      specialty, // Primary specialty (required in schema)
+      specialization, // Array of specializations
+      specializations, // Alternative name from mobile
+
+      // Optional fields
+      description,
+      bio,
+      certifications,
+      workingHours,
+      responseTime,
+      latitude,
+      longitude,
+      basePrice,
+      mobileService, // Maps to 'available' (legacy) for mobile service flag
     } = body;
 
-    // Build the profile data
+    // Validate required fields per schema
+    if (!businessName || !phone || !address || !city || !state) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing required fields: businessName, phone, address, city, state",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (experience === undefined || hourlyRate === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields: experience, hourlyRate" },
+        { status: 400 },
+      );
+    }
+
+    // Handle specialization array - accept from multiple field names
+    const specializationArray = specialization || specializations || [];
+
+    // Primary specialty - use provided or first from array or default
+    const primarySpecialty =
+      specialty || specializationArray[0] || "General Repairs";
+
+    // Build profile data matching schema exactly
     const profileData = {
-      businessName: businessName || "",
-      phone: phone || "",
-      address: address || "",
-      city: city || "",
-      state: state || "",
-      experience: experience || 0,
-      description: description || "",
-      specialization: specializations || [], // Maps to specialization field in schema
-      specialty: specializations?.[0] || "General Repairs", // Primary specialty
-      location: `${city}, ${state}`,
-      hourlyRate: hourlyRate || 0,
-      isAvailable: true,
-      available: mobileService ?? true,
+      businessName,
+      phone,
+      address,
+      city,
+      state,
+      experience: parseInt(String(experience)) || 0,
+      hourlyRate: parseFloat(String(hourlyRate)) || 0,
+      specialty: primarySpecialty, // Required String
+      specialization: specializationArray, // String[] @default([])
+      location: `${city}, ${state}`, // Required String
+      description: description || null, // String?
+      bio: bio || null, // String?
+      certifications: certifications || [], // String[] @default([])
+      workingHours: workingHours || null, // String?
+      responseTime: responseTime || null, // String?
+      latitude: latitude ? parseFloat(String(latitude)) : null, // Float?
+      longitude: longitude ? parseFloat(String(longitude)) : null, // Float?
+      basePrice: basePrice ? parseFloat(String(basePrice)) : 0, // Float? @default(0)
+      isAvailable: true, // Boolean @default(true)
+      available: mobileService ?? true, // Boolean? (legacy alias)
     };
 
     const mechanicProfile = await prisma.mechanicProfile.upsert({
@@ -94,14 +138,14 @@ export async function POST(request: NextRequest) {
       create: {
         ...profileData,
         userId: user.id,
-        verified: false,
+        verified: false, // Boolean @default(false)
         approved: true, // Auto-approve for now
-        rating: 0,
-        completedJobs: 0,
+        rating: 0, // Float @default(0)
+        completedJobs: 0, // Int @default(0)
       },
     });
 
-    // ✅ Mark onboarding as completed
+    // Mark onboarding as completed
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -112,16 +156,28 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
+        success: true,
         message: "Mechanic profile created successfully",
         mechanicProfile,
       },
-      { status: 201 }
+      { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating mechanic profile:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to create mechanic profile" },
-      { status: 500 }
-    );
+
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Failed to create mechanic profile";
+    const prismaError = error as { code?: string };
+
+    if (prismaError.code === "P2003") {
+      return NextResponse.json(
+        { error: "User account not found. Please log out and log in again." },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

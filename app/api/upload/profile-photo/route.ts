@@ -1,13 +1,17 @@
 // app/api/upload/profile-photo/route.ts
 // ===========================================
 // Profile Photo Upload with Cloudinary
+// Fixed with better error handling
 // ===========================================
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, verifyToken } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { v2 as cloudinary } from "cloudinary";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 
 // Configure Cloudinary
 cloudinary.config({
@@ -16,8 +20,27 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Helper to verify JWT token
+async function verifyToken(token: string): Promise<{ userId: string } | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   try {
+    // Check Cloudinary config
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY) {
+      console.error("[UPLOAD] Cloudinary not configured");
+      return NextResponse.json(
+        { error: "Image upload service not configured" },
+        { status: 500 },
+      );
+    }
+
     // Try session auth first (web), then JWT (mobile)
     let userId: string | null = null;
 
@@ -26,10 +49,9 @@ export async function POST(request: Request) {
       userId = session.user.id;
     } else {
       // Try JWT token for mobile
-      const token = request.headers
-        .get("authorization")
-        ?.replace("Bearer ", "");
-      if (token) {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "");
         const decoded = await verifyToken(token);
         if (decoded?.userId) {
           userId = decoded.userId;
@@ -41,7 +63,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const formData = await request.formData();
+    // Parse form data
+    let formData;
+    try {
+      formData = await request.formData();
+    } catch (e) {
+      console.error("[UPLOAD] Failed to parse form data:", e);
+      return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+    }
+
     const file = formData.get("file") as File;
 
     if (!file) {
@@ -71,28 +101,42 @@ export async function POST(request: Request) {
     const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
 
     // Upload to Cloudinary
-    const result = await cloudinary.uploader.upload(base64, {
-      folder: "edmich/profiles",
-      public_id: `user-${userId}-${Date.now()}`,
-      transformation: [
-        { width: 400, height: 400, crop: "fill", gravity: "face" },
-        { quality: "auto", fetch_format: "auto" },
-      ],
-      overwrite: true,
-    });
+    let result;
+    try {
+      result = await cloudinary.uploader.upload(base64, {
+        folder: "edmich/profiles",
+        public_id: `user-${userId}-${Date.now()}`,
+        transformation: [
+          { width: 400, height: 400, crop: "fill", gravity: "face" },
+          { quality: "auto", fetch_format: "auto" },
+        ],
+        overwrite: true,
+      });
+    } catch (e: any) {
+      console.error("[UPLOAD] Cloudinary upload failed:", e);
+      return NextResponse.json(
+        { error: "Failed to upload to cloud storage" },
+        { status: 500 },
+      );
+    }
 
     // Update user image in database
-    await prisma.user.update({
-      where: { id: userId },
-      data: { image: result.secure_url },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { image: result.secure_url },
+      });
+    } catch (e) {
+      console.error("[UPLOAD] Database update failed:", e);
+      // Still return success since image is uploaded
+    }
 
     return NextResponse.json({
       success: true,
       url: result.secure_url,
     });
   } catch (error: any) {
-    console.error("Profile photo upload error:", error);
+    console.error("[UPLOAD] Unexpected error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to upload photo" },
       { status: 500 },

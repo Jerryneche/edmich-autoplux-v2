@@ -1,14 +1,26 @@
 // app/api/user/set-password/route.ts
 // ===========================================
 // Set Password for Google Users
-// Allows Google OAuth users to set a password
 // ===========================================
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, verifyToken } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
+
+// Helper to verify JWT token
+async function verifyToken(token: string): Promise<{ userId: string } | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    return decoded;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -20,10 +32,9 @@ export async function POST(request: Request) {
       userId = session.user.id;
     } else {
       // Try JWT token for mobile
-      const token = request.headers
-        .get("authorization")
-        ?.replace("Bearer ", "");
-      if (token) {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "");
         const decoded = await verifyToken(token);
         if (decoded?.userId) {
           userId = decoded.userId;
@@ -35,7 +46,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { password } = await request.json();
+    // Parse body
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 },
+      );
+    }
+
+    const { password } = body;
 
     // Validate password
     if (!password || password.length < 8) {
@@ -63,7 +85,7 @@ export async function POST(request: Request) {
     // Check if user already has a password
     if (user.hasPassword || user.password) {
       return NextResponse.json(
-        { error: "Password already set. Use change-password endpoint." },
+        { error: "Password already set. Use change-password instead." },
         { status: 400 },
       );
     }
@@ -82,11 +104,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message:
-        "Password set successfully. You can now login with email and password.",
+      message: "Password set successfully",
     });
   } catch (error: any) {
-    console.error("Set password error:", error);
+    console.error("[SET-PASSWORD] Error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to set password" },
       { status: 500 },

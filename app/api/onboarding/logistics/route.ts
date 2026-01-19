@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { hasProfile: false, logisticsProfile: null },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -22,19 +22,19 @@ export async function GET(request: NextRequest) {
     if (!logisticsProfile) {
       return NextResponse.json(
         { hasProfile: false, logisticsProfile: null },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
     return NextResponse.json(
       { hasProfile: true, logisticsProfile },
-      { status: 200 }
+      { status: 200 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error checking logistics profile:", error);
     return NextResponse.json(
       { hasProfile: false, logisticsProfile: null },
-      { status: 200 }
+      { status: 200 },
     );
   }
 }
@@ -51,42 +51,70 @@ export async function POST(request: NextRequest) {
     if (user.role !== "LOGISTICS") {
       return NextResponse.json(
         { error: "Only logistics providers can create profiles" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const body = await request.json();
 
-    // Extract and validate fields from body
+    // Extract fields - supporting both mobile and web field names
     const {
+      // Required fields per schema
       companyName,
       phone,
       address,
       city,
       state,
+      vehicleType, // Required String - primary vehicle type
+      vehicleNumber, // Required String
+      licenseNumber, // Required String
+
+      // Optional fields
       description,
-      vehicleType,
-      vehicleNumber,
-      licenseNumber,
-      vehicleTypes,
-      coverageAreas,
+      vehicleTypes, // String[] @default([]) - additional vehicle types
+      coverageAreas, // String[] @default([])
+      currentLat, // Float?
+      currentLng, // Float?
     } = body;
 
-    // Build the profile data
+    // Validate required fields per schema
+    if (!companyName || !phone || !address || !city || !state) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing required fields: companyName, phone, address, city, state",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!vehicleType || !vehicleNumber || !licenseNumber) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing required fields: vehicleType, vehicleNumber, licenseNumber",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Build profile data matching schema exactly
     const profileData = {
-      companyName: companyName || "",
-      phone: phone || "",
-      address: address || "",
-      city: city || "",
-      state: state || "",
-      description: description || "",
-      vehicleType: vehicleType || vehicleTypes?.[0] || "Van",
-      vehicleNumber: vehicleNumber || "",
-      licenseNumber: licenseNumber || "",
-      vehicleTypes: vehicleTypes || [],
-      coverageAreas: coverageAreas || [],
-      isAvailable: true,
-      available: true,
+      companyName, // Required String
+      phone, // Required String
+      address, // Required String
+      city, // Required String
+      state, // Required String
+      vehicleType, // Required String
+      vehicleNumber, // Required String
+      licenseNumber, // Required String
+      description: description || null, // String?
+      vehicleTypes: vehicleTypes || [], // String[] @default([])
+      coverageAreas: coverageAreas || [], // String[] @default([])
+      currentLat: currentLat ? parseFloat(String(currentLat)) : null, // Float?
+      currentLng: currentLng ? parseFloat(String(currentLng)) : null, // Float?
+      isAvailable: true, // Boolean @default(true)
+      available: true, // Boolean? (legacy alias)
     };
 
     const logisticsProfile = await prisma.logisticsProfile.upsert({
@@ -95,14 +123,14 @@ export async function POST(request: NextRequest) {
       create: {
         ...profileData,
         userId: user.id,
-        verified: false,
+        verified: false, // Boolean @default(false)
         approved: true, // Auto-approve for now
-        rating: 0,
-        completedDeliveries: 0,
+        rating: 0, // Float @default(0)
+        completedDeliveries: 0, // Int @default(0)
       },
     });
 
-    // ✅ Mark onboarding as completed
+    // Mark onboarding as completed
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -113,16 +141,28 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
+        success: true,
         message: "Logistics profile created successfully",
         logisticsProfile,
       },
-      { status: 201 }
+      { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating logistics profile:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to create logistics profile" },
-      { status: 500 }
-    );
+
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Failed to create logistics profile";
+    const prismaError = error as { code?: string };
+
+    if (prismaError.code === "P2003") {
+      return NextResponse.json(
+        { error: "User account not found. Please log out and log in again." },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

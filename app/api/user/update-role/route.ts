@@ -1,15 +1,26 @@
 // app/api/user/update-role/route.ts
 // ===========================================
-// Update User Role
-// Supports both session (web) and JWT (mobile) auth
+// Update User Role (from Edit Profile)
 // ===========================================
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, verifyToken } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import jwt from "jsonwebtoken";
 
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
 const VALID_ROLES = ["BUYER", "SUPPLIER", "MECHANIC", "LOGISTICS"];
+
+// Helper to verify JWT token
+async function verifyToken(token: string): Promise<{ userId: string } | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    return decoded;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,10 +32,9 @@ export async function POST(request: Request) {
       userId = session.user.id;
     } else {
       // Try JWT token for mobile
-      const token = request.headers
-        .get("authorization")
-        ?.replace("Bearer ", "");
-      if (token) {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "");
         const decoded = await verifyToken(token);
         if (decoded?.userId) {
           userId = decoded.userId;
@@ -36,7 +46,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { role } = await request.json();
+    // Parse body
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 },
+      );
+    }
+
+    const { role } = body;
 
     if (!role) {
       return NextResponse.json({ error: "Role is required" }, { status: 400 });
@@ -45,13 +66,7 @@ export async function POST(request: Request) {
     const normalizedRole = role.toUpperCase();
 
     if (!VALID_ROLES.includes(normalizedRole)) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid role. Must be BUYER, SUPPLIER, MECHANIC, or LOGISTICS",
-        },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
     // Update user role
@@ -59,7 +74,6 @@ export async function POST(request: Request) {
       where: { id: userId },
       data: {
         role: normalizedRole,
-        // Reset onboarding status if switching to non-buyer role
         onboardingStatus: normalizedRole === "BUYER" ? "COMPLETED" : "PENDING",
         hasCompletedOnboarding: normalizedRole === "BUYER",
       },
@@ -82,7 +96,7 @@ export async function POST(request: Request) {
       user: updatedUser,
     });
   } catch (error: any) {
-    console.error("Update role error:", error);
+    console.error("[UPDATE-ROLE] Error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to update role" },
       { status: 500 },
