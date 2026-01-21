@@ -21,7 +21,8 @@ async function getCurrentUser(request: NextRequest) {
 
   return null;
 }
-export async function POST_FUND(request: NextRequest) {
+
+export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser(request);
     if (!user) {
@@ -52,14 +53,10 @@ export async function POST_FUND(request: NextRequest) {
     // Generate payment reference
     const reference = `FUND-${Date.now()}-${user.id.slice(0, 8)}`;
 
-    // TODO: Initialize Paystack payment here
-    // For now, return reference for frontend to handle
-
     return NextResponse.json({
       success: true,
       reference,
       walletId: wallet.id,
-      // paymentUrl: paystackUrl, // In production
     });
   } catch (error) {
     console.error("Wallet fund error:", error);
