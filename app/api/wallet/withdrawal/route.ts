@@ -7,18 +7,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// Helper to get user from either JWT (mobile) or session (web)
 async function getCurrentUser(request: NextRequest) {
-  // Try JWT first (mobile)
   const authUser = await getAuthUser(request);
   if (authUser) return authUser;
-
-  // Fall back to session (web)
   const session = await getServerSession(authOptions);
   if (session?.user?.id) {
     return { id: session.user.id, role: session.user.role };
   }
-
   return null;
 }
 export async function POST_WITHDRAW(request: NextRequest) {
