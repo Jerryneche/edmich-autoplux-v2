@@ -1,13 +1,39 @@
 // app/api/supplier/orders/route.ts
+// ===========================================
+// SUPPLIER ORDERS API - WITH STATUS MANAGEMENT
+// Suppliers can view their orders and update status
+// ===========================================
+
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+// Helper to get user from either JWT (mobile) or session (web)
+async function getCurrentUser(request: NextRequest) {
+  const authUser = await getAuthUser(request);
+  if (authUser) return authUser;
+
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return { id: session.user.id, role: session.user.role };
+  }
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser(request);
+    const user = await getCurrentUser(request);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (user.role !== "SUPPLIER" && user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Only suppliers can access this endpoint" },
+        { status: 403 },
+      );
     }
 
     // Get supplier profile
@@ -16,13 +42,10 @@ export async function GET(request: NextRequest) {
     });
 
     if (!supplierProfile) {
-      return NextResponse.json(
-        { error: "Supplier profile not found" },
-        { status: 404 }
-      );
+      return NextResponse.json([]);
     }
 
-    // Get all orders that contain products from this supplier
+    // Get orders that contain this supplier's products
     const orders = await prisma.order.findMany({
       where: {
         items: {
@@ -36,8 +59,10 @@ export async function GET(request: NextRequest) {
       include: {
         user: {
           select: {
+            id: true,
             name: true,
             email: true,
+            image: true,
           },
         },
         items: {
@@ -57,7 +82,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        shippingAddress: true, // Include shipping address
+        shippingAddress: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -68,28 +93,20 @@ export async function GET(request: NextRequest) {
     const ordersWithSupplierTotal = orders.map((order) => {
       const supplierTotal = order.items.reduce(
         (sum, item) => sum + item.price * item.quantity,
-        0
+        0,
       );
-
       return {
-        id: order.id,
-        trackingId: order.trackingId,
-        status: order.status,
-        total: order.total,
+        ...order,
         supplierTotal,
-        createdAt: order.createdAt,
-        user: order.user,
-        items: order.items,
-        shippingAddress: order.shippingAddress,
       };
     });
 
     return NextResponse.json(ordersWithSupplierTotal);
-  } catch (error: any) {
-    console.error("Supplier orders error:", error);
+  } catch (error) {
+    console.error("Supplier orders fetch error:", error);
     return NextResponse.json(
       { error: "Failed to fetch orders" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

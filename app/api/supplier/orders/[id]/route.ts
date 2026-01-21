@@ -1,48 +1,71 @@
-// app/api/supplier/orders/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth-api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// PATCH - Update order status
+async function getCurrentUser(request: NextRequest) {
+  const authUser = await getAuthUser(request);
+  if (authUser) return authUser;
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return { id: session.user.id, role: session.user.role };
+  }
+  return null;
+}
+
+// Valid status transitions for suppliers
+const SUPPLIER_TRANSITIONS: Record<string, string[]> = {
+  PENDING: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["SHIPPED", "CANCELLED"],
+  PROCESSING: ["SHIPPED", "CANCELLED"],
+  SHIPPED: [], // Buyer marks as delivered
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
 export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getCurrentUser(request);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (user.role !== "SUPPLIER" && user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Only suppliers can update order status" },
+        { status: 403 },
+      );
+    }
+
     const { id } = await params;
-    const body = await request.json();
-    const { status } = body;
+    const { status } = await request.json();
 
     if (!status) {
       return NextResponse.json(
         { error: "Status is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Get the order
+    // Get order with supplier verification
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
         items: {
           include: {
             product: {
-              select: {
-                supplierId: true,
+              include: {
+                supplier: true,
               },
             },
           },
         },
         user: {
-          select: {
-            name: true,
-          },
+          select: { id: true, name: true, email: true },
         },
       },
     });
@@ -51,51 +74,97 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Verify supplier owns at least one product in the order
-    const supplierOwnsProduct = order.items.some(
-      (item) => item.product.supplierId === session.user.id
-    );
+    // Verify supplier owns products in this order
+    const supplierProfile = await prisma.supplierProfile.findUnique({
+      where: { userId: user.id },
+    });
 
-    if (!supplierOwnsProduct) {
+    if (!supplierProfile) {
       return NextResponse.json(
-        { error: "Unauthorized to update this order" },
-        { status: 403 }
+        { error: "Supplier profile not found" },
+        { status: 404 },
       );
     }
 
-    // Update order status
+    const ownsProducts = order.items.some(
+      (item) => item.product.supplierId === supplierProfile.id,
+    );
+
+    if (!ownsProducts && user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Not authorized to update this order" },
+        { status: 403 },
+      );
+    }
+
+    // Validate status transition
+    const allowedStatuses = SUPPLIER_TRANSITIONS[order.status] || [];
+    if (!allowedStatuses.includes(status)) {
+      return NextResponse.json(
+        {
+          error: `Cannot change status from ${order.status} to ${status}`,
+          allowedStatuses,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Update order
     const updatedOrder = await prisma.order.update({
       where: { id },
-      data: { status },
+      data: {
+        status,
+        updatedAt: new Date(),
+      },
     });
 
-    // 🔥 CREATE NOTIFICATION FOR BUYER
-    const statusMessages: any = {
-      CONFIRMED: `Your order #${order.trackingId} has been confirmed by the supplier and is being prepared for shipment.`,
-      SHIPPED: `Your order #${order.trackingId} has been shipped! It's on the way to you.`,
-      DELIVERED: `Your order #${order.trackingId} has been delivered! Thank you for shopping with us.`,
-      CANCELLED: `Your order #${order.trackingId} has been cancelled by the supplier. Please contact support for more information.`,
+    // Notify buyer
+    const timestamp = new Date().toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    const notificationMessages: Record<
+      string,
+      { title: string; message: string }
+    > = {
+      CONFIRMED: {
+        title: "Order Confirmed! ✅",
+        message: `Your order #${order.trackingId} has been confirmed by the seller. It will be shipped soon. (${timestamp})`,
+      },
+      SHIPPED: {
+        title: "Order Shipped! 🚚",
+        message: `Great news! Your order #${order.trackingId} has been shipped and is on its way. (${timestamp})`,
+      },
+      CANCELLED: {
+        title: "Order Cancelled",
+        message: `Your order #${order.trackingId} has been cancelled. (${timestamp})`,
+      },
     };
 
-    if (statusMessages[status]) {
+    const notification = notificationMessages[status];
+    if (notification) {
       await prisma.notification.create({
         data: {
           userId: order.userId,
           type: "ORDER",
-          title: "Order Status Updated",
-          message: statusMessages[status],
-          link: `/track/${order.trackingId}`,
-          read: false,
+          title: notification.title,
+          message: notification.message,
+          link: `/orders/${order.id}`,
         },
       });
     }
 
-    return NextResponse.json(updatedOrder);
-  } catch (error: any) {
-    console.error("Error updating order:", error);
+    return NextResponse.json({
+      success: true,
+      order: updatedOrder,
+      message: `Order status updated to ${status}`,
+    });
+  } catch (error) {
+    console.error("Order status update error:", error);
     return NextResponse.json(
-      { error: "Failed to update order" },
-      { status: 500 }
+      { error: "Failed to update order status" },
+      { status: 500 },
     );
   }
 }
