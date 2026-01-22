@@ -550,6 +550,13 @@ export const logisticsDeliveryTrackingService = {
             rating: true,
             completedDeliveries: true,
             vehicleType: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
         events: true,

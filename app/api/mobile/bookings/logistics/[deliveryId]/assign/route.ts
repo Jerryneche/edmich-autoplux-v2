@@ -60,12 +60,13 @@ export async function POST(
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error assigning logistics provider:", error);
 
-    if (error.message.includes("not found")) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    if (errorMessage.includes("not found")) {
       return NextResponse.json(
-        { error: error.message },
+        { error: errorMessage },
         { status: 404 }
       );
     }
