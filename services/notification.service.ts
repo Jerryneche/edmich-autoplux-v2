@@ -136,7 +136,7 @@ export const notificationService = {
       type: "ORDER" as NotificationType,
       title: "New Order",
       message: `New order #${order.id} received for ₦${order.total?.toLocaleString()}`,
-      link: `/order/${order.id}`,
+      link: `/shop`,
       pushData: {
         orderId: order.id,
         type: "ORDER_PLACED",
@@ -150,7 +150,7 @@ export const notificationService = {
       type: "ORDER_STATUS_UPDATED" as NotificationType,
       title: "Order Confirmed",
       message: `Your order #${order.id} has been confirmed`,
-      link: `/order/${order.id}`,
+      link: `/cart`,
       pushData: {
         orderId: order.id,
         status: "CONFIRMED",
@@ -166,7 +166,7 @@ export const notificationService = {
       message: `Your order #${order.id} has been shipped${
         trackingId ? ` (Tracking: ${trackingId})` : ""
       }`,
-      link: `/order/${order.id}`,
+      link: `/tracking/${trackingId || order.id}`,
       pushData: {
         orderId: order.id,
         status: "SHIPPED",
@@ -181,7 +181,7 @@ export const notificationService = {
       type: "DELIVERY" as NotificationType,
       title: "Order Delivered",
       message: `Your order #${order.id} has been delivered!`,
-      link: `/order/${order.id}`,
+      link: `/tracking/${order.id}`,
       pushData: {
         orderId: order.id,
         status: "DELIVERED",
@@ -197,7 +197,7 @@ export const notificationService = {
       message: `Your order #${order.id} has been cancelled${
         reason ? `: ${reason}` : ""
       }`,
-      link: `/order/${order.id}`,
+      link: `/cart`,
       pushData: {
         orderId: order.id,
         status: "CANCELLED",
@@ -214,7 +214,7 @@ export const notificationService = {
       type: "PAYMENT" as NotificationType,
       title: "Payment Successful",
       message: `Payment of ₦${amount.toLocaleString()} confirmed for order #${order.id}`,
-      link: `/order/${order.id}`,
+      link: `/cart`,
       pushData: {
         orderId: order.id,
         amount,
@@ -248,7 +248,7 @@ export const notificationService = {
       type: "PRODUCT" as NotificationType,
       title: "Product Approved",
       message: `Your product "${product.name}" has been approved and is now live!`,
-      link: `/product/${product.id}`,
+      link: `/products`,
       pushData: {
         productId: product.id,
         status: "APPROVED",
@@ -264,7 +264,7 @@ export const notificationService = {
       message: `Your product "${product.name}" was not approved${
         reason ? `: ${reason}` : ""
       }`,
-      link: `/product/${product.id}`,
+      link: `/products`,
       pushData: {
         productId: product.id,
         status: "REJECTED",
@@ -280,7 +280,7 @@ export const notificationService = {
         type: "LOW_INVENTORY" as NotificationType,
         title: "Out of Stock",
         message: "A product you wishlisted is now out of stock",
-        link: `/product/${productId}`,
+        link: `/products`,
         pushData: {
           productId,
           status: "OUT_OF_STOCK",
@@ -296,7 +296,7 @@ export const notificationService = {
         type: "PRODUCT" as NotificationType,
         title: "Back in Stock",
         message: "A product you wishlisted is back in stock!",
-        link: `/product/${productId}`,
+        link: `/products`,
         pushData: {
           productId,
           status: "IN_STOCK",
@@ -317,7 +317,7 @@ export const notificationService = {
       type: "DELIVERY" as NotificationType,
       title: "Delivery Assigned",
       message: `${driverName} has been assigned to deliver your order`,
-      link: `/order/${orderId}`,
+      link: `/tracking/${orderId}`,
       pushData: {
         orderId,
         status: "ASSIGNED",
@@ -332,7 +332,7 @@ export const notificationService = {
       type: "DELIVERY" as NotificationType,
       title: "Out for Delivery",
       message: "Your order is on the way!",
-      link: `/order/${orderId}`,
+      link: `/tracking/${orderId}`,
       pushData: {
         orderId,
         status: "IN_PROGRESS",
@@ -346,7 +346,7 @@ export const notificationService = {
       type: "DELIVERY" as NotificationType,
       title: "Delivered",
       message: "Your order has been delivered successfully!",
-      link: `/order/${orderId}`,
+      link: `/tracking/${orderId}`,
       pushData: {
         orderId,
         status: "COMPLETED",
@@ -366,7 +366,7 @@ export const notificationService = {
       type: "BOOKING" as NotificationType,
       title: "Booking Confirmed",
       message: `Your booking for ${serviceName} has been confirmed`,
-      link: `/booking/${bookingId}`,
+      link: `/booking/mechanic/${bookingId}`,
       pushData: {
         bookingId,
         status: "CONFIRMED",
@@ -383,7 +383,7 @@ export const notificationService = {
       message: `Your booking #${bookingId} has been cancelled${
         reason ? `: ${reason}` : ""
       }`,
-      link: `/bookings`,
+      link: `/booking`,
       pushData: {
         bookingId,
         status: "CANCELLED",
@@ -404,7 +404,7 @@ export const notificationService = {
       type: "REVIEW" as NotificationType,
       title: "New Review",
       message: `Someone rated your product ${rating} stars`,
-      link: `/product/${productId}`,
+      link: `/products`,
       pushData: {
         productId,
         rating,
@@ -425,7 +425,7 @@ export const notificationService = {
       type: "LOW_INVENTORY" as NotificationType,
       title: "Low Inventory Alert",
       message: `"${productName}" stock is low (${currentStock} remaining)`,
-      link: `/product/${productId}`,
+      link: `/products`,
       pushData: {
         productId,
         currentStock,

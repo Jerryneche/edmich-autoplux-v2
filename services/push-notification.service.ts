@@ -106,7 +106,7 @@ export const pushNotificationService = {
         data: {
           type: "ORDER",
           orderId: order.id,
-          link: `/order/${order.id}`,
+          link: `/shop`,
         },
       });
     } catch (error) {
@@ -124,7 +124,7 @@ export const pushNotificationService = {
           type: "ORDER_STATUS_UPDATED",
           orderId: order.id,
           status: "CONFIRMED",
-          link: `/order/${order.id}`,
+          link: `/cart`,
         },
       });
     } catch (error) {
@@ -145,7 +145,7 @@ export const pushNotificationService = {
           orderId: order.id,
           status: "SHIPPED",
           trackingId,
-          link: `/order/${order.id}`,
+          link: `/tracking/${trackingId || order.id}`,
         },
       });
     } catch (error) {
@@ -163,7 +163,7 @@ export const pushNotificationService = {
           type: "ORDER_STATUS_UPDATED",
           orderId: order.id,
           status: "DELIVERED",
-          link: `/order/${order.id}`,
+          link: `/tracking/${order.id}`,
         },
       });
     } catch (error) {
@@ -183,7 +183,7 @@ export const pushNotificationService = {
           type: "ORDER_STATUS_UPDATED",
           orderId: order.id,
           status: "CANCELLED",
-          link: `/order/${order.id}`,
+          link: `/cart`,
         },
       });
     } catch (error) {
@@ -204,7 +204,7 @@ export const pushNotificationService = {
           type: "PAYMENT",
           orderId: order.id,
           amount,
-          link: `/order/${order.id}`,
+          link: `/cart`,
         },
       });
     } catch (error) {
@@ -245,7 +245,7 @@ export const pushNotificationService = {
           type: "PRODUCT",
           productId: product.id,
           status: "APPROVED",
-          link: `/product/${product.id}`,
+          link: `/products`,
         },
       });
     } catch (error) {
@@ -268,7 +268,7 @@ export const pushNotificationService = {
           type: "PRODUCT",
           productId: product.id,
           status: "REJECTED",
-          link: `/product/${product.id}`,
+          link: `/products`,
         },
       });
     } catch (error) {
@@ -287,7 +287,7 @@ export const pushNotificationService = {
             type: "PRODUCT",
             productId,
             status: "OUT_OF_STOCK",
-            link: `/product/${productId}`,
+            link: `/products`,
           },
         });
       }
@@ -307,7 +307,7 @@ export const pushNotificationService = {
             type: "PRODUCT",
             productId,
             status: "IN_STOCK",
-            link: `/product/${productId}`,
+            link: `/products`,
           },
         });
       }
@@ -333,7 +333,7 @@ export const pushNotificationService = {
           type: "DELIVERY",
           orderId,
           status: "ASSIGNED",
-          link: `/order/${orderId}`,
+          link: `/tracking/${orderId}`,
         },
       });
     } catch (error) {
@@ -351,7 +351,7 @@ export const pushNotificationService = {
           type: "DELIVERY",
           orderId,
           status: "IN_PROGRESS",
-          link: `/order/${orderId}`,
+          link: `/tracking/${orderId}`,
         },
       });
     } catch (error) {
@@ -369,7 +369,7 @@ export const pushNotificationService = {
           type: "DELIVERY",
           orderId,
           status: "COMPLETED",
-          link: `/order/${orderId}`,
+          link: `/tracking/${orderId}`,
         },
       });
     } catch (error) {
@@ -393,7 +393,7 @@ export const pushNotificationService = {
           type: "BOOKING",
           bookingId,
           status: "CONFIRMED",
-          link: `/booking/${bookingId}`,
+          link: `/booking/mechanic/${bookingId}`,
         },
       });
     } catch (error) {
@@ -412,7 +412,7 @@ export const pushNotificationService = {
           type: "BOOKING",
           bookingId,
           status: "CANCELLED",
-          link: `/bookings`,
+          link: `/booking`,
         },
       });
     } catch (error) {
@@ -432,7 +432,7 @@ export const pushNotificationService = {
           type: "REVIEW",
           productId,
           rating,
-          link: `/product/${productId}`,
+          link: `/products`,
         },
       });
     } catch (error) {
@@ -456,7 +456,7 @@ export const pushNotificationService = {
         data: {
           type: "SYSTEM",
           senderId,
-          link: `/messages/${senderId}`,
+          link: `/chat`,
         },
       });
     } catch (error) {
@@ -476,7 +476,7 @@ export const pushNotificationService = {
           type: "LOW_INVENTORY",
           productId,
           currentStock,
-          link: `/product/${productId}`,
+          link: `/products`,
         },
       });
     } catch (error) {
