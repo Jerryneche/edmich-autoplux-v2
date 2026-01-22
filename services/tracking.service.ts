@@ -107,7 +107,7 @@ export const orderTrackingService = {
             name: true,
             phone: true,
             logisticsProfile: {
-              select: { rating: true, completedDeliveries: true },
+              select: { rating: true, completedDeliveries: true, vehicleType: true },
             },
           },
         },
@@ -125,7 +125,8 @@ export const orderTrackingService = {
     });
 
     // Send notification to customer
-    await notificationService.createNotification(order.userId, "DELIVERY", {
+    await notificationService.createNotification(order.userId, {
+      type: "DELIVERY",
       title: "Logistics Provider Assigned",
       message: `Your order has been assigned to ${provider.name}. They will be in touch soon.`,
       link: `/orders/${orderId}/tracking`,
@@ -203,8 +204,8 @@ export const orderTrackingService = {
 
     await notificationService.createNotification(
       updated.order.user.id,
-      "DELIVERY",
       {
+        type: "DELIVERY",
         title: "Order Status Update",
         message:
           notificationMessages[
@@ -362,7 +363,8 @@ export const mechanicBookingTrackingService = {
     });
 
     // Send notification to customer
-    await notificationService.createNotification(booking.user.id, "BOOKING", {
+    await notificationService.createNotification(booking.user.id, {
+      type: "BOOKING",
       title: "Mechanic Assigned",
       message: `${mechanic.user.name} has been assigned to your booking and will contact you soon.`,
       link: `/bookings/mechanic/${bookingId}/tracking`,
@@ -429,8 +431,8 @@ export const mechanicBookingTrackingService = {
 
     await notificationService.createNotification(
       updated.mechanicBooking.user.id,
-      "BOOKING",
       {
+        type: "BOOKING",
         title: "Booking Status Update",
         message:
           notificationMessages[
@@ -566,8 +568,8 @@ export const logisticsDeliveryTrackingService = {
     // Send notification to customer
     await notificationService.createNotification(
       delivery.user.id,
-      "DELIVERY",
       {
+        type: "DELIVERY",
         title: "Delivery Provider Assigned",
         message: `Your delivery has been assigned to ${provider.companyName}. They will contact you shortly.`,
         link: `/bookings/logistics/${deliveryId}/tracking`,
@@ -648,8 +650,8 @@ export const logisticsDeliveryTrackingService = {
 
     await notificationService.createNotification(
       updated.logisticsBooking.user.id,
-      "DELIVERY",
       {
+        type: "DELIVERY",
         title: "Delivery Status Update",
         message:
           notificationMessages[

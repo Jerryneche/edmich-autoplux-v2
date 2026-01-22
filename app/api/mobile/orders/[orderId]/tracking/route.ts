@@ -59,7 +59,7 @@ export async function GET(
     };
 
     return NextResponse.json({ success: true, data: response });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching order tracking:", error);
     return NextResponse.json(
       { error: "Failed to fetch tracking" },

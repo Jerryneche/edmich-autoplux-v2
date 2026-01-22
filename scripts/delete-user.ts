@@ -150,11 +150,11 @@ async function deleteUserSafely(email: string) {
       console.log(`   ⏭️  No wallet found`);
     }
 
-    console.log(`\n2️⃣0️⃣  Deleting order trackings (as driver)...`);
-    const orderTrackings = await prisma.orderTracking.deleteMany({
-      where: { driverId: userId },
+    console.log(`\n2️⃣0️⃣  Deleting order tracking events...`);
+    const trackingEvents = await prisma.trackingEvent.deleteMany({
+      where: { tracking: { assignedLogisticsProviderId: userId } },
     });
-    console.log(`   ✅ Deleted ${orderTrackings.count} order trackings`);
+    console.log(`   ✅ Deleted ${trackingEvents.count} tracking events`);
 
     // Delete profile-specific records
     console.log(`\n2️⃣1️⃣  Deleting profile records...`);
