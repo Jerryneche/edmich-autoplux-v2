@@ -1,9 +1,16 @@
-// app/api/notifications/[id]/route.ts
+/**
+ * PATCH /api/notifications/[id]
+ * Mark a single notification as read or unread
+ * 
+ * Body:
+ * {
+ *   read: boolean (optional, defaults to true)
+ * }
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-// PATCH - Mark notification as read
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -15,7 +22,10 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const { read } = body;
 
+    // Fetch notification to verify ownership
     const notification = await prisma.notification.findUnique({
       where: { id },
     });
@@ -28,15 +38,22 @@ export async function PATCH(
     }
 
     if (notification.userId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Unauthorized - notification belongs to another user" },
+        { status: 403 }
+      );
     }
 
+    // Update notification
     const updated = await prisma.notification.update({
       where: { id },
-      data: { read: true },
+      data: { read: read ?? true },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      success: true,
+      notification: updated,
+    });
   } catch (error: any) {
     console.error("Error updating notification:", error);
     return NextResponse.json(
@@ -71,14 +88,21 @@ export async function DELETE(
     }
 
     if (notification.userId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Unauthorized - notification belongs to another user" },
+        { status: 403 }
+      );
     }
 
+    // Delete notification
     await prisma.notification.delete({
       where: { id },
     });
 
-    return NextResponse.json({ message: "Notification deleted" });
+    return NextResponse.json({
+      success: true,
+      message: "Notification deleted successfully",
+    });
   } catch (error: any) {
     console.error("Error deleting notification:", error);
     return NextResponse.json(

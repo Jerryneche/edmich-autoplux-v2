@@ -34,6 +34,21 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String
+  platform   String // "ios" or "android"
+  deviceName String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, token])
+  @@index([userId])
+}
+
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -69,6 +84,7 @@ model User {
   logisticsBookings LogisticsBooking[]
   notifications     Notification[]
   addresses         UserAddress[]
+  deviceTokens      DeviceToken[]
   conversations     ConversationParticipant[] // participants relation
 
   // Email Verification
