@@ -33,6 +33,22 @@ export async function GET(
             },
           },
           shippingAddress: true,
+          orderTracking: {
+            include: {
+              assignedLogisticsProvider: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  email: true,
+                },
+              },
+              events: {
+                orderBy: { timestamp: "desc" },
+                take: 10,
+              },
+            },
+          },
         },
       })) ||
       (await prisma.order.findUnique({
@@ -46,6 +62,22 @@ export async function GET(
             },
           },
           shippingAddress: true,
+          orderTracking: {
+            include: {
+              assignedLogisticsProvider: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  email: true,
+                },
+              },
+              events: {
+                orderBy: { timestamp: "desc" },
+                take: 10,
+              },
+            },
+          },
         },
       }));
 
@@ -59,7 +91,7 @@ export async function GET(
     }
 
     return NextResponse.json(order);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching order:", error);
     return NextResponse.json(
       { error: "Failed to fetch order" },
@@ -103,7 +135,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (status) updateData.status = status;
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
 
@@ -132,13 +164,13 @@ export async function PATCH(
           message: `Your order ${
             order.trackingId || order.id
           } status has been updated to ${status}`,
-          link: `/orders/${order.id}`,
+          link: `/tracking/${order.id}`,
         },
       });
     }
 
     return NextResponse.json(updatedOrder);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating order:", error);
     return NextResponse.json(
       { error: "Failed to update order" },

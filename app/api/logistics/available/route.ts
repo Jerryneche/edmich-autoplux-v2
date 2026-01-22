@@ -28,9 +28,23 @@ function calculateDistance(
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const latitude = parseFloat(searchParams.get("lat") || "0");
-    const longitude = parseFloat(searchParams.get("lng") || "0");
+    let latitude = parseFloat(searchParams.get("lat") || "0");
+    let longitude = parseFloat(searchParams.get("lng") || "0");
     const vehicleType = searchParams.get("vehicleType");
+    const orderId = searchParams.get("orderId");
+
+    // If orderId is provided, fetch the order's shipping address coordinates
+    if (orderId) {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { shippingAddress: true },
+      });
+
+      if (order?.shippingAddress) {
+        latitude = order.shippingAddress.latitude || latitude;
+        longitude = order.shippingAddress.longitude || longitude;
+      }
+    }
 
     if (!latitude || !longitude) {
       return NextResponse.json(
