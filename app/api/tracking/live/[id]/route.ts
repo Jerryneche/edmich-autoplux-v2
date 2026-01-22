@@ -4,16 +4,16 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ id: string }> } // ← Now a Promise!
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // MUST AWAIT params in Next.js 16
     const { id } = await context.params;
-    const trackingId = id.toUpperCase();
+    const trackingNumber = id.toUpperCase();
 
+    // Find tracking by tracking number
     const tracking = await prisma.orderTracking.findFirst({
       where: {
-        order: { trackingId },
+        trackingNumber,
       },
       include: {
         order: {
@@ -36,12 +36,26 @@ export async function GET(
             },
           },
         },
-        driver: {
-          include: {
-            logisticsProfile: true,
+        assignedLogisticsProvider: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            image: true,
+            logisticsProfile: {
+              select: {
+                rating: true,
+                completedDeliveries: true,
+                vehicleType: true,
+                vehicleNumber: true,
+              },
+            },
           },
         },
-        updates: true,
+        events: {
+          orderBy: { timestamp: "desc" },
+        },
       },
     });
 
@@ -55,10 +69,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        trackingId: tracking.order.trackingId,
-        status: tracking.order.status,
-        total: tracking.order.total,
-        estimatedArrival: tracking.estimatedArrival,
+        trackingNumber: tracking.trackingNumber,
+        status: tracking.status,
+        lastLocation: tracking.lastLocation,
+        estimatedDeliveryDate: tracking.estimatedDeliveryDate,
 
         buyer: {
           name: tracking.order.user.name || "Customer",
@@ -80,37 +94,30 @@ export async function GET(
             : null,
         })),
 
-        driver: tracking.driver
+        provider: tracking.assignedLogisticsProvider
           ? {
-              name: tracking.driver.name || "Driver",
-              phone: tracking.driver.phone || null,
-              image: tracking.driver.image,
-              rating: tracking.driver.logisticsProfile?.rating ?? 0,
-              completedJobs:
-                tracking.driver.logisticsProfile?.completedDeliveries ?? 0,
-              vehicle: tracking.driver.logisticsProfile
-                ? `${tracking.driver.logisticsProfile.vehicleType} • ${tracking.driver.logisticsProfile.vehicleNumber}`
+              id: tracking.assignedLogisticsProvider.id,
+              name: tracking.assignedLogisticsProvider.name || "Provider",
+              phone: tracking.assignedLogisticsProvider.phone || null,
+              email: tracking.assignedLogisticsProvider.email,
+              image: tracking.assignedLogisticsProvider.image,
+              rating: tracking.assignedLogisticsProvider.logisticsProfile?.rating ?? 0,
+              completedDeliveries:
+                tracking.assignedLogisticsProvider.logisticsProfile?.completedDeliveries ?? 0,
+              vehicle: tracking.assignedLogisticsProvider.logisticsProfile
+                ? `${tracking.assignedLogisticsProvider.logisticsProfile.vehicleType} • ${tracking.assignedLogisticsProvider.logisticsProfile.vehicleNumber}`
                 : null,
             }
           : null,
 
-        location: {
-          current:
-            tracking.currentLat && tracking.currentLng
-              ? { lat: tracking.currentLat, lng: tracking.currentLng }
-              : null,
-          destination:
-            tracking.deliveryLat && tracking.deliveryLng
-              ? { lat: tracking.deliveryLat, lng: tracking.deliveryLng }
-              : null,
-          lastUpdate: tracking.lastLocationUpdate,
-        },
+        location: tracking.lastLocation,
 
-        updates: tracking.updates.map((u) => ({
-          lat: u.latitude,
-          lng: u.longitude,
-          status: u.status,
-          timestamp: u.timestamp,
+        events: tracking.events.map((event) => ({
+          id: event.id,
+          status: event.status,
+          location: event.location,
+          message: event.message,
+          timestamp: event.timestamp,
         })),
       },
     });

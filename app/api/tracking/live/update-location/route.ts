@@ -11,78 +11,62 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const { trackingId, location, message } = body;
 
-    // Ensure numbers (could be strings from client)
-    const orderId = body.orderId as string;
-    const latitude =
-      body.latitude !== undefined && body.latitude !== null
-        ? Number(body.latitude)
-        : null;
-    const longitude =
-      body.longitude !== undefined && body.longitude !== null
-        ? Number(body.longitude)
-        : null;
-
-    if (!orderId) {
-      return NextResponse.json({ error: "orderId required" }, { status: 400 });
+    if (!trackingId || !location) {
+      return NextResponse.json(
+        { error: "trackingId and location are required" },
+        { status: 400 }
+      );
     }
 
-    // Verify driver is assigned to this order
-    const tracking = await prisma.orderTracking.findFirst({
-      where: {
-        orderId,
-        driverId: session.user.id,
-      },
+    // Verify provider is assigned to this tracking
+    const tracking = await prisma.orderTracking.findUnique({
+      where: { id: trackingId },
     });
 
     if (!tracking) {
       return NextResponse.json(
-        { error: "Not authorized for this order" },
+        { error: "Tracking not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check authorization - only assigned provider can update
+    if (tracking.assignedLogisticsProviderId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Not authorized for this tracking" },
         { status: 403 }
       );
     }
 
-    // Update driver location (allow null checks)
-    await prisma.orderTracking.update({
-      where: { id: tracking.id },
+    // Update tracking with new location
+    const updated = await prisma.orderTracking.update({
+      where: { id: trackingId },
       data: {
-        currentLat: latitude,
-        currentLng: longitude,
-        lastLocationUpdate: new Date(),
+        lastLocation: location,
+        updatedAt: new Date(),
       },
     });
 
-    // Calculate ETA only if delivery coordinates and current coords exist
-    let eta = null;
-    if (
-      typeof latitude === "number" &&
-      typeof longitude === "number" &&
-      typeof tracking.deliveryLat === "number" &&
-      typeof tracking.deliveryLng === "number"
-    ) {
-      eta = calculateETA(
-        latitude,
-        longitude,
-        tracking.deliveryLat,
-        tracking.deliveryLng
-      );
-    }
-
-    // Create location update record (store what we have)
-    await prisma.trackingUpdate.create({
+    // Create tracking event
+    await prisma.trackingEvent.create({
       data: {
-        trackingId: tracking.id,
-        latitude: latitude ?? 0,
-        longitude: longitude ?? 0,
-        status: tracking.status,
-        timestamp: new Date(),
+        trackingId: updated.id,
+        status: updated.status,
+        location: location,
+        message: message || `Location updated to ${location}`,
       },
     });
 
     return NextResponse.json({
       success: true,
-      eta,
-      distance: eta?.distance ?? null,
+      data: {
+        id: updated.id,
+        trackingNumber: updated.trackingNumber,
+        lastLocation: updated.lastLocation,
+        status: updated.status,
+      },
     });
   } catch (error) {
     console.error("Location update error:", error);
@@ -91,30 +75,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-function calculateETA(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371; // km
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  const timeInHours = distance / 40; // 40 km/h
-  const timeInMinutes = Math.round(timeInHours * 60);
-
-  return {
-    distance: Number(distance.toFixed(2)),
-    eta: timeInMinutes,
-    formattedEta: `${timeInMinutes} mins`,
-  };
-}
-
-function toRad(deg: number) {
-  return deg * (Math.PI / 180);
 }

@@ -132,7 +132,7 @@ export async function DELETE(req: NextRequest) {
           where: { orderId: order.id },
         });
         if (tracking) {
-          await tx.trackingUpdate.deleteMany({
+          await tx.trackingEvent.deleteMany({
             where: { trackingId: tracking.id },
           });
           await tx.orderTracking.delete({ where: { orderId: order.id } });
