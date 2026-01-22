@@ -213,7 +213,7 @@ async function deleteUserSafely(email: string) {
         where: { orderId: order.id },
       });
       if (tracking) {
-        await prisma.trackingUpdate.deleteMany({
+        await prisma.trackingEvent.deleteMany({
           where: { trackingId: tracking.id },
         });
         await prisma.orderTracking.delete({ where: { orderId: order.id } });

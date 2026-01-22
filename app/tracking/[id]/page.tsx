@@ -165,8 +165,7 @@ export default function TrackingPage() {
                       <div className="text-center text-white">
                         <MapPinIcon className="h-12 w-12 mx-auto mb-2" />
                         <p className="font-medium">
-                          Current Location: {tracking.currentLat?.toFixed(4)},{" "}
-                          {tracking.currentLng?.toFixed(4)}
+                          Last Location: {tracking.lastLocation || "Not yet updated"}
                         </p>
                         <p className="text-sm text-blue-200 mt-1">
                           Map integration: Add Google Maps API key
@@ -176,14 +175,14 @@ export default function TrackingPage() {
                   </div>
 
                   {/* ETA Info */}
-                  {tracking.estimatedArrival && (
+                  {tracking.estimatedDeliveryDate && (
                     <div className="p-4 bg-blue-50 border-t border-blue-200">
                       <div className="flex items-center gap-2 text-blue-900">
                         <ClockIcon className="h-5 w-5" />
                         <span className="font-medium">
-                          Estimated arrival:{" "}
+                          Estimated delivery:{" "}
                           {new Date(
-                            tracking.estimatedArrival
+                            tracking.estimatedDeliveryDate
                           ).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
