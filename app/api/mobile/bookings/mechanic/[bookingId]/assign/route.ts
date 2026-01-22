@@ -8,7 +8,7 @@ import { mechanicBookingTrackingService } from "@/services/tracking.service";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -21,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { bookingId } = params;
+    const { bookingId } = await params;
     const { mechanicId } = await request.json();
 
     if (!mechanicId) {

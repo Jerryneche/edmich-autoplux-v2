@@ -8,7 +8,7 @@ import { orderTrackingService } from "@/services/tracking.service";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -21,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await params;
     const { logisticsProviderId } = await request.json();
 
     if (!logisticsProviderId) {

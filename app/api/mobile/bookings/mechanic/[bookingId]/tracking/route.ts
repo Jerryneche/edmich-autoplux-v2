@@ -8,7 +8,7 @@ import { mechanicBookingTrackingService } from "@/services/tracking.service";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { bookingId } = params;
+    const { bookingId } = await params;
 
     const tracking = await mechanicBookingTrackingService.getMechanicBookingTracking(
       bookingId

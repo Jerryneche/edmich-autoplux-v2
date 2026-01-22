@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -17,7 +17,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await params;
     const body = await request.json();
     const { status, lastLocation, estimatedDeliveryDate, message } = body;
 
