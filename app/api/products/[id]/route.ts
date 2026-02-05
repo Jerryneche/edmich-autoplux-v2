@@ -18,7 +18,7 @@ export async function GET(
             id: true,
             businessName: true,
             user: {
-              select: { name: true },
+              select: { name: true, email: true, phone: true },
             },
           },
         },
@@ -43,6 +43,13 @@ export async function GET(
         product.supplier?.businessName ||
         product.supplier?.user?.name ||
         "Verified Supplier",
+      supplierContact: product.supplier?.user
+        ? {
+            name: product.supplier.user.name,
+            email: product.supplier.user.email,
+            phone: product.supplier.user.phone,
+          }
+        : null,
     };
 
     return NextResponse.json(transformedProduct);
