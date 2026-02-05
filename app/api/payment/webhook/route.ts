@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (order && order.status !== "CONFIRMED") {
-        await prisma.order.update({
+        const updatedOrder = await prisma.order.update({
           where: { id: order.id },
           data: {
             status: "CONFIRMED",
@@ -45,6 +45,20 @@ export async function POST(request: NextRequest) {
             paidAt: new Date(),
           },
         });
+
+        if (updatedOrder.tradeInId) {
+          await prisma.tradeIn.update({
+            where: { id: updatedOrder.tradeInId },
+            data: { status: "SETTLED" },
+          });
+        }
+
+        if (updatedOrder.tradeInOfferId) {
+          await prisma.tradeInOffer.update({
+            where: { id: updatedOrder.tradeInOfferId },
+            data: { status: "SETTLED" },
+          });
+        }
 
         console.log(`Order ${order.id} confirmed via webhook`);
       }

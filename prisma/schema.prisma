@@ -79,6 +79,9 @@ model User {
   sessions          Session[]
   supplierProfile   SupplierProfile?
   tradeIns          TradeIn[]
+  tradeInInterests  TradeInInterest[]
+  tradeInOffers     TradeInOffer[]
+  tradeInOfferRevisions TradeInOfferRevision[]
   logisticsRequests LogisticsRequest[]
   mechanicBookings  MechanicBooking[]
   logisticsBookings LogisticsBooking[]
@@ -419,6 +422,14 @@ model Order {
   paymentReference   String?
   paymentStatus      String?             @default("PENDING")
   paidAt             DateTime?
+  tradeInId           String?            @unique
+  tradeInOfferId      String?            @unique
+
+  tradeIn             TradeIn?        @relation(fields: [tradeInId], references: [id], onDelete: SetNull)
+  tradeInOffer        TradeInOffer?   @relation(fields: [tradeInOfferId], references: [id], onDelete: SetNull)
+
+  @@index([tradeInId])
+  @@index([tradeInOfferId])
 }
 
 model ShippingAddress {
@@ -649,10 +660,66 @@ model TradeIn {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  interests TradeInInterest[]
+  offers    TradeInOffer[]
+  order     Order?
+
   @@index([userId])
   @@index([supplierId])
   @@index([status])
   @@index([category])
+}
+
+model TradeInOffer {
+  id        String   @id @default(cuid())
+  tradeInId String
+  userId    String
+  amount    Float
+  note      String?  @db.Text
+  status    String   @default("SUBMITTED") // SUBMITTED, COUNTERED, ACCEPTED, REJECTED, SETTLED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tradeIn   TradeIn  @relation(fields: [tradeInId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revisions TradeInOfferRevision[]
+  order     Order?
+
+  @@unique([tradeInId, userId])
+  @@index([tradeInId])
+  @@index([userId])
+  @@index([status])
+}
+
+model TradeInOfferRevision {
+  id        String   @id @default(cuid())
+  offerId   String
+  userId    String
+  amount    Float
+  note      String?  @db.Text
+  action    String   // CREATED, UPDATED, COUNTERED, ACCEPTED, REJECTED
+  createdAt DateTime @default(now())
+
+  offer TradeInOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([offerId])
+  @@index([userId])
+}
+
+model TradeInInterest {
+  id        String   @id @default(cuid())
+  tradeInId String
+  userId    String
+  message   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  tradeIn TradeIn @relation(fields: [tradeInId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeInId, userId])
+  @@index([tradeInId])
+  @@index([userId])
 }
 
 /**
