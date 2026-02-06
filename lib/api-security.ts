@@ -3,7 +3,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { isPrivateIP } from "./security";
 
 // Rate limiting store (in production, use Redis)
 const rateLimitStore = new Map<
@@ -27,10 +26,19 @@ export async function withRateLimit(
   const windowMs = options.windowMs || 60 * 1000;
   const maxRequests = options.maxRequests || 100;
 
+  const getRequestIp = (req: NextRequest) => {
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const realIp = req.headers.get("x-real-ip");
+    if (forwardedFor) {
+      return forwardedFor.split(",")[0]?.trim();
+    }
+    return realIp || "unknown";
+  };
+
   return async (req: NextRequest) => {
     const key =
       options.keyGenerator?.(req) ||
-      `${req.ip || "unknown"}:${req.nextUrl.pathname}`;
+      `${getRequestIp(req)}:${req.nextUrl.pathname}`;
 
     const now = Date.now();
     const record = rateLimitStore.get(key);
@@ -192,7 +200,7 @@ export function compose(
  */
 export function logSecurityEvent(
   type: string,
-  details: Record<string, any>
+  details: Record<string, unknown>
 ) {
   if (process.env.NODE_ENV === "production") {
     // Send to logging service (e.g., Sentry, LogRocket)
