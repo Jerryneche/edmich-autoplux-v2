@@ -1,3 +1,34 @@
+# EDMICH AutoPlux - Robots.txt Configuration
+# Crawlers allowed here
+
+# All bots
 User-agent: *
 Allow: /
+
+# Block admin routes from indexing
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /_next/
+Disallow: /private/
+
+# Block OAuth and auth callbacks
+Disallow: /api/auth/
+
+# Allow specific essential APIs
+Allow: /api/revalidate
+Allow: /api/search
+
+# Delay for aggressive crawlers
+User-agent: AhrefsBot
+Crawl-delay: 10
+User-agent: SemrushBot
+Crawl-delay: 10
+
+# Sitemap location
 Sitemap: https://edmich.com/sitemap.xml
+Sitemap: https://www.edmich.com/sitemap.xml
+
+# Canonical domain
+Rule: https://www.edmich.com
