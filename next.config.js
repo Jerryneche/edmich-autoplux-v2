@@ -110,7 +110,7 @@ const nextConfig = {
       },
       // Static assets cache
       {
-        source: "/(.+)\\.(?:png|jpg|jpeg|gif|webp|ico|svg)$",
+        source: "/:path*\\.(png|jpg|jpeg|gif|webp|ico|svg)",
         headers: [
           {
             key: "Cache-Control",
@@ -124,7 +124,7 @@ const nextConfig = {
       },
       // Font files cache
       {
-        source: "/(.+)\\.(?:woff|woff2|ttf|otf|eot)$",
+        source: "/:path*\\.(woff|woff2|ttf|otf|eot)",
         headers: [
           {
             key: "Cache-Control",
