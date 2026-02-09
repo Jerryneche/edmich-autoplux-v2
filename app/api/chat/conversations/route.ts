@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request);
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -14,7 +13,7 @@ export async function GET(request: Request) {
       where: {
         participants: {
           some: {
-            userId: session.user.id,
+            userId: user.id,
           },
         },
       },
@@ -51,8 +50,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getAuthUser(request as NextRequest);
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -64,7 +63,7 @@ export async function POST(request: Request) {
         AND: [
           {
             participants: {
-              some: { userId: session.user.id },
+              some: { userId: user.id },
             },
           },
           {
@@ -80,7 +79,7 @@ export async function POST(request: Request) {
       conversation = await prisma.conversation.create({
         data: {
           participants: {
-            create: [{ userId: session.user.id }, { userId: participantId }],
+            create: [{ userId: user.id }, { userId: participantId }],
           },
         },
       });
@@ -90,7 +89,7 @@ export async function POST(request: Request) {
     const newMessage = await prisma.message.create({
       data: {
         conversationId: conversation.id,
-        senderId: session.user.id,
+        senderId: user.id,
         content: message,
       },
       include: {

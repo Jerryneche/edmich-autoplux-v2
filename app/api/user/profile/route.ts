@@ -1,62 +1,15 @@
 // app/api/user/profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-// Helper to extract user from token
-async function getAuthUserFromToken(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-
-  if (!authHeader) {
-    return { user: null, error: "No authorization header" };
-  }
-
-  let token = authHeader;
-  if (authHeader.startsWith("Bearer ")) {
-    token = authHeader.substring(7);
-  }
-
-  try {
-    const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
-    if (!secret) {
-      return { user: null, error: "Server config error" };
-    }
-
-    const decoded = jwt.verify(token, secret) as {
-      userId?: string;
-      id?: string;
-      sub?: string;
-    };
-    const userId = decoded.userId || decoded.id || decoded.sub;
-
-    if (!userId) {
-      return { user: null, error: "No user ID in token" };
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return { user: null, error: "User not found" };
-    }
-
-    return { user, error: null };
-  } catch (err: any) {
-    return { user: null, error: err.message };
-  }
-}
+import { getAuthUser } from "@/lib/auth-api";
 
 // GET - Fetch user profile
 export async function GET(req: NextRequest) {
   try {
-    const { user, error } = await getAuthUserFromToken(req);
+    const user = await getAuthUser(req);
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized", debug: error },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get profile based on role
@@ -102,14 +55,11 @@ export async function PATCH(req: NextRequest) {
   console.log("[USER PROFILE PATCH] Starting...");
 
   try {
-    const { user, error } = await getAuthUserFromToken(req);
+    const user = await getAuthUser(req);
 
     if (!user) {
-      console.log("[USER PROFILE PATCH] Auth failed:", error);
-      return NextResponse.json(
-        { error: "Unauthorized", debug: error },
-        { status: 401 },
-      );
+      console.log("[USER PROFILE PATCH] Auth failed: Unauthorized");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
