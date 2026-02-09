@@ -4,10 +4,15 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
-const googleClient = new OAuth2Client(process.env.GOOGLE_WEB_CLIENT_ID);
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
+);
 
 export async function POST(req: Request) {
   try {
+    console.log("[GOOGLE AUTH] Request received");
+    console.log("[GOOGLE AUTH] Has GOOGLE_WEB_CLIENT_ID:", !!process.env.GOOGLE_WEB_CLIENT_ID);
+    console.log("[GOOGLE AUTH] Has JWT_SECRET:", !!process.env.JWT_SECRET);
     const { idToken } = await req.json();
 
     if (!idToken) {
@@ -18,9 +23,12 @@ export async function POST(req: Request) {
     }
 
     // ✅ VERIFY TOKEN WITH GOOGLE
+    const audience =
+      process.env.GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_WEB_CLIENT_ID,
+      audience,
     });
 
     const payload = ticket.getPayload();
@@ -31,6 +39,8 @@ export async function POST(req: Request) {
         { status: 401 },
       );
     }
+
+    console.log("[GOOGLE AUTH] Token verified for:", payload.email);
 
     const googleId = payload.sub;
     const email = payload.email.toLowerCase();

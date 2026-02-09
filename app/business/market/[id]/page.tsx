@@ -24,6 +24,8 @@ interface Product {
     businessAddress: string;
     city: string;
     state: string;
+    userId: string;
+    phone: string | null;
   };
 }
 
@@ -41,6 +43,12 @@ async function getProduct(id: string): Promise<Product | null> {
             businessAddress: true,
             city: true,
             state: true,
+            userId: true,
+            user: {
+              select: {
+                phone: true,
+              },
+            },
           },
         },
       },
@@ -62,6 +70,8 @@ async function getProduct(id: string): Promise<Product | null> {
         businessAddress: product.supplier.businessAddress || "",
         city: product.supplier.city,
         state: product.supplier.state,
+        userId: product.supplier.userId,
+        phone: product.supplier.user?.phone || null,
       },
     };
   } catch (error) {
@@ -157,9 +167,22 @@ export default async function MarketProductDetail({
                 </div>
               </div>
 
-              <button className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all">
-                Contact Supplier
-              </button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Link
+                  href={`/chat?userId=${product.supplier.userId}`}
+                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all text-center"
+                >
+                  Chat Supplier
+                </Link>
+                {product.supplier.phone && (
+                  <Link
+                    href={`tel:${product.supplier.phone}`}
+                    className="w-full py-4 bg-white text-blue-700 border-2 border-blue-200 rounded-xl font-bold hover:shadow-xl transition-all text-center"
+                  >
+                    Call Supplier
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         </div>
