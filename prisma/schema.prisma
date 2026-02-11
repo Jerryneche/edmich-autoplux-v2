@@ -101,7 +101,7 @@ model User {
   // Google OAuth flag
   isGoogleAuth           Boolean           @default(false)
   hasCompletedOnboarding Boolean           @default(false)
-  messages               Message[]         @relation("UserMessages")
+  messages               Message[]
   mechanicReviews        MechanicReview[]
   payments               Payment[]
   paymentMethods         PaymentMethod[]
@@ -758,7 +758,7 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
-  sender         User         @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
   content        String
   read           Boolean      @default(false)
   createdAt      DateTime     @default(now())
