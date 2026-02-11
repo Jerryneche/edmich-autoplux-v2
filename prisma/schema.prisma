@@ -101,14 +101,14 @@ model User {
   // Google OAuth flag
   isGoogleAuth           Boolean           @default(false)
   hasCompletedOnboarding Boolean           @default(false)
-  messages               Message[]
+  messages               Message[]         @relation("UserMessages")
   mechanicReviews        MechanicReview[]
   payments               Payment[]
   paymentMethods         PaymentMethod[]
   kycs                   KYC[]
   wallet                 Wallet?
   logisticsReviews       LogisticsReview[]
-  assignedOrderTrackings OrderTracking[] @relation("OrderTrackingProvider")
+  assignedOrderTrackings OrderTracking[]   @relation("OrderTrackingProvider")
   vehicles               Vehicle[]
   hasPassword            Boolean           @default(false)
   googleId               String?           @unique
@@ -758,7 +758,7 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  sender         User         @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
   content        String
   read           Boolean      @default(false)
   createdAt      DateTime     @default(now())
