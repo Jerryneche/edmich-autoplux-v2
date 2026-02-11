@@ -103,21 +103,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ VALIDATE: Check if participant exists
-    console.log("[CHAT API] Validating participant:", participantId);
-    const participant = await prisma.user.findUnique({
-      where: { id: participantId },
-      select: { id: true },
-    });
-
-    if (!participant) {
-      console.warn("[CHAT API] Participant not found:", participantId);
-      return NextResponse.json(
-        { error: "Participant user not found" },
-        { status: 404 }
-      );
-    }
-
     // ✅ CHECK FOR EXISTING CONVERSATION - prevent duplicates
     const existingConversation = await prisma.conversation.findFirst({
       where: {
