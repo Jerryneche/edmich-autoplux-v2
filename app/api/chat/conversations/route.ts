@@ -145,12 +145,10 @@ export async function POST(request: NextRequest) {
         conversation = await prisma.conversation.create({
           data: {
             participants: {
-              createMany: {
-                data: [
-                  { userId: user.id },
-                  { userId: participantId },
-                ],
-              },
+              create: [
+                { userId: user.id },
+                { userId: participantId },
+              ],
             },
           },
           include: {
