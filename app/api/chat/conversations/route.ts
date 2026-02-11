@@ -54,7 +54,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[CHAT API] ========== POST /conversations START ==========");
+    
     const user = await getAuthUser(request);
+    console.log("[CHAT API] Authenticated user ID:", user?.id);
+    
     if (!user?.id) {
       console.error("[CHAT API] Unauthorized request");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -62,6 +66,11 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { participantId, message } = body;
+    
+    console.log("[CHAT API] Request body:", {
+      participantIdFromRequest: participantId,
+      messageLength: message?.length,
+    });
 
     // ✅ VALIDATION: Check required fields
     if (!participantId || typeof participantId !== "string") {
@@ -102,6 +111,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    console.log("[CHAT API] About to create/find conversation with:", {
+      currentUserId: user.id,
+      participantId: participantId,
+    });
 
     // ✅ CHECK FOR EXISTING CONVERSATION - prevent duplicates
     const existingConversation = await prisma.conversation.findFirst({
@@ -171,9 +185,20 @@ export async function POST(request: NextRequest) {
           participants: [user.id, participantId],
         });
       } catch (convError) {
-        console.error("[CHAT API] Failed to create conversation:", convError);
+        console.error("[CHAT API] Failed to create conversation:", {
+          userIdBeingAdded: user.id,
+          participantIdBeingAdded: participantId,
+          errorMessage: convError instanceof Error ? convError.message : String(convError),
+          errorCode: convError instanceof Error && 'code' in convError ? (convError as any).code : undefined,
+        });
         return NextResponse.json(
-          { error: "Failed to create conversation" },
+          { 
+            error: "Failed to create conversation",
+            debug: {
+              userId: user.id,
+              participantId: participantId,
+            }
+          },
           { status: 500 }
         );
       }
@@ -233,11 +258,13 @@ export async function POST(request: NextRequest) {
       },
       { status: isNewConversation ? 201 : 200 }
     );
+    
+    console.log("[CHAT API] ========== POST /conversations SUCCESS ==========");
   } catch (error) {
-    console.error("[CHAT API] POST /conversations error:", {
+    console.error("[CHAT API] POST /conversations FATAL ERROR:", {
       message: error instanceof Error ? error.message : String(error),
+      code: error instanceof Error && 'code' in error ? (error as any).code : undefined,
       stack: error instanceof Error ? error.stack : undefined,
-      type: error instanceof Error ? error.constructor.name : typeof error,
     });
     return NextResponse.json(
       { error: "Failed to process request" },
