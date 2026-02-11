@@ -65,10 +65,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { participantId, message } = body;
+    const { participantId, message, productId } = body;
     
     console.log("[CHAT API] Request body:", {
       participantIdFromRequest: participantId,
+      productIdFromRequest: productId,
       messageLength: message?.length,
     });
 
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
     console.log("[CHAT API] About to create/find conversation with:", {
       currentUserId: user.id,
       participantId: participantId,
+      productId: productId,
     });
 
     // ✅ CHECK FOR EXISTING CONVERSATION - prevent duplicates
@@ -182,12 +184,15 @@ export async function POST(request: NextRequest) {
 
         console.log("[CHAT API] Created new conversation:", {
           conversationId: conversation.id,
-          participants: [user.id, participantId],
+          currentUserId: user.id,
+          participantId: participantId,
+          productId: productId,
         });
       } catch (convError) {
         console.error("[CHAT API] Failed to create conversation:", {
-          userIdBeingAdded: user.id,
+          currentUserId: user.id,
           participantIdBeingAdded: participantId,
+          productIdRequested: productId,
           errorMessage: convError instanceof Error ? convError.message : String(convError),
           errorCode: convError instanceof Error && 'code' in convError ? (convError as any).code : undefined,
         });
@@ -197,6 +202,7 @@ export async function POST(request: NextRequest) {
             debug: {
               userId: user.id,
               participantId: participantId,
+              productId: productId,
             }
           },
           { status: 500 }
@@ -205,6 +211,9 @@ export async function POST(request: NextRequest) {
     } else {
       console.log("[CHAT API] Using existing conversation:", {
         conversationId: conversation.id,
+        currentUserId: user.id,
+        participantId: participantId,
+        productId: productId,
       });
     }
 
