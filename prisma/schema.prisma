@@ -759,7 +759,8 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content        String
+  content        String?
+  attachments    Json?        @default("[]")
   read           Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

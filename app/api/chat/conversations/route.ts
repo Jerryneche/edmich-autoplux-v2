@@ -65,12 +65,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { participantId, message, productId } = body;
+    const { participantId, message, productId, attachments } = body;
     
     console.log("[CHAT API] Request body:", {
       participantIdFromRequest: participantId,
       productIdFromRequest: productId,
       messageLength: message?.length,
+      attachmentCount: attachments?.length || 0,
     });
 
     // ✅ VALIDATION: Check required fields
@@ -81,11 +82,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!message || typeof message !== "string") {
+    // ✅ VALIDATION: Message or attachments required
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    const hasMessage = message && typeof message === "string" && message.trim().length > 0;
+
+    if (!hasMessage && !hasAttachments) {
       return NextResponse.json(
-        { error: "message must be a non-empty string" },
+        { error: "Must provide either message text or attachments" },
         { status: 400 }
       );
+    }
+
+    // ✅ VALIDATION: Validate attachments format if provided
+    if (hasAttachments) {
+      for (const attachment of attachments) {
+        if (!attachment.url || !attachment.type || !attachment.name) {
+          return NextResponse.json(
+            { error: "Each attachment must have url, type, and name" },
+            { status: 400 }
+          );
+        }
+      }
+      console.log("[CHAT API] Validated attachments:", {
+        count: attachments.length,
+        types: attachments.map((a: any) => a.type),
+      });
     }
 
     // ✅ RESOLVE participantId: Could be User ID or SupplierProfile ID
@@ -127,16 +148,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ VALIDATION: Trim and check message isn't empty
-    const trimmedMessage = message.trim();
-    if (trimmedMessage.length === 0) {
-      return NextResponse.json(
-        { error: "Message cannot be empty" },
-        { status: 400 }
-      );
-    }
+    // ✅ Prepare message content
+    const trimmedMessage = hasMessage ? message.trim() : "";
 
-    // Validate message length
+    // Validate message length (only if message exists)
     if (trimmedMessage.length > 5000) {
       return NextResponse.json(
         { error: "Message cannot exceed 5000 characters" },
@@ -256,7 +271,8 @@ export async function POST(request: NextRequest) {
         data: {
           conversationId: conversation.id,
           senderId: user.id,
-          content: trimmedMessage,
+          content: trimmedMessage || null,
+          attachments: hasAttachments ? attachments : [],
         },
         include: {
           sender: {
