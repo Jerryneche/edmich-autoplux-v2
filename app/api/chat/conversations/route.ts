@@ -48,9 +48,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser(request as NextRequest);
+    const user = await getAuthUser(request);
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -82,19 +82,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ VALIDATION: Check participant exists
-    const participant = await prisma.user.findUnique({
-      where: { id: participantId },
-    });
-
-    if (!participant) {
-      return NextResponse.json(
-        { error: "Participant user not found" },
-        { status: 404 }
-      );
-    }
-
-    // Create or get existing conversation
+    // ✅ CHECK FOR EXISTING CONVERSATION - prevent duplicates
     let conversation = await prisma.conversation.findFirst({
       where: {
         AND: [
@@ -110,15 +98,54 @@ export async function POST(request: Request) {
           },
         ],
       },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
     });
 
+    let isNewConversation = false;
+
     if (!conversation) {
+      // Create new conversation if none exists
+      isNewConversation = true;
       conversation = await prisma.conversation.create({
         data: {
           participants: {
             create: [{ userId: user.id }, { userId: participantId }],
           },
         },
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      console.log("[CHAT API] Created new conversation:", {
+        conversationId: conversation.id,
+        users: [user.id, participantId],
+      });
+    } else {
+      console.log("[CHAT API] Found existing conversation:", {
+        conversationId: conversation.id,
+        users: [user.id, participantId],
       });
     }
 
@@ -146,9 +173,23 @@ export async function POST(request: Request) {
       data: { updatedAt: new Date() },
     });
 
-    return NextResponse.json({ success: true, message: newMessage });
+    return NextResponse.json(
+      {
+        success: true,
+        message: newMessage,
+        conversation: {
+          id: conversation.id,
+          isNewConversation,
+          participantCount: conversation.participants.length,
+        },
+      },
+      { status: isNewConversation ? 201 : 200 }
+    );
   } catch (error) {
-    console.error("[CHAT API] POST /conversations error:", error);
+    console.error("[CHAT API] POST /conversations error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: "Failed to send message" },
       { status: 500 }
