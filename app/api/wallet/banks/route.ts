@@ -46,14 +46,12 @@ export async function GET(request: NextRequest) {
 
       if (result.success) {
         return NextResponse.json({
-          success: true,
-          bank: result.bank,
           accountName: result.accountName,
+          bank: result.bank,
         });
       } else {
         return NextResponse.json(
           {
-            success: false,
             error: result.error,
           },
           { status: 400 }
@@ -83,15 +81,13 @@ export async function GET(request: NextRequest) {
 
       const suggestions = await suggestBanks(accountNumber);
       return NextResponse.json({
-        success: true,
-        suggestions,
+        banks: suggestions,
       });
     }
 
     // Default: Get all banks
     const banks = getAllBanks();
     return NextResponse.json({
-      success: true,
       banks,
     });
   } catch (error: any) {
@@ -134,14 +130,12 @@ export async function POST(request: NextRequest) {
 
       if (result.success) {
         return NextResponse.json({
-          success: true,
-          bank: result.bank,
           accountName: result.accountName,
+          bank: result.bank,
         });
       } else {
         return NextResponse.json(
           {
-            success: false,
             error: result.error,
           },
           { status: 400 }
