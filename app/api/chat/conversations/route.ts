@@ -57,6 +57,43 @@ export async function POST(request: Request) {
 
     const { participantId, message } = await request.json();
 
+    // ✅ VALIDATION: Check required fields
+    if (!participantId || !message) {
+      return NextResponse.json(
+        { error: "participantId and message are required" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ VALIDATION: Prevent self-messaging
+    if (participantId === user.id) {
+      return NextResponse.json(
+        { error: "Cannot create conversation with yourself" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ VALIDATION: Trim and check message isn't empty
+    const trimmedMessage = message.trim();
+    if (trimmedMessage.length === 0) {
+      return NextResponse.json(
+        { error: "Message cannot be empty" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ VALIDATION: Check participant exists
+    const participant = await prisma.user.findUnique({
+      where: { id: participantId },
+    });
+
+    if (!participant) {
+      return NextResponse.json(
+        { error: "Participant user not found" },
+        { status: 404 }
+      );
+    }
+
     // Create or get existing conversation
     let conversation = await prisma.conversation.findFirst({
       where: {
@@ -90,7 +127,7 @@ export async function POST(request: Request) {
       data: {
         conversationId: conversation.id,
         senderId: user.id,
-        content: message,
+        content: trimmedMessage,
       },
       include: {
         sender: {
@@ -111,6 +148,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, message: newMessage });
   } catch (error) {
+    console.error("[CHAT API] POST /conversations error:", error);
     return NextResponse.json(
       { error: "Failed to send message" },
       { status: 500 }
