@@ -1,4 +1,4 @@
-// app/api/wallet/withdraw/route.ts
+// app/api/wallet/withdrawal/route.ts
 // ============================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/auth-api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendEmail } from "@/lib/email";
 
 // Helper to get user from either JWT (mobile) or session (web)
 async function getCurrentUser(request: NextRequest) {
@@ -21,6 +22,7 @@ async function getCurrentUser(request: NextRequest) {
 
   return null;
 }
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser(request);
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { amount, bankCode, accountNumber } = await request.json();
+    const { amount, bankCode, accountNumber, accountName, bankName } = await request.json();
 
     // Validation
     if (!amount || amount <= 0) {
@@ -56,9 +58,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get wallet
+    // Get wallet and user details
     const wallet = await prisma.wallet.findUnique({
       where: { userId: user.id },
+    });
+
+    const userData = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, name: true },
     });
 
     if (!wallet) {
@@ -74,13 +81,14 @@ export async function POST(request: NextRequest) {
 
     // Create withdrawal in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create withdrawal record
+      // Create withdrawal record with account name
       const withdrawal = await tx.withdrawal.create({
         data: {
           walletId: wallet.id,
           amount,
           bankCode,
           accountNumber,
+          accountName: accountName || null, // Store the account name
           status: "pending",
           reference: `WD-${Date.now()}-${user.id.slice(0, 8)}`,
         },
@@ -98,7 +106,7 @@ export async function POST(request: NextRequest) {
           walletId: wallet.id,
           type: "debit",
           amount,
-          description: `Withdrawal to bank (${accountNumber})`,
+          description: `Withdrawal to ${bankName || "bank"} (${accountNumber})`,
           reference: withdrawal.reference,
         },
       });
@@ -106,7 +114,51 @@ export async function POST(request: NextRequest) {
       return withdrawal;
     });
 
-    // Create notification
+    // Send email notification to admin
+    try {
+      const emailSubject = `New Wallet Withdrawal Request - ${result.reference}`;
+      const emailBody = `
+        <h2>Wallet Withdrawal Request</h2>
+        <p><strong>Reference:</strong> ${result.reference}</p>
+        
+        <h3>User Details</h3>
+        <ul>
+          <li><strong>Name:</strong> ${userData?.name || "N/A"}</li>
+          <li><strong>Email:</strong> ${userData?.email || "N/A"}</li>
+          <li><strong>User ID:</strong> ${user.id}</li>
+        </ul>
+        
+        <h3>Withdrawal Details</h3>
+        <ul>
+          <li><strong>Amount:</strong> ₦${amount.toLocaleString()}</li>
+          <li><strong>Bank Name:</strong> ${bankName || "Not provided"}</li>
+          <li><strong>Bank Code:</strong> ${bankCode}</li>
+          <li><strong>Account Number:</strong> ${accountNumber}</li>
+          <li><strong>Account Name:</strong> ${accountName || "Not provided"}</li>
+          <li><strong>Status:</strong> Pending</li>
+          <li><strong>Timestamp:</strong> ${new Date().toISOString()}</li>
+        </ul>
+        
+        <p><em>Please process this withdrawal within 24 hours on business days.</em></p>
+      `;
+
+      await sendEmail(
+        "edmichservices@gmail.com",
+        emailSubject,
+        emailBody
+      );
+
+      console.log("[WITHDRAWAL] Email sent to admin:", {
+        reference: result.reference,
+        amount,
+        accountNumber: accountNumber.slice(0, 4) + "****",
+      });
+    } catch (emailError) {
+      console.error("[WITHDRAWAL] Failed to send admin email:", emailError);
+      // Don't fail the withdrawal if email fails
+    }
+
+    // Create notification for user
     await prisma.notification.create({
       data: {
         userId: user.id,
@@ -117,7 +169,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: In production, integrate with Paystack/Flutterwave Transfer API
+    console.log("[WITHDRAWAL] Withdrawal created successfully:", {
+      reference: result.reference,
+      userId: user.id,
+      amount,
+      bankCode,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Withdrawal request submitted successfully",
+      withdrawal: result,
+    });
+  } catch (error) {
+    console.error("[WITHDRAWAL] Error:", error);
+    return NextResponse.json(
+      { error: "Failed to process withdrawal" },
+      { status: 500 },
+    );
+  }
+}
     // to actually process the bank transfer
 
     return NextResponse.json({
