@@ -143,6 +143,22 @@ export async function sendPasswordResetEmail(
   await transporter.sendMail(mailOptions);
 }
 
+// Generic email sender
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+) {
+  const mailOptions = {
+    from: `"EDMICH AutoPlux" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    html,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
 // Add to .env file:
 // SMTP_HOST=smtp.gmail.com
 // SMTP_PORT=587
