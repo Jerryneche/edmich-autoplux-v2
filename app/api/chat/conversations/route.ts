@@ -41,6 +41,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, conversations });
   } catch (error) {
+    console.error("[CHAT API] GET /conversations error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: "Failed to fetch conversations" },
       { status: 500 }
@@ -116,12 +120,18 @@ export async function POST(request: NextRequest) {
     let isNewConversation = false;
 
     if (!conversation) {
-      // Create new conversation if none exists
+      // Create new conversation explicitly with participants
       isNewConversation = true;
+      
       conversation = await prisma.conversation.create({
         data: {
           participants: {
-            create: [{ userId: user.id }, { userId: participantId }],
+            createMany: {
+              data: [
+                { userId: user.id },
+                { userId: participantId },
+              ],
+            },
           },
         },
         include: {
@@ -138,6 +148,7 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
       console.log("[CHAT API] Created new conversation:", {
         conversationId: conversation.id,
         users: [user.id, participantId],
@@ -189,6 +200,7 @@ export async function POST(request: NextRequest) {
     console.error("[CHAT API] POST /conversations error:", {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
+      cause: error instanceof Error ? error.cause : undefined,
     });
     return NextResponse.json(
       { error: "Failed to send message" },
