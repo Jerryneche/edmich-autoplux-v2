@@ -189,18 +189,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-    // to actually process the bank transfer
-
-    return NextResponse.json({
-      success: true,
-      message: "Withdrawal request submitted successfully",
-      withdrawal: result,
-    });
-  } catch (error) {
-    console.error("Withdrawal error:", error);
-    return NextResponse.json(
-      { error: "Failed to process withdrawal" },
-      { status: 500 },
-    );
-  }
-}
