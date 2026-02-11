@@ -88,8 +88,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ RESOLVE participantId: Could be User ID or SupplierProfile ID
+    // First check if it's a direct User ID
+    let resolvedParticipantId = participantId;
+    let participantUser = await prisma.user.findUnique({
+      where: { id: participantId },
+      select: { id: true, role: true },
+    });
+
+    // If not found as User, try as SupplierProfile ID
+    if (!participantUser) {
+      const supplierProfile = await prisma.supplierProfile.findUnique({
+        where: { id: participantId },
+        select: { userId: true },
+      });
+
+      if (supplierProfile) {
+        resolvedParticipantId = supplierProfile.userId;
+        console.log("[CHAT API] Resolved SupplierProfile ID to User ID:", {
+          supplierProfileId: participantId,
+          resolvedUserId: resolvedParticipantId,
+        });
+      } else {
+        return NextResponse.json(
+          {
+            error: `Participant not found (neither User ID nor SupplierProfile ID)`,
+          },
+          { status: 404 }
+        );
+      }
+    }
+
     // ✅ VALIDATION: Prevent self-messaging
-    if (participantId === user.id) {
+    if (resolvedParticipantId === user.id) {
       return NextResponse.json(
         { error: "Cannot create conversation with yourself" },
         { status: 400 }
@@ -115,7 +146,8 @@ export async function POST(request: NextRequest) {
 
     console.log("[CHAT API] About to create/find conversation with:", {
       currentUserId: user.id,
-      participantId: participantId,
+      originalParticipantId: participantId,
+      resolvedParticipantId: resolvedParticipantId,
       productId: productId,
     });
 
@@ -130,7 +162,7 @@ export async function POST(request: NextRequest) {
           },
           {
             participants: {
-              some: { userId: participantId },
+              some: { userId: resolvedParticipantId },
             },
           },
         ],
@@ -163,7 +195,7 @@ export async function POST(request: NextRequest) {
             participants: {
               create: [
                 { userId: user.id },
-                { userId: participantId },
+                { userId: resolvedParticipantId },
               ],
             },
           },

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create supplier profile
+    // Create supplier profile and update user role
     const supplier = await prisma.supplierProfile.create({
       data: {
         userId: session.user.id,
@@ -89,9 +89,15 @@ export async function POST(req: Request) {
         bankName: bankName || null,
         accountNumber: accountNumber || null,
         accountName: accountName || null,
-        verified: false,
-        approved: false, // Add this field
+        verified: true,
+        approved: false,
       },
+    });
+
+    // Update user role to SUPPLIER
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { role: "SUPPLIER" },
     });
 
     return NextResponse.json(supplier, { status: 201 });
