@@ -80,6 +80,7 @@ model User {
   supplierProfile   SupplierProfile?
   tradeIns          TradeIn[]
   tradeInInterests  TradeInInterest[]
+  tradeInOfferRevisions TradeInOfferRevision[]
   logisticsRequests LogisticsRequest[]
   mechanicBookings  MechanicBooking[]
   logisticsBookings LogisticsBooking[]
@@ -701,17 +702,18 @@ model TradeInOffer {
  * Trade-in Offer Revision - Track changes to offers
  */
 model TradeInOfferRevision {
-  id            String   @id @default(cuid())
-  offerId       String
-  offer         TradeInOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  tradeInOfferId String?  // for order linking
-  previousAmount Float?
-  newAmount      Float?
-  reason        String?  @db.Text
-  changedBy     String
-  createdAt     DateTime @default(now())
+  id       String   @id @default(cuid())
+  offerId  String
+  offer    TradeInOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount   Float
+  note     String?  @db.Text
+  action   String   // CREATED, ACCEPTED, REJECTED, UPDATED
+  createdAt DateTime @default(now())
 
   @@index([offerId])
+  @@index([userId])
   @@index([createdAt])
 }
 
