@@ -1,9 +1,42 @@
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "./notification.service";
+import type { BookingStatus, LogisticsBooking, LogisticsProfile, User } from "@prisma/client";
 
 /**
  * Tracking Service - Handles all tracking logic for orders, mechanics, and logistics
  */
+
+// Type definitions
+interface TrackingEvent {
+  id: string;
+  status: string;
+  location: string | null;
+  message: string | null;
+  timestamp: Date;
+}
+
+interface LogisticsDeliveryTrackingResponse {
+  id: string;
+  deliveryId: string;
+  status: string;
+  currentLocation: string | null;
+  estimatedDeliveryDate: Date | null;
+  assignedProvider: {
+    id: string;
+    userId: string;
+    companyName: string;
+    phone: string;
+    vehicleType: string;
+    rating: number;
+    completedDeliveries: number;
+    user: {
+      id: string;
+      name: string | null;
+      email: string;
+    };
+  } | null;
+  events: TrackingEvent[];
+}
 
 // ===========================
 // ORDER TRACKING
@@ -454,7 +487,9 @@ export const logisticsDeliveryTrackingService = {
   /**
    * Get logistics delivery tracking
    */
-  async getLogisticsDeliveryTracking(deliveryId: string) {
+  async getLogisticsDeliveryTracking(
+    deliveryId: string,
+  ): Promise<LogisticsDeliveryTrackingResponse | null> {
     const booking = await prisma.logisticsBooking.findUnique({
       where: { id: deliveryId },
       include: {
@@ -476,7 +511,7 @@ export const logisticsDeliveryTrackingService = {
       return null;
     }
 
-    return {
+    const response: LogisticsDeliveryTrackingResponse = {
       id: booking.id,
       deliveryId: booking.id,
       status: booking.status,
@@ -496,12 +531,15 @@ export const logisticsDeliveryTrackingService = {
         : null,
       events: [],
     };
+    return response;
   },
 
   /**
    * Create logistics delivery tracking
    */
-  async createLogisticsDeliveryTracking(deliveryId: string) {
+  async createLogisticsDeliveryTracking(
+    deliveryId: string,
+  ): Promise<LogisticsDeliveryTrackingResponse> {
     const booking = await prisma.logisticsBooking.update({
       where: { id: deliveryId },
       data: { status: "PENDING" },
@@ -545,7 +583,10 @@ export const logisticsDeliveryTrackingService = {
   /**
    * Assign logistics provider to delivery
    */
-  async assignProvider(deliveryId: string, providerId: string) {
+  async assignProvider(
+    deliveryId: string,
+    providerId: string,
+  ): Promise<LogisticsDeliveryTrackingResponse> {
     // Verify delivery exists
     const delivery = await prisma.logisticsBooking.findUnique({
       where: { id: deliveryId },
@@ -629,8 +670,7 @@ export const logisticsDeliveryTrackingService = {
     status: string,
     currentLocation?: string,
     estimatedDeliveryDate?: Date,
-    message?: string
-  ) {
+  ): Promise<LogisticsDeliveryTrackingResponse> {
     // Verify booking exists
     const booking = await prisma.logisticsBooking.findUnique({
       where: { id: deliveryId },
@@ -654,7 +694,7 @@ export const logisticsDeliveryTrackingService = {
       throw new Error("Invalid delivery status");
     }
 
-    const statusMap: Record<string, string> = {
+    const statusMap: Record<string, BookingStatus> = {
       PENDING: "PENDING",
       ACCEPTED: "ACCEPTED",
       IN_TRANSIT: "IN_PROGRESS",
@@ -666,7 +706,7 @@ export const logisticsDeliveryTrackingService = {
     const updated = await prisma.logisticsBooking.update({
       where: { id: deliveryId },
       data: {
-        status: statusMap[status] || booking.status,
+        status: (statusMap[status] || booking.status) as BookingStatus,
         currentLocation: currentLocation || booking.currentLocation,
         updatedAt: new Date(),
       },
@@ -684,7 +724,10 @@ export const logisticsDeliveryTrackingService = {
         },
         user: true,
       },
-    });
+    }) as LogisticsBooking & {
+      driver: LogisticsProfile & { user: Partial<User> } | null;
+      user: User;
+    };
 
     // Send notification
     const notificationMessages = {
