@@ -27,26 +27,22 @@ export async function PATCH(
       );
     }
 
-    // Verify tracking exists
-    const tracking = await prisma.mechanicBookingTracking.findUnique({
-      where: { bookingId },
-    });
-
-    if (!tracking) {
-      return NextResponse.json(
-        { error: "Tracking not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check authorization - only assigned mechanic or admin can update
+    // Verify booking exists
     const booking = await prisma.mechanicBooking.findUnique({
       where: { id: bookingId },
       include: { mechanic: true },
     });
 
+    if (!booking) {
+      return NextResponse.json(
+        { error: "Booking not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check authorization - only assigned mechanic or admin can update
     if (
-      booking?.mechanic?.userId !== user.id &&
+      booking.mechanic?.userId !== user.id &&
       user.role !== "ADMIN"
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
