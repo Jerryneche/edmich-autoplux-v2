@@ -80,15 +80,13 @@ export async function POST(
                 id: mechanic.id,
                 name: mechanic.user.name,
                 phone: mechanic.user.phone,
-                rating: mechanic.rating,
-                completedJobs: mechanic.completedJobs,
               }
             : null,
         },
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error assigning mechanic:", error);
 
     if (error.message.includes("not found")) {
