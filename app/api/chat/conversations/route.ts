@@ -259,6 +259,23 @@ export async function POST(request: NextRequest) {
                 },
               },
             },
+            messages: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: {
+                id: true,
+                content: true,
+                attachments: true,
+                createdAt: true,
+                sender: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+            },
           },
         });
 
