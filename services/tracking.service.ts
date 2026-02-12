@@ -165,8 +165,9 @@ export const orderTrackingService = {
   async updateOrderTrackingStatus(
     orderId: string,
     status: string,
-    lastLocation?: string,
-    estimatedDeliveryDate?: Date,
+    latitude?: number,
+    longitude?: number,
+    estimatedArrival?: string,
     message?: string
   ) {
     // Verify tracking exists
@@ -196,29 +197,30 @@ export const orderTrackingService = {
       where: { orderId },
       data: {
         status,
-        lastLocation: lastLocation || tracking.lastLocation,
-        estimatedDeliveryDate:
-          estimatedDeliveryDate || tracking.estimatedDeliveryDate,
+        currentLat: latitude !== undefined ? latitude : tracking.currentLat,
+        currentLng: longitude !== undefined ? longitude : tracking.currentLng,
+        lastLocationUpdate: latitude !== undefined || longitude !== undefined ? new Date() : tracking.lastLocationUpdate,
+        estimatedArrival: estimatedArrival || tracking.estimatedArrival,
         updatedAt: new Date(),
       },
       include: {
-        events: { orderBy: { timestamp: "desc" } },
+        updates: { orderBy: { timestamp: "desc" } },
         order: { include: { user: true } },
       },
     });
 
-    // Create tracking event
-    await prisma.trackingEvent.create({
+    // Create tracking update
+    await prisma.trackingUpdate.create({
       data: {
         trackingId: updated.id,
+        latitude: latitude || tracking.currentLat || 0,
+        longitude: longitude || tracking.currentLng || 0,
         status,
-        location: lastLocation,
-        message: message || `Order status updated to ${status}`,
       },
     });
 
     // Send notification to customer
-    const notificationMessages = {
+    const notificationMessages: { [key: string]: string } = {
       PENDING: "Your order has been confirmed",
       IN_TRANSIT: "Your order is on its way to you",
       OUT_FOR_DELIVERY: "Your order will be delivered today",
@@ -231,10 +233,7 @@ export const orderTrackingService = {
       {
         type: "DELIVERY",
         title: "Order Status Update",
-        message:
-          notificationMessages[
-            status as keyof typeof notificationMessages
-          ] || `Order status: ${status}`,
+        message: notificationMessages[status] || `Order status: ${status}`,
         link: `/orders/${orderId}/tracking`,
       }
     );

@@ -11,11 +11,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { trackingId, location, message } = body;
+    const { trackingId, latitude, longitude } = body;
 
-    if (!trackingId || !location) {
+    if (!trackingId || latitude === undefined || longitude === undefined) {
       return NextResponse.json(
-        { error: "trackingId and location are required" },
+        { error: "trackingId, latitude, and longitude are required" },
         { status: 400 }
       );
     }
@@ -47,18 +47,20 @@ export async function POST(request: Request) {
     const updated = await prisma.orderTracking.update({
       where: { id: trackingId },
       data: {
-        lastLocation: location,
+        currentLat: latitude,
+        currentLng: longitude,
+        lastLocationUpdate: new Date(),
         updatedAt: new Date(),
       },
     });
 
-    // Create tracking event
-    await prisma.trackingEvent.create({
+    // Create tracking update
+    await prisma.trackingUpdate.create({
       data: {
         trackingId: updated.id,
+        latitude,
+        longitude,
         status: updated.status,
-        location: location,
-        message: message || `Location updated to ${location}`,
       },
     });
 
@@ -66,8 +68,9 @@ export async function POST(request: Request) {
       success: true,
       data: {
         id: updated.id,
-        trackingNumber: updated.trackingNumber,
-        lastLocation: updated.lastLocation,
+        currentLat: updated.currentLat,
+        currentLng: updated.currentLng,
+        lastLocationUpdate: updated.lastLocationUpdate,
         status: updated.status,
       },
     });

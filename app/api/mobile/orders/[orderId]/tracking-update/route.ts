@@ -19,14 +19,7 @@ export async function PATCH(
 
     const { orderId } = await params;
     const body = await request.json();
-    const { status, lastLocation, estimatedDeliveryDate, message } = body;
-
-    if (!message) {
-      return NextResponse.json(
-        { error: "message is required" },
-        { status: 400 }
-      );
-    }
+    const { status, latitude, longitude, estimatedArrival, message } = body;
 
     // Verify tracking exists
     const tracking = await prisma.orderTracking.findUnique({
@@ -67,8 +60,9 @@ export async function PATCH(
     const updated = await orderTrackingService.updateOrderTrackingStatus(
       orderId,
       status || tracking.status,
-      lastLocation,
-      estimatedDeliveryDate ? new Date(estimatedDeliveryDate) : undefined,
+      latitude,
+      longitude,
+      estimatedArrival,
       message
     );
 
@@ -77,14 +71,16 @@ export async function PATCH(
       tracking: {
         id: updated.id,
         status: updated.status,
-        lastLocation: updated.lastLocation,
-        estimatedDeliveryDate: updated.estimatedDeliveryDate,
-        events: updated.events.map((event) => ({
-          id: event.id,
-          status: event.status,
-          location: event.location,
-          message: event.message,
-          timestamp: event.timestamp,
+        currentLat: updated.currentLat,
+        currentLng: updated.currentLng,
+        lastLocationUpdate: updated.lastLocationUpdate,
+        estimatedArrival: updated.estimatedArrival,
+        updates: updated.updates.map((update) => ({
+          id: update.id,
+          latitude: update.latitude,
+          longitude: update.longitude,
+          status: update.status,
+          timestamp: update.timestamp,
         })),
       },
     });
