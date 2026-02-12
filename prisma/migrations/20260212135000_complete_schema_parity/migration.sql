@@ -1,0 +1,91 @@
+-- Add missing optional fields to tables to match schema.prisma completely
+
+-- Product: Add SEO and additional fields
+ALTER TABLE "Product" 
+ADD COLUMN IF NOT EXISTS "metaTitle" TEXT,
+ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
+ADD COLUMN IF NOT EXISTS "keywords" TEXT[];
+
+-- MechanicProfile: Add missing optional fields to match schema
+ALTER TABLE "MechanicProfile"
+ADD COLUMN IF NOT EXISTS "website" TEXT,
+ADD COLUMN IF NOT EXISTS "instagram" TEXT,
+ADD COLUMN IF NOT EXISTS "facebook" TEXT,
+ADD COLUMN IF NOT EXISTS "twitter" TEXT,
+ADD COLUMN IF NOT EXISTS "whatsapp" TEXT,
+ADD COLUMN IF NOT EXISTS "tiktok" TEXT,
+ADD COLUMN IF NOT EXISTS "businessHours" TEXT,
+ADD COLUMN IF NOT EXISTS "tagline" TEXT,
+ADD COLUMN IF NOT EXISTS "coverImage" TEXT,
+ADD COLUMN IF NOT EXISTS "logo" TEXT,
+ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
+ADD COLUMN IF NOT EXISTS "keywords" TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+-- LogisticsProfile: Add missing optional fields to match schema
+ALTER TABLE "LogisticsProfile"
+ADD COLUMN IF NOT EXISTS "website" TEXT,
+ADD COLUMN IF NOT EXISTS "instagram" TEXT,
+ADD COLUMN IF NOT EXISTS "facebook" TEXT,
+ADD COLUMN IF NOT EXISTS "twitter" TEXT,
+ADD COLUMN IF NOT EXISTS "whatsapp" TEXT,
+ADD COLUMN IF NOT EXISTS "tiktok" TEXT,
+ADD COLUMN IF NOT EXISTS "businessHours" TEXT,
+ADD COLUMN IF NOT EXISTS "tagline" TEXT,
+ADD COLUMN IF NOT EXISTS "coverImage" TEXT,
+ADD COLUMN IF NOT EXISTS "logo" TEXT,
+ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
+ADD COLUMN IF NOT EXISTS "keywords" TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+-- LogisticsReview: Add missing updatedAt field
+ALTER TABLE "LogisticsReview"
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- LogisticsBooking: Add missing timestamps if not present
+ALTER TABLE "LogisticsBooking"
+ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- MechanicBooking: Ensure all fields present
+ALTER TABLE "MechanicBooking"
+ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- SupplierProfile: Add accountName back (was in schema but removed - keep for backward compatibility)
+ALTER TABLE "SupplierProfile"
+ADD COLUMN IF NOT EXISTS "website" TEXT,
+ADD COLUMN IF NOT EXISTS "instagram" TEXT,
+ADD COLUMN IF NOT EXISTS "facebook" TEXT,
+ADD COLUMN IF NOT EXISTS "twitter" TEXT,
+ADD COLUMN IF NOT EXISTS "whatsapp" TEXT,
+ADD COLUMN IF NOT EXISTS "tiktok" TEXT,
+ADD COLUMN IF NOT EXISTS "businessHours" TEXT,
+ADD COLUMN IF NOT EXISTS "tagline" TEXT,
+ADD COLUMN IF NOT EXISTS "coverImage" TEXT,
+ADD COLUMN IF NOT EXISTS "logo" TEXT,
+ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
+ADD COLUMN IF NOT EXISTS "keywords" TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+-- Vehicle: Ensure all fields
+ALTER TABLE "Vehicle"
+ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- Order: Ensure timestamps
+ALTER TABLE "Order"
+ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- ShippingAddress: Ensure timestamps
+ALTER TABLE "ShippingAddress"
+ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3);
+
+-- Booking: Ensure timestamps
+ALTER TABLE "Booking"
+ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- LogisticsRequest: Ensure timestamps
+ALTER TABLE "LogisticsRequest"
+ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
