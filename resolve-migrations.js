@@ -21,16 +21,11 @@ async function resolveFailedMigrations() {
   try {
     const prisma = new PrismaClient();
     
-    // Delete any failed migration records from _prisma_migrations
+    // Delete ANY failed migration records from _prisma_migrations
+    // A migration is failed if it started but didn't finish (finished_at IS NULL)
     const deleted = await prisma.$executeRaw`
       DELETE FROM "_prisma_migrations" 
-      WHERE "finished_at" IS NULL
-      AND "migration_name" IN (
-        '20260212134000_add_supplierprofile_columns',
-        '20260212134001_add_marketing_fields_to_profiles',
-        '20260212135000_complete_schema_parity',
-        '20260212136000_create_missing_review_tables'
-      );
+      WHERE "finished_at" IS NULL;
     `;
     
     if (deleted > 0) {
