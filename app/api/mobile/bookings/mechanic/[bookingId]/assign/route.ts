@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
-import { mechanicBookingTrackingService } from "@/services/tracking.service";
+import { prisma } from "@/lib/prisma";
 
 /**
  * POST /api/mobile/bookings/mechanic/{bookingId}/assign
@@ -31,21 +31,50 @@ export async function POST(
       );
     }
 
-    const tracking = await mechanicBookingTrackingService.assignMechanic(
-      bookingId,
-      mechanicId
-    );
+    // Verify booking exists
+    const booking = await prisma.mechanicBooking.findUnique({
+      where: { id: bookingId },
+    });
 
-    const mechanic = tracking.assignedMechanic;
+    if (!booking) {
+      return NextResponse.json(
+        { error: "Booking not found" },
+        { status: 404 }
+      );
+    }
+
+    // Assign mechanic
+    const updated = await prisma.mechanicBooking.update({
+      where: { id: bookingId },
+      data: { mechanicId },
+      include: {
+        mechanic: {
+          select: {
+            id: true,
+            userId: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const mechanic = updated.mechanic;
 
     return NextResponse.json(
       {
         success: true,
         message: "Mechanic assigned successfully",
         tracking: {
-          id: tracking.id,
-          bookingId: tracking.bookingId,
-          status: tracking.status,
+          id: updated.id,
+          bookingId: updated.id,
+          status: updated.status,
           assignedMechanic: mechanic
             ? {
                 id: mechanic.id,

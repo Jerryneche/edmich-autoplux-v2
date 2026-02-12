@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
-import { mechanicBookingTrackingService } from "@/services/tracking.service";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -57,23 +56,17 @@ export async function PATCH(
       );
     }
 
-    const updated = await mechanicBookingTrackingService.updateMechanicBookingStatus(
-      bookingId,
-      status,
-      message
-    );
+    const updated = await prisma.mechanicBooking.update({
+      where: { id: bookingId },
+      data: { status: status as any },
+    });
 
     return NextResponse.json({
       success: true,
+      message: `Booking status updated to ${status}`,
       tracking: {
         id: updated.id,
         status: updated.status,
-        events: updated.events.map((event) => ({
-          id: event.id,
-          status: event.status,
-          message: event.message,
-          timestamp: event.timestamp,
-        })),
       },
     });
   } catch (error: any) {

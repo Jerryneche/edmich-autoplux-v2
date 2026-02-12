@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
-import { mechanicBookingTrackingService } from "@/services/tracking.service";
+import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/mobile/bookings/mechanic/{bookingId}/tracking
@@ -18,24 +18,39 @@ export async function GET(
 
     const { bookingId } = await params;
 
-    const tracking = await mechanicBookingTrackingService.getMechanicBookingTracking(
-      bookingId
-    );
+    const booking = await prisma.mechanicBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        mechanic: {
+          select: {
+            id: true,
+            userId: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    if (!tracking) {
+    if (!booking) {
       return NextResponse.json(
-        { error: "Tracking not found" },
+        { error: "Booking not found" },
         { status: 404 }
       );
     }
 
-    const mechanic = tracking.assignedMechanic;
+    const mechanic = booking.mechanic;
 
     const response = {
-      id: tracking.id,
-      bookingId: tracking.bookingId,
-      status: tracking.status,
-      estimatedCompletionDate: tracking.estimatedCompletionDate,
+      id: booking.id,
+      bookingId: booking.id,
+      status: booking.status,
       assignedMechanic: mechanic
         ? {
             id: mechanic.id,
