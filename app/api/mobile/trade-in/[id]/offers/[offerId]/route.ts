@@ -36,7 +36,11 @@ export async function PATCH(
 
     const offer = await prisma.tradeInOffer.findFirst({
       where: { id: offerId, tradeInId: tradeIn.id },
-      include: { order: { select: { id: true } } },
+      include: { 
+        order: { select: { id: true } },
+        tradeIn: { select: { userId: true } },
+        supplier: { select: { userId: true } }
+      },
     });
 
     if (!offer) {
@@ -69,13 +73,11 @@ export async function PATCH(
         ? await prisma.order.findUnique({ where: { id: offer.order.id } })
         : await prisma.order.create({
             data: {
-              userId: offer.userId,
+              userId: offer.tradeIn.userId,
               total: updatedOffer.amount,
               status: "PENDING",
               paymentMethod: "TRADE_IN",
               paymentStatus: "PENDING",
-              tradeInId: tradeIn.id,
-              tradeInOfferId: updatedOffer.id,
             },
           });
 
@@ -118,7 +120,7 @@ export async function PATCH(
         },
       });
 
-      await pushNotificationService.notifyUser(offer.userId, {
+      await pushNotificationService.notifyUser(offer.supplier.userId, {
         title: "Offer rejected",
         body: `Your offer was rejected for trade-in ${tradeIn.itemName}`,
         data: { type: "trade-in", tradeInId: tradeIn.id },
@@ -163,7 +165,7 @@ export async function PATCH(
         },
       });
 
-      await pushNotificationService.notifyUser(offer.userId, {
+      await pushNotificationService.notifyUser(offer.supplier.userId, {
         title: "Counter offer",
         body: `You received a counter offer for trade-in ${tradeIn.itemName}`,
         data: { type: "trade-in", tradeInId: tradeIn.id },

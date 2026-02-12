@@ -80,6 +80,7 @@ model User {
   supplierProfile   SupplierProfile?
   tradeIns          TradeIn[]
   tradeInInterests  TradeInInterest[]
+  tradeInOffers     TradeInOffer[]
   tradeInOfferRevisions TradeInOfferRevision[]
   logisticsRequests LogisticsRequest[]
   mechanicBookings  MechanicBooking[]
@@ -680,6 +681,8 @@ model TradeInOffer {
   id         String   @id @default(cuid())
   tradeInId  String
   tradeIn    TradeIn  @relation("tradeInOffers", fields: [tradeInId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   supplierId String
   supplier   SupplierProfile @relation("supplierOffers", fields: [supplierId], references: [id])
   amount     Float
@@ -692,8 +695,9 @@ model TradeInOffer {
 
   revisions TradeInOfferRevision[]
 
-  @@unique([tradeInId, supplierId])
+  @@unique([tradeInId, userId])
   @@index([tradeInId])
+  @@index([userId])
   @@index([supplierId])
   @@index([status])
 }
