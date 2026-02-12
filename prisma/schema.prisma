@@ -79,9 +79,6 @@ model User {
   sessions          Session[]
   supplierProfile   SupplierProfile?
   tradeIns          TradeIn[]
-  tradeInInterests  TradeInInterest[]
-  tradeInOffers     TradeInOffer[]
-  tradeInOfferRevisions TradeInOfferRevision[]
   logisticsRequests LogisticsRequest[]
   mechanicBookings  MechanicBooking[]
   logisticsBookings LogisticsBooking[]
@@ -107,8 +104,8 @@ model User {
   paymentMethods         PaymentMethod[]
   kycs                   KYC[]
   wallet                 Wallet?
+  orderTrackings         OrderTracking[]
   logisticsReviews       LogisticsReview[]
-  assignedOrderTrackings OrderTracking[]   @relation("OrderTrackingProvider")
   vehicles               Vehicle[]
   hasPassword            Boolean           @default(false)
   googleId               String?           @unique
@@ -183,7 +180,6 @@ model MechanicProfile {
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   mechanicNotifications MechanicNotification[]
   reviews               MechanicReview[] // mechanic-specific reviews
-  assignedTrackings     MechanicBookingTracking[] @relation("MechanicBookingTrackingAssigned")
 }
 
 model MechanicBooking {
@@ -229,8 +225,6 @@ model MechanicBooking {
   status     BookingStatus    @default(PENDING)
   mechanicId String?
   mechanic   MechanicProfile? @relation(fields: [mechanicId], references: [id])
-  
-  tracking   MechanicBookingTracking?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -270,7 +264,6 @@ model LogisticsProfile {
 
   bookings  LogisticsBooking[]
   reviews   LogisticsReview[]
-  assignedTrackings LogisticsDeliveryTracking[] @relation("LogisticsDeliveryTrackingAssigned")
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 }
@@ -347,8 +340,6 @@ model LogisticsBooking {
   // Tracking
   trackingNumber  String? @unique
   currentLocation String?
-  
-  tracking LogisticsDeliveryTracking?
 
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
@@ -422,14 +413,6 @@ model Order {
   paymentReference   String?
   paymentStatus      String?             @default("PENDING")
   paidAt             DateTime?
-  tradeInId           String?            @unique
-  tradeInOfferId      String?            @unique
-
-  tradeIn             TradeIn?        @relation(fields: [tradeInId], references: [id], onDelete: SetNull)
-  tradeInOffer        TradeInOffer?   @relation(fields: [tradeInOfferId], references: [id], onDelete: SetNull)
-
-  @@index([tradeInId])
-  @@index([tradeInOfferId])
 }
 
 model ShippingAddress {
@@ -660,66 +643,10 @@ model TradeIn {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  interests TradeInInterest[]
-  offers    TradeInOffer[]
-  order     Order?
-
   @@index([userId])
   @@index([supplierId])
   @@index([status])
   @@index([category])
-}
-
-model TradeInOffer {
-  id        String   @id @default(cuid())
-  tradeInId String
-  userId    String
-  amount    Float
-  note      String?  @db.Text
-  status    String   @default("SUBMITTED") // SUBMITTED, COUNTERED, ACCEPTED, REJECTED, SETTLED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tradeIn   TradeIn  @relation(fields: [tradeInId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  revisions TradeInOfferRevision[]
-  order     Order?
-
-  @@unique([tradeInId, userId])
-  @@index([tradeInId])
-  @@index([userId])
-  @@index([status])
-}
-
-model TradeInOfferRevision {
-  id        String   @id @default(cuid())
-  offerId   String
-  userId    String
-  amount    Float
-  note      String?  @db.Text
-  action    String   // CREATED, UPDATED, COUNTERED, ACCEPTED, REJECTED
-  createdAt DateTime @default(now())
-
-  offer TradeInOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([offerId])
-  @@index([userId])
-}
-
-model TradeInInterest {
-  id        String   @id @default(cuid())
-  tradeInId String
-  userId    String
-  message   String?  @db.Text
-  createdAt DateTime @default(now())
-
-  tradeIn TradeIn @relation(fields: [tradeInId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([tradeInId, userId])
-  @@index([tradeInId])
-  @@index([userId])
 }
 
 /**
@@ -729,13 +656,10 @@ model TradeInInterest {
  */
 
 model Conversation {
-  id           String   @id @default(cuid())
-  title        String?
-  productId    String?  // When conversation is about a specific product
-  productImage String?  // Product image URL - shown when product.image unavailable
-  itemImage    String?  // General item image URL as fallback
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   participants ConversationParticipant[]
   messages     Message[]
@@ -762,8 +686,7 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content        String?
-  attachments    Json?        @default("[]")
+  content        String
   read           Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -898,9 +821,7 @@ model Withdrawal {
   wallet        Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
   amount        Float
   bankCode      String
-  bankName      String?
   accountNumber String
-  accountName   String?
   status        String    @default("pending")
   initiatedAt   DateTime  @default(now())
   processedAt   DateTime?
@@ -910,116 +831,41 @@ model Withdrawal {
 }
 
 /**
- * Order Tracking - Track shipments with assigned logistics providers
+ * Order tracking & live updates
  */
 model OrderTracking {
-  id                      String    @id @default(cuid())
-  orderId                 String    @unique
-  order                   Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  trackingNumber          String    @unique @default(dbgenerated("('EDM-' || gen_random_uuid())"))
-  status                  String    @default("PENDING") // PENDING, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, FAILED
-  lastLocation            String?
-  estimatedDeliveryDate   DateTime?
-  assignedLogisticsProviderId String?
-  assignedLogisticsProvider User?   @relation("OrderTrackingProvider", fields: [assignedLogisticsProviderId], references: [id], onDelete: SetNull)
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  orderId            String    @unique
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driverId           String? // references User.id (driver)
+  driver             User?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  deliveryLat        Float?
+  deliveryLng        Float?
+  currentLat         Float?
+  currentLng         Float?
+  lastLocationUpdate DateTime?
+  status             String    @default("pending")
+  estimatedArrival   String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  events TrackingEvent[]
+  updates TrackingUpdate[]
 
   @@index([orderId])
-  @@index([assignedLogisticsProviderId])
-  @@index([status])
+  @@index([driverId])
 }
 
 /**
- * Tracking Events - Historical log of status changes
+ * Tracking updates (location pings)
  */
-model TrackingEvent {
+model TrackingUpdate {
   id         String        @id @default(cuid())
   trackingId String
   tracking   OrderTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  status     String
-  location   String?
-  message    String
+  latitude   Float
+  longitude  Float
+  status     String?
   timestamp  DateTime      @default(now())
-  createdAt  DateTime      @default(now())
-
-  @@index([trackingId])
-  @@index([timestamp])
-}
-
-/**
- * Mechanic Booking Tracking - Assign mechanics and track job status
- */
-model MechanicBookingTracking {
-  id                     String    @id @default(cuid())
-  bookingId              String    @unique
-  mechanicBooking        MechanicBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  assignedMechanicId     String?
-  assignedMechanic       MechanicProfile? @relation("MechanicBookingTrackingAssigned", fields: [assignedMechanicId], references: [id], onDelete: SetNull)
-  status                 String    @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED
-  estimatedCompletionDate DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-
-  events MechanicBookingTrackingEvent[]
-
-  @@index([bookingId])
-  @@index([assignedMechanicId])
-  @@index([status])
-}
-
-/**
- * Mechanic Booking Tracking Events - Historical log
- */
-model MechanicBookingTrackingEvent {
-  id         String                     @id @default(cuid())
-  trackingId String
-  tracking   MechanicBookingTracking    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  status     String
-  message    String
-  timestamp  DateTime                   @default(now())
-  createdAt  DateTime                   @default(now())
-
-  @@index([trackingId])
-  @@index([timestamp])
-}
-
-/**
- * Logistics Delivery Tracking - Assign providers and track deliveries
- */
-model LogisticsDeliveryTracking {
-  id                      String    @id @default(cuid())
-  deliveryId              String    @unique
-  logisticsBooking        LogisticsBooking @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  assignedProviderId      String?
-  assignedProvider        LogisticsProfile? @relation("LogisticsDeliveryTrackingAssigned", fields: [assignedProviderId], references: [id], onDelete: SetNull)
-  status                  String    @default("PENDING") // PENDING, ACCEPTED, IN_TRANSIT, DELIVERED, FAILED
-  currentLocation         String?
-  estimatedDeliveryDate   DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-
-  events LogisticsDeliveryTrackingEvent[]
-
-  @@index([deliveryId])
-  @@index([assignedProviderId])
-  @@index([status])
-}
-
-/**
- * Logistics Delivery Tracking Events - Historical log
- */
-model LogisticsDeliveryTrackingEvent {
-  id         String                       @id @default(cuid())
-  trackingId String
-  tracking   LogisticsDeliveryTracking    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  status     String
-  location   String?
-  message    String
-  timestamp  DateTime                     @default(now())
-  createdAt  DateTime                     @default(now())
 
   @@index([trackingId])
   @@index([timestamp])

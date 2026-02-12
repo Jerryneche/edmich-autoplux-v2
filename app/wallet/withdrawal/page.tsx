@@ -89,7 +89,7 @@ export default function WithdrawPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/wallet/withdrawal", {
+      const response = await fetch("/api/wallet/withdraw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
