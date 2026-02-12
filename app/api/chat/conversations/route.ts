@@ -74,6 +74,33 @@ export async function POST(request: NextRequest) {
 
     const { participantId, message } = await request.json();
 
+    if (!participantId) {
+      return NextResponse.json(
+        { error: "Participant ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate that both users exist
+    const [currentUserExists, participantExists] = await Promise.all([
+      prisma.user.findUnique({ where: { id: user.id } }),
+      prisma.user.findUnique({ where: { id: participantId } }),
+    ]);
+
+    if (!currentUserExists) {
+      return NextResponse.json(
+        { error: "Current user not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!participantExists) {
+      return NextResponse.json(
+        { error: "Participant not found" },
+        { status: 404 }
+      );
+    }
+
     // Create or get existing conversation
     let conversation = await prisma.conversation.findFirst({
       where: {
