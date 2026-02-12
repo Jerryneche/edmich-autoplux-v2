@@ -31,6 +31,20 @@ export async function GET(
 
     const provider = tracking.assignedProvider;
 
+    const events: Array<{
+      id: string;
+      status: string;
+      location: string | null;
+      message: string | null;
+      timestamp: Date;
+    }> = (tracking.events ?? []).map((event) => ({
+      id: event.id,
+      status: event.status,
+      location: event.location,
+      message: event.message,
+      timestamp: event.timestamp,
+    }));
+
     const response = {
       id: tracking.id,
       deliveryId: tracking.deliveryId,
@@ -48,17 +62,11 @@ export async function GET(
             vehicle: `${provider.companyName} - ${provider.vehicleType}`,
           }
         : null,
-      events: tracking.events.map((event) => ({
-        id: event.id,
-        status: event.status,
-        location: event.location,
-        message: event.message,
-        timestamp: event.timestamp,
-      })),
+      events,
     };
 
     return NextResponse.json({ success: true, data: response });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching logistics tracking:", error);
     return NextResponse.json(
       { error: "Failed to fetch tracking" },
