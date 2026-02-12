@@ -79,6 +79,7 @@ model User {
   sessions          Session[]
   supplierProfile   SupplierProfile?
   tradeIns          TradeIn[]
+  tradeInInterests  TradeInInterest[]
   logisticsRequests LogisticsRequest[]
   mechanicBookings  MechanicBooking[]
   logisticsBookings LogisticsBooking[]
@@ -640,6 +641,8 @@ model TradeIn {
   // Status tracking
   status String @default("PENDING") // PENDING, REVIEWING, OFFER_MADE, ACCEPTED, REJECTED, COMPLETED, CANCELLED
 
+  interests TradeInInterest[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -647,6 +650,23 @@ model TradeIn {
   @@index([supplierId])
   @@index([status])
   @@index([category])
+}
+
+/**
+ * Trade-in Interest - Users expressing interest in trade-in items
+ */
+model TradeInInterest {
+  id        String   @id @default(cuid())
+  tradeInId String
+  tradeIn   TradeIn  @relation(fields: [tradeInId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@unique([tradeInId, userId])
+  @@index([tradeInId])
+  @@index([userId])
 }
 
 /**
