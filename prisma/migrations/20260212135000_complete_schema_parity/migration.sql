@@ -9,10 +9,6 @@ ADD COLUMN IF NOT EXISTS "metaTitle" TEXT,
 ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
 ADD COLUMN IF NOT EXISTS "keywords" TEXT[];
 
--- LogisticsReview: Add missing updatedAt field
-ALTER TABLE "LogisticsReview"
-ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
 -- LogisticsBooking: Add missing timestamps if not present
 ALTER TABLE "LogisticsBooking"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

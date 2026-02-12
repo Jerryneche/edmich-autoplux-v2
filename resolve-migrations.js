@@ -28,7 +28,8 @@ async function resolveFailedMigrations() {
       AND "migration_name" IN (
         '20260212134000_add_supplierprofile_columns',
         '20260212134001_add_marketing_fields_to_profiles',
-        '20260212135000_complete_schema_parity'
+        '20260212135000_complete_schema_parity',
+        '20260212136000_create_missing_review_tables'
       );
     `;
     
