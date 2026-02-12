@@ -16,27 +16,31 @@ if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
 
 async function resolveFailedMigrations() {
   console.log('✅ DATABASE_URL found');
-  console.log('Resolving failed migrations...');
+  console.log('Clearing migration records for fresh reset...');
 
   try {
     const prisma = new PrismaClient();
     
-    // Delete ANY failed migration records from _prisma_migrations
-    // A migration is failed if it started but didn't finish (finished_at IS NULL)
+    // Delete ALL migration records (both completed and failed)
+    // This allows prisma migrate reset to start completely fresh
     const deleted = await prisma.$executeRaw`
-      DELETE FROM "_prisma_migrations" 
-      WHERE "finished_at" IS NULL;
+      DELETE FROM "_prisma_migrations";
     `;
     
     if (deleted > 0) {
-      console.log(`✅ Deleted ${deleted} failed migration record(s)`);
+      console.log(`✅ Cleared ${deleted} migration record(s) for fresh rebuild`);
     } else {
-      console.log('✅ No failed migrations to resolve');
+      console.log('✅ Migration table already empty');
     }
-    console.log('Migrations will be retried on next deploy...');
     
     await prisma.$disconnect();
     process.exit(0);
+  } catch (error) {
+    console.error('❌ Failed to clear migration records:', error.message);
+    console.log('Continuing with prisma migrate reset');
+    process.exit(0); // Exit with 0 so deploy continues
+  }
+}
   } catch (error) {
     console.error('❌ Failed to delete migration records:', error.message);
     console.log('Continuing with prisma migrate deploy');
