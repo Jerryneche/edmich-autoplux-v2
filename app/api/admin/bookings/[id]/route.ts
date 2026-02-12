@@ -90,7 +90,7 @@ export async function PATCH(
       );
     }
 
-    let updatedBooking: Record<string, any>;
+    let updatedBooking: Record<string, unknown> | undefined;
 
     if (type === "MECHANIC") {
       updatedBooking = await prisma.mechanicBooking.update({

@@ -95,7 +95,7 @@ export async function POST(req: Request) {
         onboardingStatus: user.onboardingStatus,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[LOGIN] Error:", error);
     return NextResponse.json(
       { error: "Login failed. Please try again." },

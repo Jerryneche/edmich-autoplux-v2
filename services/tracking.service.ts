@@ -725,7 +725,7 @@ export const logisticsDeliveryTrackingService = {
         user: true,
       },
     }) as LogisticsBooking & {
-      driver: LogisticsProfile & { user: Partial<User> } | null;
+      driver: LogisticsProfile & { user: { id: string; name: string | null; email: string } } | null;
       user: User;
     };
 

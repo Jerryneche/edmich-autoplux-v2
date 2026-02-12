@@ -39,7 +39,8 @@ export async function GET() {
       pendingSuppliers,
       chartData,
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("Error fetching analytics:", error);
     return NextResponse.json(
       { error: "Failed to fetch analytics" },
       { status: 500 }

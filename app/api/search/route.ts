@@ -11,8 +11,8 @@ export async function GET(request: Request) {
     const maxPrice = searchParams.get("maxPrice");
     const sort = searchParams.get("sort") || "newest";
 
-    const where: Record<string, boolean | object> = {
-      status: "ACTIVE", // your schema uses "ACTIVE"
+    const where: Record<string, unknown> = {
+      status: "ACTIVE",
     };
 
     if (query) {
@@ -48,7 +48,6 @@ export async function GET(request: Request) {
 
     const products = await prisma.product.findMany({
       where,
-      orderBy: { createdAt: "desc" },
       orderBy,
       take: 50,
       include: {
@@ -100,26 +99,25 @@ export async function GET(request: Request) {
       products: productsWithRating,
       count: productsWithRating.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Product search error:", error);
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Search failed", details: error.message },
+      { error: "Search failed", details: errorMsg },
       { status: 500 }
     );
   }
 }
 
 // Voice search placeholder
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    const { audioData: _audioData } = await request.json();
-    // TODO: Integrate with Whisper API or similar
-    const transcription = "brake pads for Toyota Camry";
+    // Note: audio processing would be handled by AI service
+    console.log("Voice search received");
 
     return NextResponse.json({
       success: true,
-      transcription,
-      suggestion: "Searching for: " + transcription,
+      message: "Voice search would be processed here",
     });
   } catch (error: unknown) {
     console.error("Voice search error:", error);

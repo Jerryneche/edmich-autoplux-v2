@@ -89,7 +89,7 @@ export async function POST(
   } catch (error: unknown) {
     console.error("Error assigning mechanic:", error);
 
-    if (error.message.includes("not found")) {
+    if (error instanceof Error && error.message.includes("not found")) {
       return NextResponse.json(
         { error: error.message },
         { status: 404 }

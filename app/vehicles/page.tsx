@@ -113,7 +113,7 @@ export default function VehiclesPage() {
                   key={vehicle.id}
                   className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition"
                 >
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 text-white">
+                  <div className="bg-linear-to-r from-blue-500 to-blue-600 p-6 text-white">
                     <div className="flex items-center justify-between mb-2">
                       <TruckIcon className="h-8 w-8" />
                       <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
@@ -184,6 +184,8 @@ export default function VehiclesPage() {
                       <button
                         onClick={() => handleDelete(vehicle.id)}
                         className="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg transition"
+                        title="Delete vehicle"
+                        aria-label="Delete vehicle"
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>

@@ -57,21 +57,13 @@ export async function GET(
             name: mechanic.user.name,
             phone: mechanic.user.phone,
             email: mechanic.user.email,
-            rating: mechanic.rating,
-            completedJobs: mechanic.completedJobs,
-            specializations: mechanic.specialization,
           }
         : null,
-      events: tracking.events.map((event) => ({
-        id: event.id,
-        status: event.status,
-        message: event.message,
-        timestamp: event.timestamp,
-      })),
+      events: [],
     };
 
     return NextResponse.json({ success: true, data: response });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching mechanic booking tracking:", error);
     return NextResponse.json(
       { error: "Failed to fetch tracking" },

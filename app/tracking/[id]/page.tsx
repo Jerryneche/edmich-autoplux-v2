@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
+import Image from "next/image";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import {
@@ -12,43 +13,59 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 
+interface TrackingData {
+  id: string;
+  status: string;
+  driver: {
+    id: string;
+    name: string;
+    image?: string;
+    rating?: number;
+    phone?: string;
+  };
+  events: Array<{
+    id: string;
+    status: string;
+    timestamp: string;
+  }>;
+}
+
 export default function TrackingPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const params = useParams();
   const orderId = params.id as string;
 
-  const [tracking, setTracking] = useState<Record<string, any> | null>(null);
+  const [tracking, setTracking] = useState<TrackingData | null>(null);
   const [loading, setLoading] = useState(true);
   const mapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (session && orderId) {
-      fetchTracking();
-      // Poll for updates every 10 seconds
-      const interval = setInterval(fetchTracking, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [session, orderId, fetchTracking]);
-
-  const fetchTracking = async () => {
+  const fetchTracking = useCallback(async () => {
     try {
       const response = await fetch(`/api/tracking/live/${orderId}`);
       const data = await response.json();
 
       if (data.success) {
         setTracking(data.data);
-        setTracking(data.tracking);
-        updateMap(data.tracking);
+        updateMap(data.data);
       }
     } catch (error) {
       console.error("Error fetching tracking:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
 
-  const updateMap = (trackingData: Record<string, any>) => {
+  useEffect(() => {
+    if (session && orderId) {
+      fetchTracking();
+      // Poll for updates every 10 seconds
+      const interval = setInterval(() => fetchTracking(), 10000);
+      return () => clearInterval(interval);
+    }
+  }, [session, orderId, fetchTracking]);
+
+  const updateMap = (trackingData: TrackingData) => {
     // In production, integrate Google Maps here
     // For now, we'll show coordinates
     console.log("Map update:", trackingData);
@@ -153,11 +170,8 @@ export default function TrackingPage() {
                   {/* Map Placeholder */}
                   <div
                     ref={mapRef}
-                    className="h-96 bg-gray-200 relative"
-                    style={{
-                      backgroundImage:
-                        "url('https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/3.3792,6.5244,12,0/800x400@2x?access_token=YOUR_TOKEN')",
-                      backgroundSize: "cover",
+                    className="h-96 bg-cover bg-center relative"
+                  >
                       backgroundPosition: "center",
                     }}
                   >
@@ -262,10 +276,12 @@ export default function TrackingPage() {
                     </h3>
 
                     <div className="flex items-center gap-4 mb-4">
-                      <img
+                      <Image
                         src={tracking.driver.image || "/default-avatar.png"}
                         alt={tracking.driver.name}
-                        className="w-16 h-16 rounded-full object-cover"
+                        width={64}
+                        height={64}
+                        className="rounded-full object-cover"
                       />
                       <div>
                         <h4 className="font-semibold text-gray-900">

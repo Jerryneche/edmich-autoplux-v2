@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       message: "Role selected successfully!",
       role,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Role selection error:", error);
     return NextResponse.json(
       { error: "Failed to update role" },

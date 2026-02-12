@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
       if (token) {
         try {
-          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          const decoded = jwt.verify(token, JWT_SECRET) as Record<string, unknown>;
           if (decoded.email) {
             userEmail = decoded.email.toLowerCase();
           }
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
           const decoded = jwt.verify(
             authHeader.substring(7),
             JWT_SECRET
-          ) as any;
+          ) as Record<string, unknown>;
           if (decoded.email) {
             userEmail = decoded.email.toLowerCase();
           }

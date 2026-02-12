@@ -13,7 +13,8 @@ export async function GET() {
       },
     });
     return NextResponse.json(suppliers);
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("Error fetching suppliers:", error);
     return NextResponse.json(
       { error: "Failed to fetch suppliers" },
       { status: 500 }

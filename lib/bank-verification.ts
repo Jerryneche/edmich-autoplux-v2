@@ -147,7 +147,7 @@ export async function resolveAccountNumber(
  * Suggest banks based on account number prefix/pattern
  * (Simplified - in production, use proper USSD or API)
  */
-export async function suggestBanks(_accountNumber: string): Promise<BankSuggestion[]> {
+export async function suggestBanks(): Promise<BankSuggestion[]> {
   // For now, return all banks as suggestions
   // In production, you could use NIBSS or other services to narrow down
   return NIGERIAN_BANKS.map((bank) => ({

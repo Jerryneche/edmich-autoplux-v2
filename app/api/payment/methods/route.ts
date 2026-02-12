@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-export async function GET(_request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       accountNumber,
     } = await request.json();
 
-    let tokenizedData: any | null = null;
+    let tokenizedData: Record<string, unknown> | null = null;
 
     if (type === "card") {
       // Tokenize card with payment gateway

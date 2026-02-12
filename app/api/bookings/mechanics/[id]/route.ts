@@ -60,7 +60,7 @@ export async function GET(
     }
 
     return NextResponse.json(booking);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching booking:", error);
     return NextResponse.json(
       { error: "Failed to fetch booking" },

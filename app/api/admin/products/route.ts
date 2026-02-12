@@ -10,7 +10,8 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(products);
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("Error fetching products:", error);
     return NextResponse.json(
       { error: "Failed to fetch products" },
       { status: 500 }

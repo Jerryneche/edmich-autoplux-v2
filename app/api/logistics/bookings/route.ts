@@ -23,7 +23,7 @@ function calculateDistance(
   return Number((R * c).toFixed(2));
 }
 
-export async function GET(_request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

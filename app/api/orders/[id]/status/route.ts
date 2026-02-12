@@ -241,7 +241,7 @@ function getNotificationData(
   );
 }
 
-async function creditSupplierWallet(order: any, _supplierId: string) {
+async function creditSupplierWallet(order: any, _orderId?: string) {
   try {
     if (!order) return;
     // Wallet credit logic here
