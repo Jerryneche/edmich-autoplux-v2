@@ -44,7 +44,7 @@ export async function PATCH(
     }
 
     // Check authorization - only assigned provider or admin can update
-    const isAssignedProvider = tracking.driver?.userId === user.id;
+    const isAssignedProvider = tracking.driver?.id === user.id;
     if (!isAssignedProvider && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

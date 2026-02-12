@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     // Check authorization - only assigned provider can update
-    if (tracking.driver?.userId !== session.user.id) {
+    if (tracking.driver?.id !== session.user.id) {
       return NextResponse.json(
         { error: "Not authorized for this tracking" },
         { status: 403 }
