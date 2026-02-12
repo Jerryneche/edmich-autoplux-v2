@@ -162,7 +162,7 @@ export default function VehiclesPage() {
                       )}
                       {vehicle.vin && (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">VIN:</span>
+                          <span className="text-gray-600">vin:</span>
                           <span className="font-mono text-xs">
                             {vehicle.vin}
                           </span>
@@ -174,7 +174,7 @@ export default function VehiclesPage() {
                       <button
                         onClick={() =>
                           router.push(
-                            `/search?make=${vehicle.make}&model=${vehicle.model}`
+                            `/search?make=${vehicle.make}&model=${vehicle.model}`,
                           )
                         }
                         className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-lg font-medium transition"
