@@ -115,6 +115,7 @@ export async function GET(
         logo: supplier.logo,
       },
       contact: {
+        userId: supplier.userId,
         name: supplier.user.name,
         email: supplier.user.email,
         phone: supplier.user.phone,

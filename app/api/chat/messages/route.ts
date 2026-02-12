@@ -68,3 +68,84 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request);
+    if (!user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { conversationId, message, attachments } = await request.json();
+
+    if (!conversationId) {
+      return NextResponse.json(
+        { error: "Conversation ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!message || message.trim() === "") {
+      return NextResponse.json(
+        { error: "Message content is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify conversation exists and user is a participant
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: {
+          where: { userId: user.id },
+        },
+      },
+    });
+
+    if (!conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 }
+      );
+    }
+
+    if (conversation.participants.length === 0) {
+      return NextResponse.json(
+        { error: "Not a participant in this conversation" },
+        { status: 403 }
+      );
+    }
+
+    // Create message
+    const newMessage = await prisma.message.create({
+      data: {
+        conversationId: conversationId,
+        senderId: user.id,
+        content: message,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    // Update conversation timestamp
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    });
+
+    return NextResponse.json({ success: true, message: newMessage });
+  } catch (error) {
+    console.error("Error creating message:", error);
+    return NextResponse.json(
+      { error: "Failed to send message" },
+      { status: 500 }
+    );
+  }
+}

@@ -728,10 +728,16 @@ model TradeInOfferRevision {
  */
 
 model Conversation {
-  id        String   @id @default(cuid())
-  title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Product context for chat
+  productId     String?
+  productImage  String?
+  itemImage     String?
+  supplierId    String?
 
   participants ConversationParticipant[]
   messages     Message[]

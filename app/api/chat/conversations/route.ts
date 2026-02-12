@@ -56,7 +56,19 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, conversations });
+    // Transform to match contract: latestMessage instead of messages array
+    const formattedConversations = conversations.map((conv) => ({
+      id: conv.id,
+      updatedAt: conv.updatedAt,
+      participants: conv.participants,
+      latestMessage: conv.messages[0] || null,
+      productId: conv.productId,
+      productImage: conv.productImage,
+      itemImage: conv.itemImage,
+      supplierId: conv.supplierId,
+    }));
+
+    return NextResponse.json({ success: true, conversations: formattedConversations });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch conversations" },
@@ -72,7 +84,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { participantId, message } = await request.json();
+    const { participantId, message, productId, productImage, itemImage, supplierId } = await request.json();
 
     if (!participantId) {
       return NextResponse.json(
@@ -132,6 +144,11 @@ export async function POST(request: NextRequest) {
           participants: {
             create: [{ userId: user.id }, { userId: participantId }],
           },
+          // Save product context
+          productId: productId || null,
+          productImage: productImage || null,
+          itemImage: itemImage || null,
+          supplierId: supplierId || null,
         },
       });
     }
@@ -160,7 +177,18 @@ export async function POST(request: NextRequest) {
       data: { updatedAt: new Date() },
     });
 
-    return NextResponse.json({ success: true, message: newMessage });
+    // Return response with conversation object
+    return NextResponse.json({
+      success: true,
+      message: newMessage,
+      conversation: {
+        id: conversation.id,
+        productId: conversation.productId,
+        productImage: conversation.productImage,
+        itemImage: conversation.itemImage,
+        supplierId: conversation.supplierId,
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to send message" },
