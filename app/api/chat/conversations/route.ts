@@ -32,6 +32,19 @@ export async function GET(request: NextRequest) {
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
+          select: {
+            id: true,
+            content: true,
+            attachments: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
         },
       },
       orderBy: {
@@ -65,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { participantId, message, productId, attachments } = body;
+    const { participantId, message, productId, productImage, itemImage, attachments } = body;
     
     console.log("[CHAT API] Request body:", {
       participantIdFromRequest: participantId,
@@ -194,6 +207,23 @@ export async function POST(request: NextRequest) {
             },
           },
         },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            content: true,
+            attachments: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -207,6 +237,9 @@ export async function POST(request: NextRequest) {
       try {
         conversation = await prisma.conversation.create({
           data: {
+            productId: productId || undefined,
+            productImage: productImage || undefined,
+            itemImage: itemImage || undefined,
             participants: {
               create: [
                 { userId: user.id },

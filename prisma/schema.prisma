@@ -729,10 +729,13 @@ model TradeInInterest {
  */
 
 model Conversation {
-  id        String   @id @default(cuid())
-  title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  title        String?
+  productId    String?  // When conversation is about a specific product
+  productImage String?  // Product image URL - shown when product.image unavailable
+  itemImage    String?  // General item image URL as fallback
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   participants ConversationParticipant[]
   messages     Message[]
