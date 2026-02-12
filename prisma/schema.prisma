@@ -683,8 +683,8 @@ model TradeInOffer {
   tradeIn    TradeIn  @relation("tradeInOffers", fields: [tradeInId], references: [id], onDelete: Cascade)
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  supplierId String
-  supplier   SupplierProfile @relation("supplierOffers", fields: [supplierId], references: [id])
+  supplierId String?
+  supplier   SupplierProfile? @relation("supplierOffers", fields: [supplierId], references: [id])
   amount     Float
   note       String?  @db.Text
   status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
