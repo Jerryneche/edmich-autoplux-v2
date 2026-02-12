@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE "Conversation" ADD COLUMN "productId" TEXT,
-ADD COLUMN "productImage" TEXT,
-ADD COLUMN "itemImage" TEXT,
-ADD COLUMN "supplierId" TEXT;
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "productId" TEXT;
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "productImage" TEXT;
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "itemImage" TEXT;
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "supplierId" TEXT;

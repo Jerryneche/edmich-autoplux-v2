@@ -20,10 +20,9 @@ async function cleanupDatabase() {
     const prisma = new PrismaClient();
     
     // Drop all tables with cascade to remove constraints
-    await prisma.$executeRaw`
-      DROP SCHEMA IF EXISTS public CASCADE;
-      CREATE SCHEMA public;
-    `;
+    // Must execute separately - cannot combine in one prepared statement
+    await prisma.$executeRaw`DROP SCHEMA IF EXISTS public CASCADE`;
+    await prisma.$executeRaw`CREATE SCHEMA public`;
     
     console.log('✅ Database cleaned - all tables dropped');
     
