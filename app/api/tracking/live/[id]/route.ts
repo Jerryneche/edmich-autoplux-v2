@@ -8,12 +8,11 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
-    const trackingNumber = id.toUpperCase();
 
-    // Find tracking by tracking number
-    const tracking = await prisma.orderTracking.findFirst({
+    // Find tracking by order ID
+    const tracking = await prisma.orderTracking.findUnique({
       where: {
-        trackingNumber,
+        orderId: id,
       },
       include: {
         order: {
@@ -36,24 +35,16 @@ export async function GET(
             },
           },
         },
-        assignedLogisticsProvider: {
+        driver: {
           select: {
             id: true,
             name: true,
             phone: true,
             email: true,
             image: true,
-            logisticsProfile: {
-              select: {
-                rating: true,
-                completedDeliveries: true,
-                vehicleType: true,
-                vehicleNumber: true,
-              },
-            },
           },
         },
-        events: {
+        updates: {
           orderBy: { timestamp: "desc" },
         },
       },
@@ -69,10 +60,11 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        trackingNumber: tracking.trackingNumber,
+        id: tracking.id,
         status: tracking.status,
-        lastLocation: tracking.lastLocation,
-        estimatedDeliveryDate: tracking.estimatedDeliveryDate,
+        currentLat: tracking.currentLat,
+        currentLng: tracking.currentLng,
+        estimatedArrival: tracking.estimatedArrival,
 
         buyer: {
           name: tracking.order.user.name || "Customer",
@@ -94,30 +86,28 @@ export async function GET(
             : null,
         })),
 
-        provider: tracking.assignedLogisticsProvider
+        driver: tracking.driver
           ? {
-              id: tracking.assignedLogisticsProvider.id,
-              name: tracking.assignedLogisticsProvider.name || "Provider",
-              phone: tracking.assignedLogisticsProvider.phone || null,
-              email: tracking.assignedLogisticsProvider.email,
-              image: tracking.assignedLogisticsProvider.image,
-              rating: tracking.assignedLogisticsProvider.logisticsProfile?.rating ?? 0,
-              completedDeliveries:
-                tracking.assignedLogisticsProvider.logisticsProfile?.completedDeliveries ?? 0,
-              vehicle: tracking.assignedLogisticsProvider.logisticsProfile
-                ? `${tracking.assignedLogisticsProvider.logisticsProfile.vehicleType} • ${tracking.assignedLogisticsProvider.logisticsProfile.vehicleNumber}`
-                : null,
+              id: tracking.driver.id,
+              name: tracking.driver.name || "Driver",
+              phone: tracking.driver.phone || null,
+              email: tracking.driver.email,
+              image: tracking.driver.image,
             }
           : null,
 
-        location: tracking.lastLocation,
+        currentLocation: {
+          lat: tracking.currentLat,
+          lng: tracking.currentLng,
+          lastUpdated: tracking.lastLocationUpdate,
+        },
 
-        events: tracking.events.map((event) => ({
-          id: event.id,
-          status: event.status,
-          location: event.location,
-          message: event.message,
-          timestamp: event.timestamp,
+        updates: tracking.updates.map((update) => ({
+          id: update.id,
+          latitude: update.latitude,
+          longitude: update.longitude,
+          status: update.status,
+          timestamp: update.timestamp,
         })),
       },
     });
