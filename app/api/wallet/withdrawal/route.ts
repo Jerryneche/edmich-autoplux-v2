@@ -81,14 +81,13 @@ export async function POST(request: NextRequest) {
 
     // Create withdrawal in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create withdrawal record with account name
+      // Create withdrawal record
       const withdrawal = await tx.withdrawal.create({
         data: {
           walletId: wallet.id,
           amount,
           bankCode,
           accountNumber,
-          accountName: accountName || null, // Store the account name
           status: "pending",
           reference: `WD-${Date.now()}-${user.id.slice(0, 8)}`,
         },
