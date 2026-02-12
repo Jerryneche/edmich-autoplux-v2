@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const suggestions = await suggestBanks(accountNumber);
+      const suggestions = await suggestBanks();
       return NextResponse.json({
         banks: suggestions,
       });
