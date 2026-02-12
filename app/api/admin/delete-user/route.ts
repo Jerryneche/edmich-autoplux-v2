@@ -77,7 +77,7 @@ export async function DELETE(req: NextRequest) {
       await tx.paymentMethod.deleteMany({ where: { userId: uid } });
       await tx.payment.deleteMany({ where: { userId: uid } });
       await tx.kYC.deleteMany({ where: { userId: uid } });
-      await tx.orderTracking.deleteMany({ where: { assignedLogisticsProviderId: uid } });
+      await tx.orderTracking.deleteMany({ where: { driverId: uid } });
 
       // Delete wallet
       const wallet = await tx.wallet.findUnique({ where: { userId: uid } });
