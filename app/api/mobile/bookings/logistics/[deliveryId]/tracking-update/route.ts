@@ -70,6 +70,14 @@ export async function PATCH(
       message
     );
 
+    const events: Array<{
+      id: string;
+      status: string;
+      location: string | null;
+      message: string | null;
+      timestamp: Date;
+    }> = updated.events ?? [];
+
     return NextResponse.json({
       success: true,
       tracking: {
@@ -77,7 +85,7 @@ export async function PATCH(
         status: updated.status,
         currentLocation: updated.currentLocation,
         estimatedDeliveryDate: updated.estimatedDeliveryDate,
-        events: updated.events.map((event) => ({
+        events: events.map((event) => ({
           id: event.id,
           status: event.status,
           location: event.location,
@@ -86,7 +94,7 @@ export async function PATCH(
         })),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating logistics delivery:", error);
     return NextResponse.json(
       { error: "Failed to update delivery" },
