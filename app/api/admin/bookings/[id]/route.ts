@@ -108,7 +108,7 @@ export async function PATCH(
           },
         },
       });
-      updatedBooking = withType(updatedBooking, "MECHANIC");
+      updatedBooking = withType(updatedBooking as { id: string }, "MECHANIC");
     } else if (type === "LOGISTICS") {
       updatedBooking = await prisma.logisticsBooking.update({
         where: { id },
@@ -120,7 +120,7 @@ export async function PATCH(
           },
         },
       });
-      updatedBooking = withType(updatedBooking, "LOGISTICS");
+      updatedBooking = withType(updatedBooking as { id: string }, "LOGISTICS");
     } else {
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
