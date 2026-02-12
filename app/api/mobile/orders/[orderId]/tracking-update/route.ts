@@ -32,11 +32,7 @@ export async function PATCH(
     const tracking = await prisma.orderTracking.findUnique({
       where: { orderId },
       include: {
-        driver: {
-          select: {
-            userId: true,
-          },
-        },
+        driver: true,
       },
     });
 

@@ -24,9 +24,7 @@ export async function POST(request: Request) {
     const tracking = await prisma.orderTracking.findUnique({
       where: { id: trackingId },
       include: {
-        driver: {
-          select: { userId: true },
-        },
+        driver: true,
       },
     });
 
