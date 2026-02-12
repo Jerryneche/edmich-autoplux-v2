@@ -29,15 +29,18 @@ export async function GET(
     }
 
     // Format response
-    const provider = tracking.assignedLogisticsProvider;
+    const provider = tracking.driver;
     const response = {
       id: tracking.id,
       orderId: tracking.orderId,
-      trackingNumber: tracking.trackingNumber,
       status: tracking.status,
-      lastLocation: tracking.lastLocation,
-      estimatedDeliveryDate: tracking.estimatedDeliveryDate,
-      assignedLogisticsProvider: provider
+      currentLat: tracking.currentLat,
+      currentLng: tracking.currentLng,
+      lastLocationUpdate: tracking.lastLocationUpdate,
+      estimatedArrival: tracking.estimatedArrival,
+      deliveryLat: tracking.deliveryLat,
+      deliveryLng: tracking.deliveryLng,
+      assignedDriver: provider
         ? {
             id: provider.id,
             name: provider.name,
@@ -49,12 +52,12 @@ export async function GET(
             vehicle: provider.logisticsProfile?.vehicleType || "N/A",
           }
         : null,
-      events: tracking.events.map((event) => ({
-        id: event.id,
-        status: event.status,
-        location: event.location,
-        message: event.message,
-        timestamp: event.timestamp,
+      updates: tracking.updates.map((update) => ({
+        id: update.id,
+        latitude: update.latitude,
+        longitude: update.longitude,
+        status: update.status,
+        timestamp: update.timestamp,
       })),
     };
 

@@ -50,7 +50,7 @@ export const orderTrackingService = {
     const tracking = await prisma.orderTracking.findUnique({
       where: { orderId },
       include: {
-        assignedLogisticsProvider: {
+        driver: {
           select: {
             id: true,
             name: true,
@@ -65,7 +65,7 @@ export const orderTrackingService = {
             },
           },
         },
-        events: {
+        updates: {
           orderBy: { timestamp: "desc" },
         },
       },
