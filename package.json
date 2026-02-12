@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "resolve-migrations": "node resolve-migrations.js",
-    "postinstall": "prisma generate && prisma migrate reset --force"
+    "postinstall": "prisma generate && prisma db push --skip-generate --accept-data-loss"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
