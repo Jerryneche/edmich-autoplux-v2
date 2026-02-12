@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
 import { orderTrackingService } from "@/services/tracking.service";
+import { prisma } from "@/lib/prisma";
 
 /**
  * POST /api/mobile/orders/{orderId}/assign-logistics
@@ -36,7 +37,22 @@ export async function POST(
       logisticsProviderId
     );
 
-    const provider = tracking.assignedLogisticsProvider;
+    // Fetch the logistics provider separately since it's not included in tracking
+    const provider = await prisma.user.findUnique({
+      where: { id: logisticsProviderId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        logisticsProfile: {
+          select: {
+            rating: true,
+            completedDeliveries: true,
+            vehicleType: true,
+          },
+        },
+      },
+    });
 
     return NextResponse.json(
       {

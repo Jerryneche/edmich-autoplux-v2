@@ -126,24 +126,15 @@ export const orderTrackingService = {
       throw new Error("Logistics provider not found");
     }
 
-    // Update tracking
+    // Update tracking with the logistics profile ID
     const tracking = await prisma.orderTracking.update({
       where: { orderId },
       data: {
-        assignedLogisticsProviderId: logisticsProviderId,
+        driverId: provider.logisticsProfile.id,
         status: "PENDING",
       },
       include: {
-        assignedLogisticsProvider: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            logisticsProfile: {
-              select: { rating: true, completedDeliveries: true, vehicleType: true },
-            },
-          },
-        },
+        driver: true,
         events: true,
       },
     });
