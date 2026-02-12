@@ -1,0 +1,14 @@
+-- Add missing columns to SupplierProfile
+ALTER TABLE "SupplierProfile" 
+  ADD COLUMN IF NOT EXISTS "website" TEXT,
+  ADD COLUMN IF NOT EXISTS "instagram" TEXT,
+  ADD COLUMN IF NOT EXISTS "facebook" TEXT,
+  ADD COLUMN IF NOT EXISTS "twitter" TEXT,
+  ADD COLUMN IF NOT EXISTS "whatsapp" TEXT,
+  ADD COLUMN IF NOT EXISTS "tiktok" TEXT,
+  ADD COLUMN IF NOT EXISTS "businessHours" TEXT,
+  ADD COLUMN IF NOT EXISTS "tagline" TEXT,
+  ADD COLUMN IF NOT EXISTS "coverImage" TEXT,
+  ADD COLUMN IF NOT EXISTS "logo" TEXT,
+  ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
+  ADD COLUMN IF NOT EXISTS "keywords" TEXT[] DEFAULT ARRAY[]::TEXT[];
