@@ -61,7 +61,6 @@ export async function POST(
         tracking: {
           id: tracking.id,
           orderId: tracking.orderId,
-          trackingNumber: tracking.trackingNumber,
           status: tracking.status,
           assignedLogisticsProvider: provider
             ? {
