@@ -5,7 +5,7 @@ export async function POST(request: Request) {
     const { to, name, subject, originalMessage, reply } = await request.json();
 
     // Email HTML template
-    const subject_text = subject;
+    const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
