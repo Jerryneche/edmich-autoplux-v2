@@ -41,11 +41,5 @@ async function resolveFailedMigrations() {
     process.exit(0); // Exit with 0 so deploy continues
   }
 }
-  } catch (error) {
-    console.error('❌ Failed to delete migration records:', error.message);
-    console.log('Continuing with prisma migrate deploy');
-    process.exit(0); // Exit with 0 so deploy continues
-  }
-}
 
 resolveFailedMigrations();
