@@ -150,11 +150,11 @@ async function deleteUserSafely(email: string) {
       console.log(`   ⏭️  No wallet found`);
     }
 
-    console.log(`\n2️⃣0️⃣  Deleting order tracking events...`);
-    const trackingEvents = await prisma.trackingEvent.deleteMany({
-      where: { tracking: { driver: { userId } } },
+    console.log(`\n2️⃣0️⃣  Deleting order tracking updates...`);
+    const trackingUpdates = await prisma.trackingUpdate.deleteMany({
+      where: { tracking: { driverId: userId } },
     });
-    console.log(`   ✅ Deleted ${trackingEvents.count} tracking events`);
+    console.log(`   ✅ Deleted ${trackingUpdates.count} tracking updates`);
 
     // Delete profile-specific records
     console.log(`\n2️⃣1️⃣  Deleting profile records...`);
@@ -213,7 +213,7 @@ async function deleteUserSafely(email: string) {
         where: { orderId: order.id },
       });
       if (tracking) {
-        await prisma.trackingEvent.deleteMany({
+        await prisma.trackingUpdate.deleteMany({
           where: { trackingId: tracking.id },
         });
         await prisma.orderTracking.delete({ where: { orderId: order.id } });
