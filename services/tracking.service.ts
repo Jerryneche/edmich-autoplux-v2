@@ -84,16 +84,17 @@ export const orderTrackingService = {
         status: "PENDING",
       },
       include: {
-        events: true,
+        updates: true,
       },
     });
 
-    // Create initial tracking event
-    await prisma.trackingEvent.create({
+    // Create initial tracking update
+    await prisma.trackingUpdate.create({
       data: {
         trackingId: tracking.id,
+        latitude: 0,
+        longitude: 0,
         status: "PENDING",
-        message: "Order confirmed",
       },
     });
 
@@ -135,16 +136,17 @@ export const orderTrackingService = {
       },
       include: {
         driver: true,
-        events: true,
+        updates: true,
       },
     });
 
-    // Create tracking event
-    await prisma.trackingEvent.create({
+    // Create tracking update
+    await prisma.trackingUpdate.create({
       data: {
         trackingId: tracking.id,
+        latitude: 0,
+        longitude: 0,
         status: "PENDING",
-        message: `Logistics provider ${provider.name} assigned to order`,
       },
     });
 
@@ -268,206 +270,7 @@ export const orderTrackingService = {
   },
 };
 
-// ===========================
-// MECHANIC BOOKING TRACKING
-// ===========================
-
-export const mechanicBookingTrackingService = {
-  /**
-   * Get mechanic booking tracking
-   */
-  async getMechanicBookingTracking(bookingId: string) {
-    const tracking = await prisma.mechanicBookingTracking.findUnique({
-      where: { bookingId },
-      include: {
-        assignedMechanic: {
-          select: {
-            id: true,
-            userId: true,
-            specialization: true,
-            rating: true,
-            completedJobs: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                phone: true,
-                email: true,
-              },
-            },
-          },
-        },
-        events: {
-          orderBy: { timestamp: "desc" },
-        },
-      },
-    });
-
-    return tracking;
-  },
-
-  /**
-   * Create mechanic booking tracking
-   */
-  async createMechanicBookingTracking(bookingId: string) {
-    const tracking = await prisma.mechanicBookingTracking.create({
-      data: {
-        bookingId,
-        status: "PENDING",
-      },
-      include: {
-        events: true,
-      },
-    });
-
-    // Create initial event
-    await prisma.mechanicBookingTrackingEvent.create({
-      data: {
-        trackingId: tracking.id,
-        status: "PENDING",
-        message: "Booking created and waiting for mechanic assignment",
-      },
-    });
-
-    return tracking;
-  },
-
-  /**
-   * Assign mechanic to booking
-   */
-  async assignMechanic(bookingId: string, mechanicId: string) {
-    // Verify booking exists
-    const booking = await prisma.mechanicBooking.findUnique({
-      where: { id: bookingId },
-      include: { user: true },
-    });
-
-    if (!booking) {
-      throw new Error("Booking not found");
-    }
-
-    // Verify mechanic exists
-    const mechanic = await prisma.mechanicProfile.findUnique({
-      where: { id: mechanicId },
-      include: { user: true },
-    });
-
-    if (!mechanic) {
-      throw new Error("Mechanic not found");
-    }
-
-    // Update tracking
-    const tracking = await prisma.mechanicBookingTracking.update({
-      where: { bookingId },
-      data: {
-        assignedMechanicId: mechanicId,
-        status: "ASSIGNED",
-      },
-      include: {
-        assignedMechanic: {
-          select: {
-            id: true,
-            rating: true,
-            completedJobs: true,
-            user: { select: { id: true, name: true, phone: true } },
-          },
-        },
-        events: true,
-      },
-    });
-
-    // Create event
-    await prisma.mechanicBookingTrackingEvent.create({
-      data: {
-        trackingId: tracking.id,
-        status: "ASSIGNED",
-        message: `Mechanic ${mechanic.user.name} has been assigned to your booking`,
-      },
-    });
-
-    // Send notification to customer
-    await notificationService.createNotification(booking.user.id, {
-      type: "BOOKING",
-      title: "Mechanic Assigned",
-      message: `${mechanic.user.name} has been assigned to your booking and will contact you soon.`,
-      link: `/bookings/mechanic/${bookingId}/tracking`,
-    });
-
-    return tracking;
-  },
-
-  /**
-   * Update mechanic booking status
-   */
-  async updateMechanicBookingStatus(
-    bookingId: string,
-    status: string,
-    message?: string
-  ) {
-    // Verify tracking exists
-    const tracking = await prisma.mechanicBookingTracking.findUnique({
-      where: { bookingId },
-      include: { mechanicBooking: { include: { user: true } } },
-    });
-
-    if (!tracking) {
-      throw new Error("Tracking not found");
-    }
-
-    // Validate status
-    const validStatuses = ["PENDING", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
-    if (!validStatuses.includes(status)) {
-      throw new Error("Invalid booking status");
-    }
-
-    // Update tracking
-    const updated = await prisma.mechanicBookingTracking.update({
-      where: { bookingId },
-      data: {
-        status,
-        updatedAt: new Date(),
-      },
-      include: {
-        events: { orderBy: { timestamp: "desc" } },
-        mechanicBooking: { include: { user: true } },
-      },
-    });
-
-    // Create event
-    await prisma.mechanicBookingTrackingEvent.create({
-      data: {
-        trackingId: updated.id,
-        status,
-        message:
-          message || `Booking status updated to ${status}`,
-      },
-    });
-
-    // Send notification
-    const notificationMessages = {
-      PENDING: "Your booking has been created",
-      ASSIGNED: "A mechanic has been assigned to your booking",
-      IN_PROGRESS: "The mechanic has started working on your vehicle",
-      COMPLETED: "Your booking has been completed",
-      CANCELLED: "Your booking has been cancelled",
-    };
-
-    await notificationService.createNotification(
-      updated.mechanicBooking.user.id,
-      {
-        type: "BOOKING",
-        title: "Booking Status Update",
-        message:
-          notificationMessages[
-            status as keyof typeof notificationMessages
-          ] || `Booking status: ${status}`,
-        link: `/bookings/mechanic/${bookingId}/tracking`,
-      }
-    );
-
-    return updated;
-  },
-};
+// Mechanic booking tracking removed - models do not exist in schema
 
 // ===========================
 // LOGISTICS DELIVERY TRACKING
