@@ -21,7 +21,7 @@ export async function DELETE(req: NextRequest) {
     if (adminUser?.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Forbidden. Admin access required." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -30,7 +30,7 @@ export async function DELETE(req: NextRequest) {
     if (!userId || typeof userId !== "string") {
       return NextResponse.json(
         { error: "User ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +48,7 @@ export async function DELETE(req: NextRequest) {
     if (user.role === "ADMIN") {
       return NextResponse.json(
         { error: "Cannot delete admin users" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -77,7 +77,6 @@ export async function DELETE(req: NextRequest) {
       await tx.paymentMethod.deleteMany({ where: { userId: uid } });
       await tx.payment.deleteMany({ where: { userId: uid } });
       await tx.kYC.deleteMany({ where: { userId: uid } });
-      await tx.orderTracking.deleteMany({ where: { driverId: uid } });
 
       // Delete wallet
       const wallet = await tx.wallet.findUnique({ where: { userId: uid } });
@@ -132,9 +131,6 @@ export async function DELETE(req: NextRequest) {
           where: { orderId: order.id },
         });
         if (tracking) {
-          await tx.trackingEvent.deleteMany({
-            where: { trackingId: tracking.id },
-          });
           await tx.orderTracking.delete({ where: { orderId: order.id } });
         }
       }
@@ -151,13 +147,13 @@ export async function DELETE(req: NextRequest) {
         message: "User deleted successfully",
         email: user.email,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     console.error("[ADMIN] Delete user error:", error.message);
     return NextResponse.json(
       { error: "Failed to delete user. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
