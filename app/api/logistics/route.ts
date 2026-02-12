@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state");
     const available = searchParams.get("available");
 
-    const where: Record<string, any & { contains: string; mode: string } | boolean> = {
+    const where: Record<string, boolean | object> = {
       approved: true,
     };
 

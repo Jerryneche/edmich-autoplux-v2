@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       "unknown";
 
     // Rate limiting - prevent spam
-    const { success, remaining } = await ratelimit.limit(ip);
+    const { success } = await ratelimit.limit(ip);
 
     if (!success) {
       return NextResponse.json(

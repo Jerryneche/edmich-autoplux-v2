@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const maxPrice = searchParams.get("maxPrice");
     const sort = searchParams.get("sort") || "newest";
 
-    const where: Record<string, any & { contains: string; mode?: string }> = {
+    const where: Record<string, boolean | object> = {
       status: "ACTIVE", // your schema uses "ACTIVE"
     };
 
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
     const products = await prisma.product.findMany({
       where,
-      orderBy,
+      orderBy: { createdAt: "desc" },
       orderBy,
       take: 50,
       include: {

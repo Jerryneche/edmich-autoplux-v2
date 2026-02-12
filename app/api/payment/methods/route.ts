@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       accountNumber,
     } = await request.json();
 
-    let tokenizedData: any = null;
+    let tokenizedData: any | null = null;
 
     if (type === "card") {
       // Tokenize card with payment gateway
