@@ -162,7 +162,7 @@ export default function VehiclesPage() {
                       )}
                       {vehicle.vin && (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">vin:</span>
+                          <span className="text-gray-600">VIN:</span>
                           <span className="font-mono text-xs">
                             {vehicle.vin}
                           </span>
