@@ -4,9 +4,14 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET!;
-const googleClient = new OAuth2Client(
-  process.env.GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
-);
+const googleClient = new OAuth2Client();
+
+const googleAudiences = [
+  process.env.GOOGLE_WEB_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_ANDROID_CLIENT_ID,
+  process.env.GOOGLE_IOS_CLIENT_ID,
+].filter((value): value is string => !!value);
 
 export async function POST(req: Request) {
   try {
@@ -23,12 +28,16 @@ export async function POST(req: Request) {
     }
 
     // ✅ VERIFY TOKEN WITH GOOGLE
-    const audience =
-      process.env.GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    if (googleAudiences.length === 0) {
+      return NextResponse.json(
+        { error: "Google client ID not configured" },
+        { status: 500 },
+      );
+    }
 
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience,
+      audience: googleAudiences,
     });
 
     const payload = ticket.getPayload();

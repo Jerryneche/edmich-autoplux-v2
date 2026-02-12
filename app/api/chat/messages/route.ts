@@ -1,12 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/auth-api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(request: Request) {
+// Helper to get user from either JWT (mobile) or session (web)
+async function getCurrentUser(request: NextRequest) {
+  // Try JWT first (mobile)
+  const authUser = await getAuthUser(request);
+  if (authUser) return authUser;
+
+  // Fall back to session (web)
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return { id: session.user.id, role: session.user.role };
+  }
+
+  return null;
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = await getCurrentUser(request);
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -38,7 +54,7 @@ export async function GET(request: Request) {
     await prisma.message.updateMany({
       where: {
         conversationId,
-        senderId: { not: session.user.id },
+        senderId: { not: user.id },
         read: false,
       },
       data: { read: true },
