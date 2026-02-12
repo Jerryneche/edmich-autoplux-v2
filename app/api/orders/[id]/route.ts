@@ -35,7 +35,7 @@ export async function GET(
           shippingAddress: true,
           orderTracking: {
             include: {
-              assignedLogisticsProvider: {
+              driver: {
                 select: {
                   id: true,
                   name: true,
@@ -43,7 +43,7 @@ export async function GET(
                   email: true,
                 },
               },
-              events: {
+              updates: {
                 orderBy: { timestamp: "desc" },
                 take: 10,
               },
@@ -64,7 +64,7 @@ export async function GET(
           shippingAddress: true,
           orderTracking: {
             include: {
-              assignedLogisticsProvider: {
+              driver: {
                 select: {
                   id: true,
                   name: true,
@@ -72,7 +72,7 @@ export async function GET(
                   email: true,
                 },
               },
-              events: {
+              updates: {
                 orderBy: { timestamp: "desc" },
                 take: 10,
               },
