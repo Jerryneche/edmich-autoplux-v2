@@ -455,17 +455,11 @@ export const logisticsDeliveryTrackingService = {
    * Get logistics delivery tracking
    */
   async getLogisticsDeliveryTracking(deliveryId: string) {
-    const tracking = await prisma.logisticsDeliveryTracking.findUnique({
-      where: { deliveryId },
+    const booking = await prisma.logisticsBooking.findUnique({
+      where: { id: deliveryId },
       include: {
-        assignedProvider: {
-          select: {
-            id: true,
-            companyName: true,
-            phone: true,
-            vehicleType: true,
-            rating: true,
-            completedDeliveries: true,
+        driver: {
+          include: {
             user: {
               select: {
                 id: true,
@@ -475,39 +469,77 @@ export const logisticsDeliveryTrackingService = {
             },
           },
         },
-        events: {
-          orderBy: { timestamp: "desc" },
-        },
       },
     });
 
-    return tracking;
+    if (!booking) {
+      return null;
+    }
+
+    return {
+      id: booking.id,
+      deliveryId: booking.id,
+      status: booking.status,
+      currentLocation: booking.currentLocation,
+      estimatedDeliveryDate: null,
+      assignedProvider: booking.driver
+        ? {
+            id: booking.driver.id,
+            userId: booking.driver.userId,
+            companyName: booking.driver.companyName,
+            phone: booking.driver.phone,
+            vehicleType: booking.driver.vehicleType,
+            rating: booking.driver.rating,
+            completedDeliveries: booking.driver.completedDeliveries,
+            user: booking.driver.user,
+          }
+        : null,
+      events: [],
+    };
   },
 
   /**
    * Create logistics delivery tracking
    */
   async createLogisticsDeliveryTracking(deliveryId: string) {
-    const tracking = await prisma.logisticsDeliveryTracking.create({
-      data: {
-        deliveryId,
-        status: "PENDING",
-      },
+    const booking = await prisma.logisticsBooking.update({
+      where: { id: deliveryId },
+      data: { status: "PENDING" },
       include: {
-        events: true,
+        driver: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    // Create initial event
-    await prisma.logisticsDeliveryTrackingEvent.create({
-      data: {
-        trackingId: tracking.id,
-        status: "PENDING",
-        message: "Delivery created and waiting for provider assignment",
-      },
-    });
-
-    return tracking;
+    return {
+      id: booking.id,
+      deliveryId: booking.id,
+      status: booking.status,
+      currentLocation: booking.currentLocation,
+      estimatedDeliveryDate: null,
+      assignedProvider: booking.driver
+        ? {
+            id: booking.driver.id,
+            userId: booking.driver.userId,
+            companyName: booking.driver.companyName,
+            phone: booking.driver.phone,
+            vehicleType: booking.driver.vehicleType,
+            rating: booking.driver.rating,
+            completedDeliveries: booking.driver.completedDeliveries,
+            user: booking.driver.user,
+          }
+        : null,
+      events: [],
+    };
   },
 
   /**
@@ -535,21 +567,15 @@ export const logisticsDeliveryTrackingService = {
     }
 
     // Update tracking
-    const tracking = await prisma.logisticsDeliveryTracking.update({
-      where: { deliveryId },
+    const booking = await prisma.logisticsBooking.update({
+      where: { id: deliveryId },
       data: {
-        assignedProviderId: providerId,
+        driverId: providerId,
         status: "PENDING",
       },
       include: {
-        assignedProvider: {
-          select: {
-            id: true,
-            companyName: true,
-            phone: true,
-            rating: true,
-            completedDeliveries: true,
-            vehicleType: true,
+        driver: {
+          include: {
             user: {
               select: {
                 id: true,
@@ -559,16 +585,6 @@ export const logisticsDeliveryTrackingService = {
             },
           },
         },
-        events: true,
-      },
-    });
-
-    // Create event
-    await prisma.logisticsDeliveryTrackingEvent.create({
-      data: {
-        trackingId: tracking.id,
-        status: "PENDING",
-        message: `Provider ${provider.companyName} has been assigned to your delivery`,
       },
     });
 
@@ -583,7 +599,26 @@ export const logisticsDeliveryTrackingService = {
       }
     );
 
-    return tracking;
+    return {
+      id: booking.id,
+      deliveryId: booking.id,
+      status: booking.status,
+      currentLocation: booking.currentLocation,
+      estimatedDeliveryDate: null,
+      assignedProvider: booking.driver
+        ? {
+            id: booking.driver.id,
+            userId: booking.driver.userId,
+            companyName: booking.driver.companyName,
+            phone: booking.driver.phone,
+            rating: booking.driver.rating,
+            completedDeliveries: booking.driver.completedDeliveries,
+            vehicleType: booking.driver.vehicleType,
+            user: booking.driver.user,
+          }
+        : null,
+      events: [],
+    };
   },
 
   /**
@@ -596,13 +631,13 @@ export const logisticsDeliveryTrackingService = {
     estimatedDeliveryDate?: Date,
     message?: string
   ) {
-    // Verify tracking exists
-    const tracking = await prisma.logisticsDeliveryTracking.findUnique({
-      where: { deliveryId },
-      include: { logisticsBooking: { include: { user: true } } },
+    // Verify booking exists
+    const booking = await prisma.logisticsBooking.findUnique({
+      where: { id: deliveryId },
+      include: { user: true },
     });
 
-    if (!tracking) {
+    if (!booking) {
       throw new Error("Tracking not found");
     }
 
@@ -619,29 +654,35 @@ export const logisticsDeliveryTrackingService = {
       throw new Error("Invalid delivery status");
     }
 
-    // Update tracking
-    const updated = await prisma.logisticsDeliveryTracking.update({
-      where: { deliveryId },
+    const statusMap: Record<string, string> = {
+      PENDING: "PENDING",
+      ACCEPTED: "ACCEPTED",
+      IN_TRANSIT: "IN_PROGRESS",
+      OUT_FOR_DELIVERY: "IN_PROGRESS",
+      DELIVERED: "COMPLETED",
+      FAILED: "CANCELLED",
+    };
+
+    const updated = await prisma.logisticsBooking.update({
+      where: { id: deliveryId },
       data: {
-        status,
-        currentLocation: currentLocation || tracking.currentLocation,
-        estimatedDeliveryDate:
-          estimatedDeliveryDate || tracking.estimatedDeliveryDate,
+        status: statusMap[status] || booking.status,
+        currentLocation: currentLocation || booking.currentLocation,
         updatedAt: new Date(),
       },
       include: {
-        events: { orderBy: { timestamp: "desc" } },
-        logisticsBooking: { include: { user: true } },
-      },
-    });
-
-    // Create event
-    await prisma.logisticsDeliveryTrackingEvent.create({
-      data: {
-        trackingId: updated.id,
-        status,
-        location: currentLocation,
-        message: message || `Delivery status updated to ${status}`,
+        driver: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        user: true,
       },
     });
 
@@ -656,7 +697,7 @@ export const logisticsDeliveryTrackingService = {
     };
 
     await notificationService.createNotification(
-      updated.logisticsBooking.user.id,
+      updated.user.id,
       {
         type: "DELIVERY",
         title: "Delivery Status Update",
@@ -668,6 +709,25 @@ export const logisticsDeliveryTrackingService = {
       }
     );
 
-    return updated;
+    return {
+      id: updated.id,
+      deliveryId: updated.id,
+      status: updated.status,
+      currentLocation: updated.currentLocation,
+      estimatedDeliveryDate: estimatedDeliveryDate || null,
+      assignedProvider: updated.driver
+        ? {
+            id: updated.driver.id,
+            userId: updated.driver.userId,
+            companyName: updated.driver.companyName,
+            phone: updated.driver.phone,
+            rating: updated.driver.rating,
+            completedDeliveries: updated.driver.completedDeliveries,
+            vehicleType: updated.driver.vehicleType,
+            user: updated.driver.user,
+          }
+        : null,
+      events: [],
+    };
   },
 };

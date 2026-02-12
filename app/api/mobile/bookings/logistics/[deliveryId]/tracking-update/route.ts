@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
 import { logisticsDeliveryTrackingService } from "@/services/tracking.service";
-import { prisma } from "@/lib/prisma";
 
 /**
  * PATCH /api/mobile/bookings/logistics/{deliveryId}/tracking
@@ -29,9 +28,10 @@ export async function PATCH(
     }
 
     // Verify tracking exists
-    const tracking = await prisma.logisticsDeliveryTracking.findUnique({
-      where: { deliveryId },
-    });
+    const tracking =
+      await logisticsDeliveryTrackingService.getLogisticsDeliveryTracking(
+        deliveryId,
+      );
 
     if (!tracking) {
       return NextResponse.json(
@@ -41,7 +41,8 @@ export async function PATCH(
     }
 
     // Check authorization - only assigned provider or admin can update
-    if (tracking.assignedProviderId !== user.id && user.role !== "ADMIN") {
+    const assignedUserId = tracking.assignedProvider?.userId;
+    if (assignedUserId !== user.id && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
