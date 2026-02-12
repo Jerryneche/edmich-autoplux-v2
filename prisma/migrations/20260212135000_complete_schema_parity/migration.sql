@@ -21,11 +21,6 @@ ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMES
 
 -- SupplierProfile: Already has all fields from 20260212134000, skip duplicates
 
--- Vehicle: Ensure all fields
-ALTER TABLE "Vehicle"
-ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
 -- Order: Ensure timestamps (should already exist but adding for safety)
 ALTER TABLE "Order"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

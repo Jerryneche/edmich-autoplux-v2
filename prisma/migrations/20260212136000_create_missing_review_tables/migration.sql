@@ -45,3 +45,24 @@ CREATE TABLE IF NOT EXISTS "MechanicNotification" (
 );
 
 CREATE INDEX IF NOT EXISTS "MechanicNotification_mechanicId_idx" ON "MechanicNotification"("mechanicId");
+
+-- Ensure Vehicle exists (was missing from migration 133000)
+CREATE TABLE IF NOT EXISTS "Vehicle" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "make" TEXT NOT NULL,
+    "model" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "vin" TEXT UNIQUE,
+    "color" TEXT,
+    "mileage" INTEGER,
+    "engineType" TEXT,
+    "transmission" TEXT,
+    "nickname" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "Vehicle_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "Vehicle_userId_idx" ON "Vehicle"("userId");
+CREATE INDEX IF NOT EXISTS "Vehicle_vin_idx" ON "Vehicle"("vin");
