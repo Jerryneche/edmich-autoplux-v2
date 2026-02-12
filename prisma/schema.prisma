@@ -531,7 +531,8 @@ model SupplierProfile {
   updatedAt     DateTime  @updatedAt
   user          User      @relation(fields: [userId], references: [id])
   products      Product[]
-  tradeInOffers TradeInOffer[]
+  tradeInOffers TradeInOffer[] @relation("supplierOffers")
+  tradeIns      TradeIn[]  @relation("tradeInSupplier")
 }
 
 model OrderServiceLink {
@@ -631,7 +632,7 @@ model TradeIn {
 
   // Offer from supplier
   supplierId  String?
-  supplier    SupplierProfile? @relation(fields: [supplierId], references: [id])
+  supplier    SupplierProfile? @relation("tradeInSupplier", fields: [supplierId], references: [id])
   offerAmount Float?
   offerNote   String?          @db.Text
   offerDate   DateTime?
@@ -679,7 +680,7 @@ model TradeInOffer {
   tradeInId  String
   tradeIn    TradeIn  @relation("tradeInOffers", fields: [tradeInId], references: [id], onDelete: Cascade)
   supplierId String
-  supplier   SupplierProfile @relation(fields: [supplierId], references: [id])
+  supplier   SupplierProfile @relation("supplierOffers", fields: [supplierId], references: [id])
   amount     Float
   note       String?  @db.Text
   status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
