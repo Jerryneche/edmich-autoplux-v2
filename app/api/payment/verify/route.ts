@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       });
 
       if (order) {
-        const updatedOrder = await prisma.order.update({
+        await prisma.order.update({
           where: { id: order.id },
           data: {
             status: "CONFIRMED",
@@ -50,20 +50,6 @@ export async function GET(request: Request) {
             paidAt: new Date(),
           },
         });
-
-        if (updatedOrder.tradeInId) {
-          await prisma.tradeIn.update({
-            where: { id: updatedOrder.tradeInId },
-            data: { status: "SETTLED" },
-          });
-        }
-
-        if (updatedOrder.tradeInOfferId) {
-          await prisma.tradeInOffer.update({
-            where: { id: updatedOrder.tradeInOfferId },
-            data: { status: "SETTLED" },
-          });
-        }
       }
 
       return NextResponse.json({

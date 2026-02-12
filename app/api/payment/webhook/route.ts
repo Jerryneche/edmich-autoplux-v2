@@ -46,20 +46,6 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        if (updatedOrder.tradeInId) {
-          await prisma.tradeIn.update({
-            where: { id: updatedOrder.tradeInId },
-            data: { status: "SETTLED" },
-          });
-        }
-
-        if (updatedOrder.tradeInOfferId) {
-          await prisma.tradeInOffer.update({
-            where: { id: updatedOrder.tradeInOfferId },
-            data: { status: "SETTLED" },
-          });
-        }
-
         console.log(`Order ${order.id} confirmed via webhook`);
       }
     }
