@@ -6,7 +6,7 @@
  * uses IF NOT EXISTS (safe to retry).
  */
 
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 
 if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
   console.error('❌ DATABASE_URL or DIRECT_URL not found in environment variables');
