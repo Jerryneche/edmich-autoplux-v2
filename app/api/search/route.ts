@@ -28,9 +28,10 @@ export async function GET(request: Request) {
     }
 
     if (minPrice || maxPrice) {
-      where.price = {};
-      if (minPrice) where.price.gte = parseFloat(minPrice);
-      if (maxPrice) where.price.lte = parseFloat(maxPrice);
+      const priceFilter: Record<string, number> = {};
+      if (minPrice) priceFilter.gte = parseFloat(minPrice);
+      if (maxPrice) priceFilter.lte = parseFloat(maxPrice);
+      where.price = priceFilter;
     }
 
     let orderBy: Record<string, 'asc' | 'desc'> = { createdAt: "desc" };
