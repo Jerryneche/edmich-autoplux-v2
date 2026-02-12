@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate && prisma migrate deploy"
+    "resolve-migrations": "node resolve-migrations.js",
+    "postinstall": "prisma generate && npm run resolve-migrations && prisma migrate deploy"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
