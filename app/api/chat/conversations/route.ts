@@ -81,6 +81,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!message || message.trim() === "") {
+      return NextResponse.json(
+        { error: "Message content is required" },
+        { status: 400 }
+      );
+    }
+
     // Validate that both users exist
     const [currentUserExists, participantExists] = await Promise.all([
       prisma.user.findUnique({ where: { id: user.id } }),
