@@ -90,7 +90,7 @@ export async function getOrderTrackingHistory(
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = parseInt(searchParams.get("skip") || "0");
 
-    const { total, events } = await orderTrackingService.getOrderTrackingHistory(
+    const { total, updates } = await orderTrackingService.getOrderTrackingHistory(
       orderId,
       limit,
       skip
@@ -99,12 +99,12 @@ export async function getOrderTrackingHistory(
     return NextResponse.json({
       success: true,
       total,
-      events: events.map((event) => ({
-        id: event.id,
-        status: event.status,
-        location: event.location,
-        message: event.message,
-        timestamp: event.timestamp,
+      updates: updates.map((update: { id: string; latitude: number; longitude: number; status: string | null; timestamp: Date }) => ({
+        id: update.id,
+        latitude: update.latitude,
+        longitude: update.longitude,
+        status: update.status,
+        timestamp: update.timestamp,
       })),
     });
   } catch (error: any) {

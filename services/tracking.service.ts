@@ -253,18 +253,18 @@ export const orderTrackingService = {
    * Get order tracking history
    */
   async getOrderTrackingHistory(orderId: string, limit = 50, skip = 0) {
-    const events = await prisma.trackingEvent.findMany({
+    const updates = await prisma.trackingUpdate.findMany({
       where: { tracking: { orderId } },
       orderBy: { timestamp: "desc" },
       take: limit,
       skip,
     });
 
-    const total = await prisma.trackingEvent.count({
+    const total = await prisma.trackingUpdate.count({
       where: { tracking: { orderId } },
     });
 
-    return { total, events };
+    return { total, updates };
   },
 };
 
