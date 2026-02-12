@@ -152,7 +152,7 @@ async function deleteUserSafely(email: string) {
 
     console.log(`\n2️⃣0️⃣  Deleting order tracking events...`);
     const trackingEvents = await prisma.trackingEvent.deleteMany({
-      where: { tracking: { assignedLogisticsProviderId: userId } },
+      where: { tracking: { driver: { userId } } },
     });
     console.log(`   ✅ Deleted ${trackingEvents.count} tracking events`);
 

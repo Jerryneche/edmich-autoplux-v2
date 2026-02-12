@@ -31,6 +31,13 @@ export async function PATCH(
     // Verify tracking exists
     const tracking = await prisma.orderTracking.findUnique({
       where: { orderId },
+      include: {
+        driver: {
+          select: {
+            userId: true,
+          },
+        },
+      },
     });
 
     if (!tracking) {
@@ -41,10 +48,8 @@ export async function PATCH(
     }
 
     // Check authorization - only assigned provider or admin can update
-    if (
-      tracking.assignedLogisticsProviderId !== user.id &&
-      user.role !== "ADMIN"
-    ) {
+    const isAssignedProvider = tracking.driver?.userId === user.id;
+    if (!isAssignedProvider && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

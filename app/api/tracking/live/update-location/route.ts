@@ -23,6 +23,11 @@ export async function POST(request: Request) {
     // Verify provider is assigned to this tracking
     const tracking = await prisma.orderTracking.findUnique({
       where: { id: trackingId },
+      include: {
+        driver: {
+          select: { userId: true },
+        },
+      },
     });
 
     if (!tracking) {
@@ -33,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     // Check authorization - only assigned provider can update
-    if (tracking.assignedLogisticsProviderId !== session.user.id) {
+    if (tracking.driver?.userId !== session.user.id) {
       return NextResponse.json(
         { error: "Not authorized for this tracking" },
         { status: 403 }
