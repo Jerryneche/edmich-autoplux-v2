@@ -1,40 +1,13 @@
 -- Add missing optional fields to tables to match schema.prisma completely
+-- NOTE: Marketing fields for MechanicProfile, LogisticsProfile, and SupplierProfile
+-- are already added in migrations 20260212134000 and 20260212134001
+-- This migration adds only the remaining unique fields
 
 -- Product: Add SEO and additional fields
 ALTER TABLE "Product" 
 ADD COLUMN IF NOT EXISTS "metaTitle" TEXT,
 ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
 ADD COLUMN IF NOT EXISTS "keywords" TEXT[];
-
--- MechanicProfile: Add missing optional fields to match schema
-ALTER TABLE "MechanicProfile"
-ADD COLUMN IF NOT EXISTS "website" TEXT,
-ADD COLUMN IF NOT EXISTS "instagram" TEXT,
-ADD COLUMN IF NOT EXISTS "facebook" TEXT,
-ADD COLUMN IF NOT EXISTS "twitter" TEXT,
-ADD COLUMN IF NOT EXISTS "whatsapp" TEXT,
-ADD COLUMN IF NOT EXISTS "tiktok" TEXT,
-ADD COLUMN IF NOT EXISTS "businessHours" TEXT,
-ADD COLUMN IF NOT EXISTS "tagline" TEXT,
-ADD COLUMN IF NOT EXISTS "coverImage" TEXT,
-ADD COLUMN IF NOT EXISTS "logo" TEXT,
-ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
-ADD COLUMN IF NOT EXISTS "keywords" TEXT[] DEFAULT ARRAY[]::TEXT[];
-
--- LogisticsProfile: Add missing optional fields to match schema
-ALTER TABLE "LogisticsProfile"
-ADD COLUMN IF NOT EXISTS "website" TEXT,
-ADD COLUMN IF NOT EXISTS "instagram" TEXT,
-ADD COLUMN IF NOT EXISTS "facebook" TEXT,
-ADD COLUMN IF NOT EXISTS "twitter" TEXT,
-ADD COLUMN IF NOT EXISTS "whatsapp" TEXT,
-ADD COLUMN IF NOT EXISTS "tiktok" TEXT,
-ADD COLUMN IF NOT EXISTS "businessHours" TEXT,
-ADD COLUMN IF NOT EXISTS "tagline" TEXT,
-ADD COLUMN IF NOT EXISTS "coverImage" TEXT,
-ADD COLUMN IF NOT EXISTS "logo" TEXT,
-ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
-ADD COLUMN IF NOT EXISTS "keywords" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 -- LogisticsReview: Add missing updatedAt field
 ALTER TABLE "LogisticsReview"
@@ -45,32 +18,19 @@ ALTER TABLE "LogisticsBooking"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
--- MechanicBooking: Ensure all fields present
+-- MechanicBooking: Ensure timestamps
 ALTER TABLE "MechanicBooking"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
--- SupplierProfile: Add accountName back (was in schema but removed - keep for backward compatibility)
-ALTER TABLE "SupplierProfile"
-ADD COLUMN IF NOT EXISTS "website" TEXT,
-ADD COLUMN IF NOT EXISTS "instagram" TEXT,
-ADD COLUMN IF NOT EXISTS "facebook" TEXT,
-ADD COLUMN IF NOT EXISTS "twitter" TEXT,
-ADD COLUMN IF NOT EXISTS "whatsapp" TEXT,
-ADD COLUMN IF NOT EXISTS "tiktok" TEXT,
-ADD COLUMN IF NOT EXISTS "businessHours" TEXT,
-ADD COLUMN IF NOT EXISTS "tagline" TEXT,
-ADD COLUMN IF NOT EXISTS "coverImage" TEXT,
-ADD COLUMN IF NOT EXISTS "logo" TEXT,
-ADD COLUMN IF NOT EXISTS "metaDescription" TEXT,
-ADD COLUMN IF NOT EXISTS "keywords" TEXT[] DEFAULT ARRAY[]::TEXT[];
+-- SupplierProfile: Already has all fields from 20260212134000, skip duplicates
 
 -- Vehicle: Ensure all fields
 ALTER TABLE "Vehicle"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
--- Order: Ensure timestamps
+-- Order: Ensure timestamps (should already exist but adding for safety)
 ALTER TABLE "Order"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
@@ -80,12 +40,12 @@ ALTER TABLE "ShippingAddress"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3),
 ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3);
 
--- Booking: Ensure timestamps
+-- Booking: Ensure timestamps (should already exist but adding for safety)
 ALTER TABLE "Booking"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
--- LogisticsRequest: Ensure timestamps
+-- LogisticsRequest: Ensure timestamps (should already exist but adding for safety)
 ALTER TABLE "LogisticsRequest"
 ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
