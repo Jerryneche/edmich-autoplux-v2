@@ -18,14 +18,7 @@ export async function PATCH(
 
     const { deliveryId } = await params;
     const body = await request.json();
-    const { status, currentLocation, estimatedDeliveryDate, message } = body;
-
-    if (!message) {
-      return NextResponse.json(
-        { error: "message is required" },
-        { status: 400 }
-      );
-    }
+    const { status, currentLocation, estimatedDeliveryDate } = body;
 
     // Verify tracking exists
     const tracking =
@@ -67,7 +60,6 @@ export async function PATCH(
       status || tracking.status,
       currentLocation,
       estimatedDeliveryDate ? new Date(estimatedDeliveryDate) : undefined,
-      message
     );
 
     const events: Array<{
