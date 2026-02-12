@@ -61,7 +61,7 @@ export async function POST(request: Request) {
         expiryYear,
         bankName,
         accountNumber,
-        token: tokenizedData?.token,
+        token: (tokenizedData?.token as string) || null,
         isDefault: false,
       },
     });
