@@ -8,9 +8,9 @@
 import { PrismaClient } from '@prisma/client';
 
 if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
-  console.error('❌ DATABASE_URL or DIRECT_URL not found in environment variables');
-  console.log('This script must be run in Vercel or with DATABASE_URL set');
-  process.exit(1);
+  console.log('ℹ️  DATABASE_URL or DIRECT_URL not found in environment variables');
+  console.log('Skipping database cleanup - prisma db push will handle schema sync');
+  process.exit(0); // Exit gracefully so build continues
 }
 
 async function cleanupDatabase() {
