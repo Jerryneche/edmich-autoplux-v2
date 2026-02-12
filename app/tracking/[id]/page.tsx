@@ -28,6 +28,27 @@ interface TrackingData {
     status: string;
     timestamp: string;
   }>;
+  lastLocation?: string;
+  estimatedDeliveryDate?: string;
+  updates?: Array<{
+    timestamp: string;
+    status: string;
+  }>;
+  order: {
+    id: string;
+    orderNumber: string;
+    total: number;
+    items?: Array<{ id: string; name: string; quantity: number }>;
+    supplier?: {
+      id: string;
+      name: string;
+      address: string;
+    };
+    buyer?: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 export default function TrackingPage() {
@@ -171,9 +192,6 @@ export default function TrackingPage() {
                   <div
                     ref={mapRef}
                     className="h-96 bg-cover bg-center relative"
-                  >
-                      backgroundPosition: "center",
-                    }}
                   >
                     <div className="absolute inset-0 flex items-center justify-center bg-blue-900/80">
                       <div className="text-center text-white">
