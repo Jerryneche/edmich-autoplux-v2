@@ -11,7 +11,7 @@
     "resolve-migrations": "node resolve-migrations.js",
     "cleanup-db": "node cleanup-db.js",
     "approve-profiles": "node approve-profiles.js",
-    "postinstall": "prisma generate && node cleanup-db.js && node resolve-failed-migration.js && prisma db push --skip-generate --accept-data-loss && prisma migrate deploy"
+    "postinstall": "prisma generate && node cleanup-db.js && prisma db push --skip-generate --accept-data-loss"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
