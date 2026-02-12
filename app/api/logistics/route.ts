@@ -1,6 +1,5 @@
 // app/api/logistics/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 // GET - List logistics providers (public or filtered)
@@ -11,7 +10,7 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state");
     const available = searchParams.get("available");
 
-    const where: any = {
+    const where: Record<string, any & { contains: string; mode: string } | boolean> = {
       approved: true,
     };
 
@@ -33,11 +32,15 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(providers);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching logistics providers:", error);
     return NextResponse.json(
       { error: "Failed to fetch logistics providers" },
       { status: 500 }
     );
   }
+}
+
+export async function POST(_request: NextRequest) {
+  return NextResponse.json({ error: "Not implemented" }, { status: 501 });
 }

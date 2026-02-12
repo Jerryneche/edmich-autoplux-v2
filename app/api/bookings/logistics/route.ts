@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
       packageType,
       deliverySpeed,
       packageDescription,
-      weight,
       pickupAddress,
       pickupCity,
       pickupState,
@@ -183,7 +182,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(bookings);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching logistics bookings:", error);
     return NextResponse.json(
       { error: "Failed to fetch bookings" },

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -40,11 +40,11 @@ export async function POST(request: Request) {
       accountNumber,
     } = await request.json();
 
-    let tokenizedData;
+    let tokenizedData: any = null;
 
     if (type === "card") {
       // Tokenize card with payment gateway
-      tokenizedData = await tokenizeCard({
+      tokenizedData = await _tokenizeCard({
         cardNumber,
         expiryMonth,
         expiryYear,
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function tokenizeCard(cardData: any) {
+async function _tokenizeCard(_cardData: Record<string, any>) {
   // In production, use Paystack or Flutterwave tokenization
   return {
     token: "tok_" + Math.random().toString(36).substr(2, 9),

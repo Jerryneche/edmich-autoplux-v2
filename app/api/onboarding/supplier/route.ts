@@ -1,6 +1,5 @@
 // app/api/onboarding/supplier/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 

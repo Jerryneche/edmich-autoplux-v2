@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { BookingStatus } from "@prisma/client";
-import type { BookingDetails } from "@/types";
 
 // Helper: Add type discriminator
 const withType = <T extends { id: string }>(
@@ -91,7 +90,7 @@ export async function PATCH(
       );
     }
 
-    let updatedBooking: any;
+    let updatedBooking: Record<string, any>;
 
     if (type === "MECHANIC") {
       updatedBooking = await prisma.mechanicBooking.update({

@@ -175,11 +175,11 @@ export async function PATCH(
     await Promise.all(supplierNotifications);
 
     return NextResponse.json(updatedOrder);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating order:", error);
-    console.error("Error details:", error.message, error.code);
+    console.error("Error details:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to update order" },
+      { error: "Failed to update order" },
       { status: 500 }
     );
   }

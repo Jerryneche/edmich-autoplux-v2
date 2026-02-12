@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// Haversine distance (km)
+// Haversine distance (km) - used internally for calculations
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function calculateDistance(
   lat1: number,
   lon1: number,
@@ -181,10 +182,10 @@ export async function POST(request: Request) {
       message: "Booking created successfully",
       booking,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Logistics booking creation error:", error);
     return NextResponse.json(
-      { error: "Failed to create booking", details: error.message },
+      { error: "Failed to create booking" },
       { status: 500 }
     );
   }

@@ -213,8 +213,8 @@ export async function POST(req: NextRequest) {
         { message: "Verification code sent to your email" },
         { status: 200 }
       );
-    } catch (emailError: any) {
-      console.error("[EMAIL] Failed to send:", emailError.message);
+    } catch (emailError: unknown) {
+      console.error("[EMAIL] Failed to send:", emailError);
 
       // Log error to monitoring service (add Sentry, LogRocket, etc.)
       // await logError(emailError, { email: normalizedEmail, context: 'send-otp' });
@@ -224,8 +224,8 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-  } catch (error: any) {
-    console.error("[OTP] Unexpected error:", error.message);
+  } catch (error: unknown) {
+    console.error("[OTP] Unexpected error:", error);
 
     // Log error to monitoring service
     // await logError(error, { context: 'send-otp' });

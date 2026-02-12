@@ -53,7 +53,7 @@ export async function GET(
     console.log("Mechanic found:", mechanic.businessName);
 
     return NextResponse.json(mechanic);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching mechanic:", error);
     return NextResponse.json(
       { error: "Failed to fetch mechanic" },

@@ -9,7 +9,6 @@ import {
   MapPinIcon,
   PhoneIcon,
   ClockIcon,
-  TruckIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 
@@ -19,7 +18,7 @@ export default function TrackingPage() {
   const params = useParams();
   const orderId = params.id as string;
 
-  const [tracking, setTracking] = useState<any>(null);
+  const [tracking, setTracking] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +29,7 @@ export default function TrackingPage() {
       const interval = setInterval(fetchTracking, 10000);
       return () => clearInterval(interval);
     }
-  }, [session, orderId]);
+  }, [session, orderId, fetchTracking]);
 
   const fetchTracking = async () => {
     try {
@@ -38,6 +37,7 @@ export default function TrackingPage() {
       const data = await response.json();
 
       if (data.success) {
+        setTracking(data.data);
         setTracking(data.tracking);
         updateMap(data.tracking);
       }
@@ -48,7 +48,7 @@ export default function TrackingPage() {
     }
   };
 
-  const updateMap = (trackingData: any) => {
+  const updateMap = (trackingData: Record<string, any>) => {
     // In production, integrate Google Maps here
     // For now, we'll show coordinates
     console.log("Map update:", trackingData);

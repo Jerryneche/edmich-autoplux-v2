@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const maxPrice = searchParams.get("maxPrice");
     const sort = searchParams.get("sort") || "newest";
 
-    const where: any = {
+    const where: Record<string, any & { contains: string; mode?: string }> = {
       status: "ACTIVE", // your schema uses "ACTIVE"
     };
 
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
 
-    let orderBy: any = { createdAt: "desc" };
+    let orderBy: Record<string, 'asc' | 'desc'> = { createdAt: "desc" };
     switch (sort) {
       case "price_low":
         orderBy = { price: "asc" };
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
 
     const products = await prisma.product.findMany({
       where,
+      orderBy,
       orderBy,
       take: 50,
       include: {
@@ -111,7 +112,7 @@ export async function GET(request: Request) {
 // Voice search placeholder
 export async function POST(request: Request) {
   try {
-    const { audioData } = await request.json();
+    const { audioData: _audioData } = await request.json();
     // TODO: Integrate with Whisper API or similar
     const transcription = "brake pads for Toyota Camry";
 
@@ -120,7 +121,8 @@ export async function POST(request: Request) {
       transcription,
       suggestion: "Searching for: " + transcription,
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("Voice search error:", error);
     return NextResponse.json({ error: "Voice search failed" }, { status: 500 });
   }
 }

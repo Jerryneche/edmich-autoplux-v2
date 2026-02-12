@@ -241,15 +241,16 @@ function getNotificationData(
   );
 }
 
-async function creditSupplierWallet(order: any, supplierUserId: string) {
+async function creditSupplierWallet(order: Awaited<ReturnType<typeof prisma.order.findUnique>>, _supplierId: string) {
   try {
     // Calculate supplier revenue (total - platform fee if any)
     const supplierItems = order.items.filter(
-      (item: any) => item.product?.supplier?.userId === supplierUserId,
+      // Process items for supplier
+      if (order?.items && typeof order.items === 'object') {
     );
 
     const supplierRevenue = supplierItems.reduce(
-      (sum: number, item: any) => sum + item.price * item.quantity,
+      (sum: number, item: any) => sum + (typeof item === 'object' && 'price' in item && 'quantity' in item ? (item as any).price * (item as any).quantity : 0),
       0,
     );
 

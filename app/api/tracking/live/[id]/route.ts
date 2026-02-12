@@ -121,7 +121,7 @@ export async function GET(
         })),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Live tracking error:", error);
     return NextResponse.json(
       { error: "Failed to load tracking" },

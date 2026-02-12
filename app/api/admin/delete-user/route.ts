@@ -149,8 +149,8 @@ export async function DELETE(req: NextRequest) {
       },
       { status: 200 },
     );
-  } catch (error: any) {
-    console.error("[ADMIN] Delete user error:", error.message);
+  } catch (error: unknown) {
+    console.error("[ADMIN] Delete user error:", error);
     return NextResponse.json(
       { error: "Failed to delete user. Please try again." },
       { status: 500 },
