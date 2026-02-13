@@ -22,9 +22,11 @@ export async function GET(req: NextRequest) {
         image: true,
         stock: true,
         createdAt: true,
+        supplierId: true,
         supplier: {
           select: {
             id: true,
+            userId: true,
             businessName: true,
             verified: true,
           },
@@ -54,6 +56,7 @@ export async function GET(req: NextRequest) {
         image: imageUrl,
         stock: p.stock,
         supplierId: p.supplier?.id || "",
+        supplierUserId: p.supplier?.userId || null,
         supplier: p.supplier?.businessName || "AutoParts Ltd",
         verified: p.supplier?.verified || false,
       };

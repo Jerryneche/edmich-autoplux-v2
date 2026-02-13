@@ -17,6 +17,7 @@ export async function GET(
           select: {
             id: true,
             businessName: true,
+            userId: true,
             user: {
               select: { name: true, email: true, phone: true },
             },
@@ -39,6 +40,7 @@ export async function GET(
       image: product.image,
       stock: product.stock,
       supplierId: product.supplierId,
+      supplierUserId: product.supplier?.userId || null,
       supplier:
         product.supplier?.businessName ||
         product.supplier?.user?.name ||

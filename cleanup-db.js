@@ -16,22 +16,36 @@ if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
 async function cleanupDatabase() {
   console.log('🧹 Starting database cleanup...');
 
+  let prisma;
   try {
-    const prisma = new PrismaClient();
+    prisma = new PrismaClient({
+      log: [], // Disable logging to avoid noise
+    });
     
-    // Drop all tables with cascade to remove constraints
-    // Must execute separately - cannot combine in one prepared statement
+    // Drop all tables in public schema with CASCADE
+    // PostgreSQL automatically recreates the public schema
+    console.log('  → Dropping public schema...');
     await prisma.$executeRaw`DROP SCHEMA IF EXISTS public CASCADE`;
-    await prisma.$executeRaw`CREATE SCHEMA public`;
     
-    console.log('✅ Database cleaned - all tables dropped');
+    console.log('  → Recreating public schema...');
+    await prisma.$executeRaw`CREATE SCHEMA IF NOT EXISTS public`;
     
+    console.log('✅ Database cleaned - schema reset');
+    
+    // Ensure connection is closed before exiting
     await prisma.$disconnect();
+    
+    // Small delay to ensure everything is flushed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     process.exit(0);
   } catch (error) {
-    console.error('❌ Failed to cleanup database:', error.message);
-    console.log('Continuing with prisma db push anyway');
-    process.exit(0); // Exit with 0 so deploy continues
+    console.log(`⚠️  Cleanup skipped: ${error.message}`);
+    if (prisma) {
+      await prisma.$disconnect();
+    }
+    // Exit with 0 so deploy continues (prisma db push will handle sync)
+    process.exit(0);
   }
 }
 

@@ -92,6 +92,8 @@ export async function GET(request: Request) {
       include: {
         supplier: {
           select: {
+            id: true,
+            userId: true,
             businessName: true,
             city: true,
             state: true,
