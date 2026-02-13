@@ -29,7 +29,8 @@ export async function getAuthUser(req: NextRequest) {
   // Method 1: Check for Bearer token (mobile app)
   const authHeader = req.headers.get("authorization");
   console.log(
-    "[AUTH-API] Auth header:",
+    "[AUTH-API] Auth header present:",
+    !!authHeader,
     authHeader ? authHeader.substring(0, 30) + "..." : "NONE",
   );
 
@@ -59,10 +60,10 @@ export async function getAuthUser(req: NextRequest) {
         },
       });
 
-      console.log("[AUTH-API] User found in DB:", !!user);
+      console.log("[AUTH-API] User found in DB:", !!user, "userId:", decoded.userId);
       if (user) {
-        console.log("[AUTH-API] User ID:", user.id);
-        console.log("[AUTH-API] User role:", user.role);
+        console.log("[AUTH-API] ✅ User ID:", user.id);
+        console.log("[AUTH-API] ✅ User role:", user.role);
         return {
           id: user.id,
           email: user.email,
@@ -84,6 +85,8 @@ export async function getAuthUser(req: NextRequest) {
     } catch (error: any) {
       console.log("[AUTH-API] ❌ JWT verify FAILED:", error.message);
       console.log("[AUTH-API] Error name:", error.name);
+      console.log("[AUTH-API] Token (first 50 chars):", token.substring(0, 50));
+      console.log("[AUTH-API] Secret length used for verify:", JWT_SECRET?.length);
     }
   } else {
     console.log("[AUTH-API] No Bearer token in header");
