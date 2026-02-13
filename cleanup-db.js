@@ -13,6 +13,12 @@ if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
   process.exit(0); // Exit gracefully so build continues
 }
 
+// Allow skipping cleanup with SKIP_DB_CLEANUP env variable
+if (process.env.SKIP_DB_CLEANUP === 'true') {
+  console.log('ℹ️  SKIP_DB_CLEANUP is set - skipping database cleanup');
+  process.exit(0);
+}
+
 async function cleanupDatabase() {
   console.log('🧹 Starting database cleanup...');
 
@@ -23,20 +29,25 @@ async function cleanupDatabase() {
     });
     
     // Drop all tables in public schema with CASCADE
-    // PostgreSQL automatically recreates the public schema
-    console.log('  → Dropping public schema...');
+    console.log('  → Dropping public schema with all objects...');
     await prisma.$executeRaw`DROP SCHEMA IF EXISTS public CASCADE`;
     
-    console.log('  → Recreating public schema...');
-    await prisma.$executeRaw`CREATE SCHEMA IF NOT EXISTS public`;
+    // Wait longer to ensure schema drop is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    console.log('✅ Database cleaned - schema reset');
+    console.log('  → Recreating public schema...');
+    await prisma.$executeRaw`CREATE SCHEMA public`;
+    
+    // Wait for schema recreation to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    console.log('✅ Database cleaned - schema fully reset');
     
     // Ensure connection is closed before exiting
     await prisma.$disconnect();
     
-    // Small delay to ensure everything is flushed
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Final delay before letting next process run
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     process.exit(0);
   } catch (error) {
