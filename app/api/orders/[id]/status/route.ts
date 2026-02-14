@@ -111,6 +111,18 @@ export async function PATCH(
       );
     }
 
+    // Shipping guard: Enforce payment verification before shipping
+    if (
+      (status === "SHIPPED" || status === "OUT_FOR_DELIVERY") &&
+      order.paymentStatus !== "PAID" &&
+      order.paymentStatus !== "SUCCESS"
+    ) {
+      return NextResponse.json(
+        { error: "Payment not confirmed" },
+        { status: 403 }
+      );
+    }
+
     // Update order status
     const updatedOrder = await prisma.order.update({
       where: { id },
