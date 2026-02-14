@@ -44,32 +44,55 @@ export const metadata: Metadata = {
     "Transform your automotive business with EDMICH AutoPlux. Connect with 500+ verified suppliers, 350+ certified mechanics, and smart logistics across Nigeria. Source genuine auto parts, manage services, and scale operations in one powerful platform.",
 
   keywords: [
-    "auto parts marketplace Nigeria",
-    "B2B automotive platform Africa",
-    "verified auto parts suppliers",
+    // High-intent auto parts keywords
+    "buy auto parts online Nigeria",
+    "auto parts near me",
+    "car parts online",
     "genuine spare parts Nigeria",
-    "automotive B2B platform",
-    "car parts suppliers Lagos",
-    "certified mechanics Nigeria",
-    "auto logistics services",
-    "automotive supply chain",
-    "buy genuine auto parts online Nigeria",
-    "B2B auto parts marketplace Africa",
-    "verified automotive suppliers Lagos",
-    "professional mechanics network Nigeria",
-    "automotive parts distribution platform",
-    "auto parts Lagos",
-    "car parts Abuja",
-    "spare parts Port Harcourt",
-    "automotive suppliers Nigeria",
-    "automotive inventory management",
-    "parts sourcing platform",
-    "mechanic booking system",
-    "logistics tracking Nigeria",
-    "automotive e-commerce",
+    "auto parts store Lagos",
+    "car spare parts online Nigeria",
+    "where to buy car parts in Lagos",
+    "cheap auto parts Nigeria",
+    "original car parts Nigeria",
+    // Brand-specific
+    "Toyota parts Nigeria",
+    "Honda parts Lagos",
+    "Mercedes spare parts Nigeria",
+    "BMW parts online Nigeria",
+    "Lexus parts Lagos",
+    "Hyundai parts Nigeria",
+    "Kia spare parts",
+    "Nissan parts online",
+    // Part types
+    "engine parts Nigeria",
+    "brake pads Lagos",
+    "car battery online Nigeria",
+    "oil filter Nigeria",
+    "car suspension parts",
+    "transmission parts Nigeria",
+    "car body parts online",
+    "car tires Nigeria",
+    // Mechanic keywords
+    "mechanic near me Nigeria",
+    "car mechanic Lagos",
+    "mobile mechanic Abuja",
+    "car repair services Nigeria",
+    "book mechanic online",
+    "certified car mechanic",
+    // Logistics
+    "auto parts delivery Nigeria",
+    "car parts shipping Lagos",
+    // B2B
+    "B2B auto parts marketplace",
+    "wholesale auto parts Nigeria",
+    "auto parts supplier",
+    "automotive distributor Nigeria",
+    // Brand
     "EDMICH",
     "AutoPlux",
     "Edmich AutoPlux",
+    "autoplux app",
+    "download autoplux",
   ],
 
   authors: [{ name: "EDMICH AutoPlux", url: "https://www.edmich.com" }],
@@ -202,6 +225,7 @@ const jsonLd = {
     availableLanguage: ["English"],
   },
   sameAs: [
+    "https://play.google.com/store/apps/details?id=com.edmich.app",
     "https://twitter.com/edmichservices",
     "https://facebook.com/edmichautoplux",
     "https://linkedin.com/company/edmichservices",
@@ -217,19 +241,94 @@ const jsonLd = {
 const mobileAppJsonLd = {
   "@context": "https://schema.org",
   "@type": "MobileApplication",
-  name: "EDMICH AutoPlux",
-  operatingSystem: "Android, iOS",
+  name: "AutoPlux - Auto Parts & Mechanics",
+  alternateName: "EDMICH AutoPlux",
+  description: "Buy genuine auto parts, book certified mechanics, and track deliveries. Africa's #1 B2B automotive marketplace with 500+ verified suppliers across Nigeria. Download free on Google Play.",
+  operatingSystem: "Android",
   applicationCategory: "BusinessApplication",
   url: "https://www.edmich.com",
+  installUrl: "https://play.google.com/store/apps/details?id=com.edmich.app",
+  downloadUrl: "https://play.google.com/store/apps/details?id=com.edmich.app",
+  image: "https://www.edmich.com/logo 512.png",
+  screenshot: "https://www.edmich.com/twitter.png",
+  author: {
+    "@type": "Organization",
+    name: "EDMICH AutoPlux",
+    url: "https://www.edmich.com",
+  },
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.8",
+    reviewCount: "350",
+    bestRating: "5",
+    worstRating: "1",
+  },
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "NGN",
+    availability: "https://schema.org/InStock",
+  },
+  softwareVersion: "1.0",
+  fileSize: "25MB",
+  contentRating: "Everyone",
+  inLanguage: "en",
+  countriesSupported: "NG",
+};
+
+const autoPartsServiceJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "AutoPartsStore",
+  name: "EDMICH AutoPlux",
+  description: "Buy genuine auto parts online in Nigeria. 500+ verified suppliers, 50,000+ spare parts for Toyota, Honda, Mercedes, BMW, Lexus, Hyundai, Kia, and more.",
+  url: "https://www.edmich.com",
+  image: "https://www.edmich.com/logo 512.png",
+  telephone: "+234-902-557-9441",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Lagos",
+    addressRegion: "Lagos",
+    addressCountry: "NG",
+  },
+  geo: {
+    "@type": "GeoCoordinates",
+    latitude: "6.5244",
+    longitude: "3.3792",
+  },
+  areaServed: [
+    { "@type": "Country", name: "Nigeria" },
+    { "@type": "City", name: "Lagos" },
+    { "@type": "City", name: "Abuja" },
+    { "@type": "City", name: "Port Harcourt" },
+    { "@type": "City", name: "Kano" },
+    { "@type": "City", name: "Ibadan" },
+  ],
+  priceRange: "₦₦",
+  openingHours: "Mo-Sa 08:00-18:00",
+  sameAs: [
+    "https://play.google.com/store/apps/details?id=com.edmich.app",
+    "https://twitter.com/edmichservices",
+    "https://facebook.com/edmichautoplux",
+    "https://instagram.com/edmichservices",
+  ],
   aggregateRating: {
     "@type": "AggregateRating",
     ratingValue: "4.8",
     reviewCount: "350",
   },
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
+  hasOfferCatalog: {
+    "@type": "OfferCatalog",
+    name: "Auto Parts Catalog",
+    itemListElement: [
+      { "@type": "OfferCatalog", name: "Engine Parts" },
+      { "@type": "OfferCatalog", name: "Brake Systems" },
+      { "@type": "OfferCatalog", name: "Suspension Parts" },
+      { "@type": "OfferCatalog", name: "Electrical Components" },
+      { "@type": "OfferCatalog", name: "Body Parts" },
+      { "@type": "OfferCatalog", name: "Transmission Parts" },
+      { "@type": "OfferCatalog", name: "Oil & Filters" },
+      { "@type": "OfferCatalog", name: "Tires & Wheels" },
+    ],
   },
 };
 
@@ -269,6 +368,10 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(mobileAppJsonLd) }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(autoPartsServiceJsonLd) }}
+        />
 
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -281,12 +384,22 @@ export default function RootLayout({
         {/* DNS Prefetch for performance */}
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
 
-        {/* PWA Meta Tags - REMOVED <link> tags that caused error */}
+        {/* Google Play Store App Install Banner */}
+        <meta name="google-play-app" content="app-id=com.edmich.app" />
+
+        {/* App Links for Deep Linking */}
+        <meta property="al:android:url" content="edmich://" />
+        <meta property="al:android:app_name" content="AutoPlux" />
+        <meta property="al:android:package" content="com.edmich.app" />
+        <meta property="al:web:url" content="https://www.edmich.com" />
+
+        {/* PWA Meta Tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="EDMICH AutoPlux" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#2563eb" />
+        <meta name="application-name" content="AutoPlux" />
       </head>
 
       <body

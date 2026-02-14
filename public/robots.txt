@@ -1,5 +1,5 @@
 # EDMICH AutoPlux - Robots.txt Configuration
-# Crawlers allowed here
+# App: https://play.google.com/store/apps/details?id=com.edmich.app
 
 # All bots
 User-agent: *
@@ -20,6 +20,11 @@ Disallow: /api/auth/
 Allow: /api/revalidate
 Allow: /api/search
 
+# Allow Googlebot for app indexing
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
 # Delay for aggressive crawlers
 User-agent: AhrefsBot
 Crawl-delay: 10
@@ -27,7 +32,7 @@ User-agent: SemrushBot
 Crawl-delay: 10
 
 # Sitemap location
-Sitemap: https://edmich.com/sitemap.xml
+Sitemap: https://www.edmich.com/sitemap.xml
 Sitemap: https://www.edmich.com/sitemap.xml
 
 # Canonical domain
