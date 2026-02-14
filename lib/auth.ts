@@ -222,12 +222,23 @@ export const authOptions: NextAuthOptions = {
         if (user && !token.id) {
           console.log("[AUTH-JWT] Initial token creation for user:", user.id);
           
-          // Set timeout for database query
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Database query timeout")), 5000)
-          );
-          
           try {
+            type DBUser = {
+              id: string;
+              role: string | null;
+              onboardingStatus: string | null;
+              isGoogleAuth: boolean;
+              hasCompletedOnboarding: boolean;
+              supplierProfile: { id: string } | null;
+              mechanicProfile: { id: string } | null;
+              logisticsProfile: { id: string } | null;
+            };
+
+            // Set timeout for database query
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Database query timeout")), 5000)
+            );
+            
             const dbUserPromise = prisma.user.findUnique({
               where: { id: user.id },
               select: {
@@ -240,9 +251,9 @@ export const authOptions: NextAuthOptions = {
                 mechanicProfile: { select: { id: true } },
                 logisticsProfile: { select: { id: true } },
               },
-            });
+            }) as Promise<DBUser | null>;
             
-            const dbUser = await Promise.race([dbUserPromise, timeoutPromise]);
+            const dbUser = await Promise.race<DBUser | null>([dbUserPromise, timeoutPromise]);
 
             if (dbUser) {
               console.log("[AUTH-JWT] ✅ Initial token populated for:", user.id);
@@ -278,7 +289,16 @@ export const authOptions: NextAuthOptions = {
           console.log("[AUTH-JWT] Refreshing token for session update");
           
           try {
-            const timeoutPromise = new Promise((_, reject) =>
+            type RefreshedUser = {
+              role: string | null;
+              onboardingStatus: string | null;
+              hasCompletedOnboarding: boolean;
+              supplierProfile: { id: string } | null;
+              mechanicProfile: { id: string } | null;
+              logisticsProfile: { id: string } | null;
+            };
+
+            const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("Database query timeout")), 5000)
             );
             
@@ -292,9 +312,9 @@ export const authOptions: NextAuthOptions = {
                 mechanicProfile: { select: { id: true } },
                 logisticsProfile: { select: { id: true } },
               },
-            });
+            }) as Promise<RefreshedUser | null>;
 
-            const refreshedUser = await Promise.race([refreshedUserPromise, timeoutPromise]);
+            const refreshedUser = await Promise.race<RefreshedUser | null>([refreshedUserPromise, timeoutPromise]);
 
             if (refreshedUser) {
               console.log("[AUTH-JWT] ✅ Token refreshed from user data");
