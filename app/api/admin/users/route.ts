@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
 
     let where: any = {};
 
-    if (statusFilter === "flagged") {
-      where.banned = true;
-    } else if (statusFilter === "pending") {
+    if (statusFilter === "pending") {
+      where.emailVerified = null;
+    } else if (statusFilter === "unverified") {
       where.emailVerified = null;
     }
 
@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
         email: true,
         role: true,
         emailVerified: true,
-        banned: true,
         createdAt: true,
         image: true,
       },
@@ -81,7 +80,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { role, verified, banned } = await request.json();
+    const { role, verified } = await request.json();
 
     const updateData: any = {};
 
@@ -91,10 +90,6 @@ export async function PATCH(request: NextRequest) {
 
     if (typeof verified === "boolean") {
       updateData.emailVerified = verified ? new Date() : null;
-    }
-
-    if (typeof banned === "boolean") {
-      updateData.banned = banned;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -113,7 +108,6 @@ export async function PATCH(request: NextRequest) {
         email: true,
         role: true,
         emailVerified: true,
-        banned: true,
       },
     });
 
