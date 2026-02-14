@@ -333,13 +333,14 @@ export default function RootLayout({
         </noscript>
 
         {/* Main App */}
-        <ClientProvider>{children}</ClientProvider>
+        <ClientProvider>
+          {children}
+          {/* Push Notification Registration (must be inside SessionProvider) */}
+          <PushNotificationManager />
+        </ClientProvider>
 
         {/* PWA Install Prompt */}
         <PWAInstaller />
-
-        {/* Push Notification Registration */}
-        <PushNotificationManager />
 
         {/* Accessibility: Skip to main content */}
         <Link
