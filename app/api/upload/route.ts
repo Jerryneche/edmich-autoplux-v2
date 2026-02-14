@@ -33,9 +33,15 @@ export async function POST(request: NextRequest) {
       ],
     });
 
+    // Determine media type from file
+    const type = file.type.startsWith("video") ? "video" : "image";
+    
+    // Return complete attachment metadata
     return NextResponse.json({
       url: result.secure_url,
       publicId: result.public_id,
+      type: type,
+      name: file.name,
     });
   } catch (error: any) {
     console.error("Upload error:", error);
