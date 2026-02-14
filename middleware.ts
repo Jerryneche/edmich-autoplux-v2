@@ -30,29 +30,14 @@ export default withAuth(
       return NextResponse.redirect(new URL(`/onboarding/${rolePath}`, req.url));
     }
 
-    // 3. BUYERS: Auto-complete onboarding on first visit
+    // 3. BUYERS: Auto-complete onboarding on first visit (removed async fetch - causing auth delays)
     if (
       token &&
       token.role === "BUYER" &&
       token.onboardingStatus !== "COMPLETED" &&
       !path.startsWith("/api")
     ) {
-      // Update in background
-      Promise.resolve().then(async () => {
-        try {
-          await fetch(
-            `${process.env.NEXTAUTH_URL}/api/user/complete-onboarding`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId: token.sub }),
-            }
-          );
-        } catch (err) {
-          console.error("Failed to auto-complete buyer onboarding:", err);
-        }
-      });
-      // Allow access
+      // Just allow access - onboarding status will be updated on next session refresh
       return NextResponse.next();
     }
 
