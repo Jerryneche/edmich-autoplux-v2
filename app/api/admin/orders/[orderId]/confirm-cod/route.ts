@@ -18,7 +18,7 @@ async function getAdminUser(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const admin = await getAdminUser(request);
@@ -26,7 +26,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // Get order
     const order = await prisma.order.findUnique({
