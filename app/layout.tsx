@@ -6,6 +6,7 @@ import "./globals.css";
 import Script from "next/script";
 import Link from "next/link";
 import PWAInstaller from "@/app/components/PWAInstaller";
+import PushNotificationManager from "@/app/components/PushNotificationManager";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -213,6 +214,25 @@ const jsonLd = {
   },
 };
 
+const mobileAppJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "MobileApplication",
+  name: "EDMICH AutoPlux",
+  operatingSystem: "Android, iOS",
+  applicationCategory: "BusinessApplication",
+  url: "https://www.edmich.com",
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.8",
+    reviewCount: "350",
+  },
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+};
+
 const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
@@ -244,6 +264,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(mobileAppJsonLd) }}
         />
 
         {/* Preconnect to external domains */}
@@ -313,6 +337,9 @@ export default function RootLayout({
 
         {/* PWA Install Prompt */}
         <PWAInstaller />
+
+        {/* Push Notification Registration */}
+        <PushNotificationManager />
 
         {/* Accessibility: Skip to main content */}
         <Link

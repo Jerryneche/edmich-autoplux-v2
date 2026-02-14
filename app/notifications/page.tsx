@@ -48,6 +48,12 @@ export default function NotificationsPage() {
 
       if (data.success && Array.isArray(data.notifications)) {
         setNotifications(data.notifications);
+
+        // Auto-mark as read when the list is viewed so badges clear immediately
+        const hasUnread = data.notifications.some((n: Notification) => !n.read);
+        if (hasUnread) {
+          await markAllAsRead(true);
+        }
       }
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -72,7 +78,7 @@ export default function NotificationsPage() {
     }
   };
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = async (silent?: boolean) => {
     try {
       await fetch("/api/notifications", {
         method: "PATCH",
@@ -80,7 +86,12 @@ export default function NotificationsPage() {
         body: JSON.stringify({ markAllRead: true }),
       });
 
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      if (!silent) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      } else {
+        // For the initial load, we also update local state to clear badges
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      }
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
@@ -137,7 +148,7 @@ export default function NotificationsPage() {
 
                 {unreadCount > 0 && (
                   <button
-                    onClick={markAllAsRead}
+                    onClick={() => markAllAsRead()}
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition"
                   >
                     <CheckIcon className="h-5 w-5" />

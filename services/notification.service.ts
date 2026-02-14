@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { pushNotificationService } from "./push-notification.service";
+import { webPushService } from "./web-push.service";
 import type { NotificationType } from "@prisma/client";
 
 /**
@@ -71,7 +72,7 @@ export const notificationService = {
         link,
       });
 
-      // Send push notification
+      // Send push notification (Expo - native mobile)
       try {
         await pushNotificationService.notifyUser(userId, {
           title,
@@ -83,8 +84,26 @@ export const notificationService = {
           },
         });
       } catch (pushError) {
-        console.error("Failed to send push notification:", pushError);
+        console.error("Failed to send Expo push notification:", pushError);
         // Don't fail the whole operation if push fails
+      }
+
+      // Send web push notification (PWA - mobile browser / desktop)
+      try {
+        await webPushService.sendToUser(userId, {
+          title,
+          body: message,
+          url: link || "/notifications",
+          tag: `${type}-${notification.id}`,
+          data: {
+            type: type.toString(),
+            notificationId: notification.id,
+            ...pushData,
+          },
+        });
+      } catch (webPushError) {
+        console.error("Failed to send web push notification:", webPushError);
+        // Don't fail the whole operation if web push fails
       }
 
       return notification;
