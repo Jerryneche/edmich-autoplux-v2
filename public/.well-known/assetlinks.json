@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.edmich.app",
-      "sha256_cert_fingerprints": []
+      "sha256_cert_fingerprints": ["1B:F7:6A:72:54:AC:E2:26:8C:08:1B:65:90:07:C8:80:D5:CC:FD:CB:4C:98:F5:BB:7A:56:54:10:0E:4C:F2:8B"]
     }
   },
   {
@@ -12,7 +12,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.edmich.app",
-      "sha256_cert_fingerprints": []
+      "sha256_cert_fingerprints": ["1B:F7:6A:72:54:AC:E2:26:8C:08:1B:65:90:07:C8:80:D5:CC:FD:CB:4C:98:F5:BB:7A:56:54:10:0E:4C:F2:8B"]
     }
   }
 ]
