@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { participantId, message, productId, productImage, itemImage, supplierId } = await request.json();
+    const { participantId, message, productId, productImage, itemImage, supplierId, attachments } = await request.json();
 
     if (!participantId) {
       return NextResponse.json(
@@ -154,11 +154,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Create message
+    // Validate attachments if provided
+    let validatedAttachments: any[] = [];
+    if (attachments && Array.isArray(attachments)) {
+      validatedAttachments = attachments.filter(
+        (att) => att.url && att.type && att.name
+      );
+    }
+
     const newMessage = await prisma.message.create({
       data: {
         conversationId: conversation.id,
         senderId: user.id,
         content: message,
+        attachments: validatedAttachments,
       },
       include: {
         sender: {

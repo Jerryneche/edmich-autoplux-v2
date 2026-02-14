@@ -50,6 +50,12 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
+    // Format messages to ensure attachments are arrays
+    const formattedMessages = messages.map((msg) => ({
+      ...msg,
+      attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
+    }));
+
     // Mark messages as read
     await prisma.message.updateMany({
       where: {
@@ -60,7 +66,7 @@ export async function GET(request: NextRequest) {
       data: { read: true },
     });
 
-    return NextResponse.json({ success: true, messages });
+    return NextResponse.json({ success: true, messages: formattedMessages });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch messages" },
@@ -116,12 +122,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create message
+    // Validate attachments if provided
+    let validatedAttachments: any[] = [];
+    if (attachments && Array.isArray(attachments)) {
+      validatedAttachments = attachments.filter(
+        (att) => att.url && att.type && att.name
+      );
+    }
+
+    // Create message with attachments
     const newMessage = await prisma.message.create({
       data: {
         conversationId: conversationId,
         senderId: user.id,
         content: message,
+        attachments: validatedAttachments,
       },
       include: {
         sender: {
