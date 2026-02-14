@@ -86,6 +86,13 @@ export async function POST(request: NextRequest) {
 
     const { participantId, message, productId, productImage, itemImage, supplierId, attachments } = await request.json();
 
+    console.log("[CHAT-CONV] POST request received", {
+      participantId,
+      messageLength: message?.length || 0,
+      attachmentsCount: Array.isArray(attachments) ? attachments.length : 0,
+      attachments: attachments,
+    });
+
     if (!participantId) {
       return NextResponse.json(
         { error: "Participant ID is required" },
@@ -161,6 +168,11 @@ export async function POST(request: NextRequest) {
         (att) => att.url && att.type && att.name
       );
     }
+    console.log("[CHAT-CONV] Attachments validation", {
+      rawCount: Array.isArray(attachments) ? attachments.length : 0,
+      validatedCount: validatedAttachments.length,
+      validated: validatedAttachments,
+    });
 
     const newMessage = await prisma.message.create({
       data: {

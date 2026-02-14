@@ -50,6 +50,15 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
+    console.log("[CHAT-MSG] GET messages", {
+      conversationId,
+      messageCount: messages.length,
+      attachmentsSample: messages.slice(0, 2).map((m) => ({
+        id: m.id,
+        attachments: m.attachments,
+      })),
+    });
+
     // Format messages to ensure attachments are arrays
     const formattedMessages = messages.map((msg) => ({
       ...msg,
@@ -83,6 +92,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { conversationId, message, attachments } = await request.json();
+
+    console.log("[CHAT-MSG] POST request received", {
+      conversationId,
+      messageLength: message?.length || 0,
+      attachmentsCount: Array.isArray(attachments) ? attachments.length : 0,
+      attachments: attachments,
+    });
 
     if (!conversationId) {
       return NextResponse.json(
@@ -129,6 +145,11 @@ export async function POST(request: NextRequest) {
         (att) => att.url && att.type && att.name
       );
     }
+    console.log("[CHAT-MSG] Attachments validation", {
+      rawCount: Array.isArray(attachments) ? attachments.length : 0,
+      validatedCount: validatedAttachments.length,
+      validated: validatedAttachments,
+    });
 
     // Create message with attachments
     const newMessage = await prisma.message.create({
