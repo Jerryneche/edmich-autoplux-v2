@@ -900,13 +900,17 @@ model Withdrawal {
   wallet        Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
   amount        Float
   bankCode      String
+  bankName      String?
   accountNumber String
-  status        String    @default("pending")
+  accountName   String?
+  status        String    @default("pending") // pending, processing, credited, failed
   initiatedAt   DateTime  @default(now())
   processedAt   DateTime?
+  processedBy   String?   // Admin user ID
   reference     String?
 
   @@index([walletId])
+  @@index([status])
 }
 
 /**

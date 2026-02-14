@@ -23,6 +23,55 @@ async function getCurrentUser(request: NextRequest) {
   return null;
 }
 
+// GET user's withdrawal history
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request);
+    if (!user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const wallet = await prisma.wallet.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (!wallet) {
+      return NextResponse.json(
+        { error: "Wallet not found" },
+        { status: 404 }
+      );
+    }
+
+    const withdrawals = await prisma.withdrawal.findMany({
+      where: { walletId: wallet.id },
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        bankName: true,
+        bankCode: true,
+        accountNumber: true,
+        accountName: true,
+        initiatedAt: true,
+        processedAt: true,
+        reference: true,
+      },
+      orderBy: { initiatedAt: "desc" },
+    });
+
+    return NextResponse.json({
+      success: true,
+      withdrawals,
+    });
+  } catch (error) {
+    console.error("[WALLET-WITHDRAWALS-GET] Error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch withdrawals" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser(request);
@@ -81,13 +130,15 @@ export async function POST(request: NextRequest) {
 
     // Create withdrawal in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create withdrawal record
+      // Create withdrawal record with bankName and accountName
       const withdrawal = await tx.withdrawal.create({
         data: {
           walletId: wallet.id,
           amount,
           bankCode,
+          bankName: bankName || null,
           accountNumber,
+          accountName: accountName || null,
           status: "pending",
           reference: `WD-${Date.now()}-${user.id.slice(0, 8)}`,
         },
