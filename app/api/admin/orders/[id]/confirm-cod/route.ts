@@ -4,21 +4,20 @@ import { getAuthUser } from "@/lib/auth-api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { notificationService } from "@/services/notification.service";
-export async function POST(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+
+async function getAdminUser(request: NextRequest) {
+  const authUser = await getAuthUser(request);
+  if (authUser?.role === "ADMIN") return authUser;
   const session = await getServerSession(authOptions);
   if (session?.user?.role === "ADMIN") {
     return { id: session.user.id, role: "ADMIN" };
-  export async function POST(
-    request: NextRequest,
-    context: { params: { id: string } }
-  ) {
-) {
+  }
+  return null;
+}
+
+export async function POST(
   request: NextRequest,
   context: { params: { id: string } }
-) {
 ) {
   try {
     // Dual admin authentication
@@ -33,7 +32,6 @@ export async function POST(
     }
 
     // Fetch order and validate
-
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
@@ -55,10 +53,8 @@ export async function POST(
       data: { status: "COD_CONFIRMED" },
     });
 
-
-    // Notify buyer and supplier
+    // Notify buyer
     try {
-      // Notify buyer
       await notificationService.notifyUserWithPush(order.userId, {
         type: "ORDER_STATUS_UPDATED",
         title: "Order COD Confirmed",
@@ -66,7 +62,6 @@ export async function POST(
         link: `/orders/${order.id}`,
         pushData: { orderId: order.id, status: "COD_CONFIRMED" },
       });
-      // No supplierId on Order model; only notify buyer (userId)
     } catch (notifyErr) {
       // Log but do not fail the endpoint
       console.error("Notification error:", notifyErr);
