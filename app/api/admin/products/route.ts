@@ -24,10 +24,15 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status") || "PENDING";
+    const status = searchParams.get("status");
+
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
 
     const products = await prisma.product.findMany({
-      where: { status },
+      where,
       include: {
         supplier: {
           select: {
@@ -47,7 +52,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       count: products.length,
-      status,
+      status: status || "ALL",
       products,
     });
   } catch (error) {

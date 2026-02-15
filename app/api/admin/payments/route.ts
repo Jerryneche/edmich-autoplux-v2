@@ -25,11 +25,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status") || "pending";
+    const status = searchParams.get("status");
     const method = searchParams.get("method");
 
     // Build filter
-    const where: any = { status };
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
     if (method) {
       where.method = {
         in: method.split("|"),

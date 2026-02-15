@@ -25,10 +25,15 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status") || "pending";
+    const status = searchParams.get("status");
+
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
 
     const withdrawals = await prisma.withdrawal.findMany({
-      where: { status },
+      where,
       include: {
         wallet: {
           include: {
