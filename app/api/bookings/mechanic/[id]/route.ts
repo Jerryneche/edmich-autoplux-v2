@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 // GET - Get single booking
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -55,7 +55,7 @@ export async function GET(
 // PATCH - Update booking status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -171,7 +171,7 @@ export async function PATCH(
 // DELETE - Cancel/delete booking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getAuthUser(request);
