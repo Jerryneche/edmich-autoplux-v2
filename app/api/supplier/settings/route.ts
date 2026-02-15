@@ -1,19 +1,34 @@
 // app/api/supplier/settings/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Support both mobile JWT and web session auth
+    let userId: string | null = null;
+    let userRole: string | null = null;
 
-    if (!session?.user?.id) {
+    const mobileUser = await getAuthUser(req);
+    if (mobileUser) {
+      userId = mobileUser.id;
+      userRole = mobileUser.role;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.id) {
+        userId = session.user.id;
+        userRole = session.user.role;
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "SUPPLIER") {
+    if (userRole !== "SUPPLIER") {
       return NextResponse.json(
         { error: "Only suppliers can update settings" },
         { status: 403 }
@@ -24,7 +39,7 @@ export async function PATCH(req: Request) {
 
     // Find supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
     });
 
     if (!supplierProfile) {
@@ -62,6 +77,71 @@ export async function PATCH(req: Request) {
     console.error("Settings update error:", error);
     return NextResponse.json(
       { error: "Failed to update settings" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Alias for PATCH (mobile apps may use PUT)
+export async function PUT(req: NextRequest) {
+  return PATCH(req);
+}
+
+// GET - Load supplier profile
+export async function GET(req: NextRequest) {
+  try {
+    let userId: string | null = null;
+    let userRole: string | null = null;
+
+    const mobileUser = await getAuthUser(req);
+    if (mobileUser) {
+      userId = mobileUser.id;
+      userRole = mobileUser.role;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.id) {
+        userId = session.user.id;
+        userRole = session.user.role;
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (userRole !== "SUPPLIER") {
+      return NextResponse.json(
+        { error: "Only suppliers can access settings" },
+        { status: 403 }
+      );
+    }
+
+    const supplierProfile = await prisma.supplierProfile.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!supplierProfile) {
+      return NextResponse.json(
+        { error: "Supplier profile not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(supplierProfile);
+  } catch (error: any) {
+    console.error("Settings GET error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch settings" },
       { status: 500 }
     );
   }

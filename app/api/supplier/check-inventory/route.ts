@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Support both mobile JWT and web session auth
+    let userId: string | null = null;
+    let userRole: string | null = null;
 
-    if (!session || session.user.role !== "SUPPLIER") {
+    const mobileUser = await getAuthUser(req);
+    if (mobileUser) {
+      userId = mobileUser.id;
+      userRole = mobileUser.role;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.id) {
+        userId = session.user.id;
+        userRole = session.user.role;
+      }
+    }
+
+    if (!userId || userRole !== "SUPPLIER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get supplier profile
     const supplierProfile = await prisma.supplierProfile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
     });
 
     if (!supplierProfile) {
@@ -45,7 +60,7 @@ export async function GET(req: NextRequest) {
       for (const product of lowStockProducts) {
         const existingNotification = await prisma.notification.findFirst({
           where: {
-            userId: session.user.id,
+            userId,
             type: "LOW_INVENTORY",
             message: {
               contains: product.name,
@@ -59,7 +74,7 @@ export async function GET(req: NextRequest) {
         if (!existingNotification) {
           await prisma.notification.create({
             data: {
-              userId: session.user.id,
+              userId: userId!,
               type: "LOW_INVENTORY",
               title: "Low Stock Alert",
               message: `${product.name} is running low on stock. Only ${product.stock} units remaining.`,

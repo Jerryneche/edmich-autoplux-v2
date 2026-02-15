@@ -1,9 +1,10 @@
 // app/api/supplier/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth-api";
 
 // GET all suppliers (public or admin)
 export async function GET() {
@@ -31,11 +32,22 @@ export async function GET() {
 }
 
 // POST new supplier (requires login)
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Support both mobile JWT and web session auth
+    let userId: string | null = null;
 
-    if (!session?.user?.id) {
+    const mobileUser = await getAuthUser(req);
+    if (mobileUser) {
+      userId = mobileUser.id;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.id) {
+        userId = session.user.id;
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -66,7 +78,7 @@ export async function POST(req: Request) {
 
     // Check for existing profile
     const existing = await prisma.supplierProfile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
     });
 
     if (existing) {
@@ -79,7 +91,7 @@ export async function POST(req: Request) {
     // Create supplier profile and update user role
     const supplier = await prisma.supplierProfile.create({
       data: {
-        userId: session.user.id,
+        userId,
         businessName,
         businessAddress,
         city,
@@ -96,7 +108,7 @@ export async function POST(req: Request) {
 
     // Update user role to SUPPLIER
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: userId },
       data: { role: "SUPPLIER" },
     });
 

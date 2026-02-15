@@ -1,12 +1,25 @@
 // app/api/supplier/products/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+// Helper to get user from either JWT (mobile) or session (web)
+async function getCurrentUser(request: NextRequest) {
+  const authUser = await getAuthUser(request);
+  if (authUser) return authUser;
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) {
+    return { id: session.user.id, role: session.user.role };
+  }
+  return null;
+}
 
 // GET - Get all products for the supplier
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser(request);
+    const user = await getCurrentUser(request);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -54,7 +67,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new product
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser(request);
+    const user = await getCurrentUser(request);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
