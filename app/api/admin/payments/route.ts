@@ -92,8 +92,7 @@ export async function GET(request: NextRequest) {
       { error: "Internal server error", message: "Failed to fetch payments" },
       { status: 500 }
     );
-  }
-}
+
 
 export async function PATCH(request: NextRequest) {
   try {
