@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 // GET - Get single trade-in details
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const { id } = await params;
@@ -54,7 +54,7 @@ export async function GET(
 // PATCH - Update trade-in (for user to cancel)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const { id } = await params;
@@ -117,7 +117,7 @@ export async function PATCH(
 // DELETE - Delete trade-in (only if pending)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const { id } = await params;

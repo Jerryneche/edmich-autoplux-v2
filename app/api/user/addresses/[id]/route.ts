@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 // GET - Fetch a single address
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -42,7 +42,7 @@ export async function GET(
 // PATCH - Update an address
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -105,7 +105,7 @@ export async function PATCH(
 // DELETE - Delete an address
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getAuthUser(request);

@@ -26,7 +26,7 @@ const SUPPLIER_TRANSITIONS: Record<string, string[]> = {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const user = await getCurrentUser(request);

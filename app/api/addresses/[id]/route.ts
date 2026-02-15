@@ -23,7 +23,7 @@ async function getUser(request: NextRequest) {
 // GET - Fetch single address
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getUser(request);
@@ -58,7 +58,7 @@ export async function GET(
 // PATCH - Update address
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getUser(request);
@@ -118,7 +118,7 @@ export async function PATCH(
 // DELETE - Delete address
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getUser(request);
