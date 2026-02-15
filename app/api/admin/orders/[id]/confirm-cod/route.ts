@@ -11,10 +11,10 @@ export async function POST(
   const session = await getServerSession(authOptions);
   if (session?.user?.role === "ADMIN") {
     return { id: session.user.id, role: "ADMIN" };
-  }
-  return null;
-}
-
+  export async function POST(
+    request: NextRequest,
+    context: { params: { id: string } }
+  ) {
 ) {
   request: NextRequest,
   context: { params: { id: string } }
