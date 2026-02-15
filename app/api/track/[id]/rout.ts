@@ -4,11 +4,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: raw } = await params;
-    const id = raw?.trim();
+    const id = params.id?.trim();
 
     if (!id) {
       return NextResponse.json(
