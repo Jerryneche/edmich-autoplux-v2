@@ -14,6 +14,7 @@ async function getAdminUser(request: NextRequest) {
   }
 
   return null;
+
 }
 
 export async function GET(request: NextRequest) {
@@ -92,7 +93,8 @@ export async function GET(request: NextRequest) {
       { error: "Internal server error", message: "Failed to fetch payments" },
       { status: 500 }
     );
-
+  }
+}
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -205,7 +207,6 @@ export async function PATCH(request: NextRequest) {
       { error: "Internal server error", message: "Failed to update payment" },
       { status: 500 }
     );
-  }
-}
+
   }
 }
