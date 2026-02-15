@@ -4,10 +4,10 @@ import { getAuthUser } from "@/lib/auth-api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { notificationService } from "@/services/notification.service";
-
-async function getAdminUser(request: NextRequest) {
-  const authUser = await getAuthUser(request);
-  if (authUser?.role === "ADMIN") return authUser;
+export async function POST(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role === "ADMIN") {
     return { id: session.user.id, role: "ADMIN" };
