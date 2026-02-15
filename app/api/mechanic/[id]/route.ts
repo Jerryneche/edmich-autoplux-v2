@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // GET - Fetch single mechanic profile (public)
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { id } = await params;

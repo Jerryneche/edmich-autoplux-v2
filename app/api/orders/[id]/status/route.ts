@@ -29,7 +29,7 @@ const BUYER_TRANSITIONS: Record<string, string[]> = {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -265,7 +265,7 @@ async function creditSupplierWallet(order: any, _orderId?: string) {
 // GET - Get order status history (if you have a tracking model)
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const user = await getAuthUser(request);

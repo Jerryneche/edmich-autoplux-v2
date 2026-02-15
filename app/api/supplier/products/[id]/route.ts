@@ -19,7 +19,7 @@ async function getCurrentUser(request: NextRequest) {
 // GET - Get single product
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -73,7 +73,7 @@ export async function GET(
 // PATCH - Update product
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -155,7 +155,7 @@ export async function PATCH(
 // DELETE - Delete product
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await getCurrentUser(request);

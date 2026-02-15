@@ -6,7 +6,7 @@ import { pushNotificationService } from "@/services/push-notification.service";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -122,7 +122,7 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
   try {
     const user = await getAuthUser(request);
