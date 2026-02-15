@@ -3,104 +3,81 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth-api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { notificationService } from "@/services/notification.service";
 
 async function getAdminUser(request: NextRequest) {
   const authUser = await getAuthUser(request);
   if (authUser?.role === "ADMIN") return authUser;
-
   const session = await getServerSession(authOptions);
   if (session?.user?.role === "ADMIN") {
     return { id: session.user.id, role: "ADMIN" };
   }
-
   return null;
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+  context: { params: { id: string } }
+): Promise<NextResponse> {
   try {
-    const admin = await getAdminUser(request);
-    if (!admin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Dual admin authentication
+    const adminUser = await getAdminUser(request);
+    if (!adminUser) {
+      return NextResponse.json({ error: "Unauthorized: Admin access required." }, { status: 401 });
     }
 
-    const { id } = await params;
+    const orderId = context.params.id;
+    if (!orderId) {
+      return NextResponse.json({ error: "Order ID is required." }, { status: 400 });
+    }
 
-    // Get order
+    // Fetch order and validate
+
     const order = await prisma.order.findUnique({
-      where: { id },
-      include: { payments: true },
+      where: { id: orderId },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+      },
     });
-
     if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    }
+    if (order.status !== "PENDING_COD_CONFIRMATION") {
+      return NextResponse.json({ error: "Order is not pending COD confirmation." }, { status: 400 });
     }
 
-    if (order.paymentMethod?.toUpperCase() !== "COD") {
-      return NextResponse.json(
-        { error: "Order payment method is not COD" },
-        { status: 400 }
-      );
-    }
-
-    // Create COD payment record if not exists
-    let payment = order.payments.find((p) => p.method?.toUpperCase() === "COD");
-
-    if (!payment) {
-      payment = await prisma.payment.create({
-        data: {
-          userId: order.userId,
-          orderId: order.id,
-          amount: order.total,
-          method: "COD",
-          status: "paid",
-          verifiedAt: new Date(),
-        },
-      });
-    } else {
-      // Update existing COD payment
-      payment = await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: "paid",
-          verifiedAt: new Date(),
-        },
-      });
-    }
-
-    // Mark order as PAID
+    // Update order status
     const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        paymentStatus: "PAID",
-        paidAt: new Date(),
-      },
-      include: {
-        user: true,
-        items: true,
-      },
+      where: { id: orderId },
+      data: { status: "COD_CONFIRMED" },
     });
 
-    // Log action
-    console.log(
-      `[COD-CONFIRM] Order ${id} COD payment confirmed by admin ${admin.id} at ${new Date().toISOString()}`
-    );
+
+    // Notify buyer and supplier
+    try {
+      // Notify buyer
+      await notificationService.notifyUserWithPush(order.userId, {
+        type: "ORDER_STATUS_UPDATED",
+        title: "Order COD Confirmed",
+        message: `Your order #${order.id} has been confirmed as Cash on Delivery by admin.`,
+        link: `/orders/${order.id}`,
+        pushData: { orderId: order.id, status: "COD_CONFIRMED" },
+      });
+      // No supplierId on Order model; only notify buyer (userId)
+    } catch (notifyErr) {
+      // Log but do not fail the endpoint
+      console.error("Notification error:", notifyErr);
+    }
 
     return NextResponse.json({
-      success: true,
-      message: "COD payment confirmed",
+      message: "Order COD confirmed successfully.",
       order: updatedOrder,
-      payment,
-      confirmedBy: admin.id,
-      confirmedAt: new Date(),
     });
-  } catch (error) {
-    console.error("[COD-CONFIRM] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to confirm COD payment" },
-      { status: 500 }
-    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Internal server error.";
+    console.error("COD confirm error:", err);
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }

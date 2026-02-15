@@ -21,44 +21,59 @@ export async function GET(request: NextRequest) {
   try {
     const admin = await getAdminUser(request);
     if (!admin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", message: "Admin access required" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (status) {
       where.status = status;
     }
 
-    const withdrawals = await prisma.withdrawal.findMany({
-      where,
-      include: {
-        wallet: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+    const [withdrawals, statusCounts] = await Promise.all([
+      prisma.withdrawal.findMany({
+        where,
+        include: {
+          wallet: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                  role: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { initiatedAt: "desc" },
-    });
+        orderBy: { initiatedAt: "desc" },
+      }),
+      prisma.withdrawal.groupBy({
+        by: ["status"],
+        _count: { id: true },
+      }),
+    ]);
+
+    // Build status counts
+    const counts: Record<string, number> = {};
+    let total = 0;
+    for (const group of statusCounts) {
+      counts[group.status] = group._count.id;
+      total += group._count.id;
+    }
 
     return NextResponse.json({
-      success: true,
-      count: withdrawals.length,
-      status,
       withdrawals: withdrawals.map((w) => ({
         id: w.id,
         userId: w.wallet.user.id,
         userName: w.wallet.user.name,
         userEmail: w.wallet.user.email,
+        userPhone: w.wallet.user.phone,
+        userRole: w.wallet.user.role,
         amount: w.amount,
         status: w.status,
         bankName: w.bankName,
@@ -66,15 +81,31 @@ export async function GET(request: NextRequest) {
         accountNumber: w.accountNumber,
         accountName: w.accountName,
         reference: w.reference,
+        requestedAt: w.initiatedAt,
         initiatedAt: w.initiatedAt,
         processedAt: w.processedAt,
         processedBy: w.processedBy,
+        user: {
+          id: w.wallet.user.id,
+          name: w.wallet.user.name,
+          email: w.wallet.user.email,
+          phone: w.wallet.user.phone,
+          role: w.wallet.user.role,
+          wallet: {
+            balance: w.wallet.balance,
+          },
+        },
       })),
+      total,
+      pending: counts["pending"] || 0,
+      processing: counts["processing"] || 0,
+      credited: counts["credited"] || 0,
+      failed: counts["failed"] || 0,
     });
   } catch (error) {
     console.error("[ADMIN-WITHDRAWALS-GET] Error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch withdrawals" },
+      { error: "Internal server error", message: "Failed to fetch withdrawals" },
       { status: 500 }
     );
   }
@@ -85,7 +116,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const admin = await getAdminUser(request);
     if (!admin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", message: "Admin access required" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -93,16 +124,52 @@ export async function PATCH(request: NextRequest) {
 
     if (!withdrawalId) {
       return NextResponse.json(
-        { error: "Withdrawal ID required" },
+        { error: "Validation error", message: "Withdrawal ID required" },
         { status: 400 }
       );
     }
 
-    const { status } = await request.json();
+    const body = await request.json();
+    const { status, note } = body;
 
-    if (!["pending", "processing", "credited", "failed"].includes(status)) {
+    if (!status || !["pending", "processing", "credited", "failed"].includes(status)) {
       return NextResponse.json(
-        { error: "Invalid status" },
+        {
+          error: "Invalid status",
+          message: "Invalid withdrawal status",
+          details: { field: "status", value: status, allowed: ["pending", "processing", "credited", "failed"] },
+        },
+        { status: 400 }
+      );
+    }
+
+    // Fetch existing withdrawal
+    const existing = await prisma.withdrawal.findUnique({
+      where: { id: withdrawalId },
+      include: {
+        wallet: {
+          include: {
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Not found", message: `Withdrawal with ID ${withdrawalId} not found` },
+        { status: 404 }
+      );
+    }
+
+    // Validate status transitions
+    const invalidTransitions: Record<string, string[]> = {
+      credited: ["pending", "processing", "failed"],
+      failed: ["pending", "processing", "credited"],
+    };
+    if (invalidTransitions[existing.status]?.includes(status)) {
+      return NextResponse.json(
+        { error: "Invalid status transition", message: `Cannot change status from ${existing.status} to ${status}` },
         { status: 400 }
       );
     }
@@ -112,72 +179,99 @@ export async function PATCH(request: NextRequest) {
       where: { id: withdrawalId },
       data: {
         status,
-        processedAt: status === "credited" || status === "failed" ? new Date() : null,
+        processedAt: ["processing", "credited", "failed"].includes(status) ? new Date() : null,
         processedBy: admin.id,
-      },
-      include: {
-        wallet: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true },
-            },
-          },
-        },
       },
     });
 
-    // If marked as credited, add funds to wallet (reverse the deduction)
+    const userId = existing.wallet.user.id;
+    const amount = existing.amount.toLocaleString();
+
+    // Handle wallet transactions based on status
     if (status === "credited") {
+      // Deduct from wallet balance (the funds were already "locked" when request was made)
       await prisma.wallet.update({
-        where: { id: withdrawal.walletId },
+        where: { id: existing.walletId },
         data: {
-          balance: { increment: withdrawal.amount },
+          balance: { decrement: existing.amount },
         },
       });
 
-      // Log credit transaction
+      // Create wallet transaction record
       await prisma.walletTransaction.create({
         data: {
-          walletId: withdrawal.walletId,
-          type: "credit",
-          amount: withdrawal.amount,
-          description: `Withdrawal ${status}: ${withdrawal.accountName} (${withdrawal.accountNumber})`,
-          reference: withdrawal.reference,
+          walletId: existing.walletId,
+          type: "debit",
+          amount: existing.amount,
+          description: `Withdrawal credited: ${existing.accountName} (${existing.accountNumber})`,
+          reference: existing.reference,
         },
       });
 
-      // Create notification for user
-      await prisma.notification.create({
-        data: {
-          userId: withdrawal.wallet.user.id,
-          type: "PAYMENT",
-          title: "Withdrawal Completed",
-          message: `Your withdrawal of ₦${withdrawal.amount.toLocaleString()} has been processed and credited. Reference: ${withdrawal.reference}`,
-          link: "/wallet",
-        },
-      });
+      // Notify supplier
+      try {
+        await prisma.notification.create({
+          data: {
+            userId,
+            type: "PAYMENT",
+            title: "Withdrawal Credited",
+            message: `₦${amount} has been credited to your ${existing.bankName || "bank"} account (${existing.accountNumber}).`,
+            link: "/wallet",
+          },
+        });
+      } catch (notifErr) {
+        console.error("[ADMIN-WITHDRAWALS] Notification error:", notifErr);
+      }
+    } else if (status === "failed") {
+      // Notify supplier about failure
+      try {
+        await prisma.notification.create({
+          data: {
+            userId,
+            type: "PAYMENT",
+            title: "Withdrawal Failed",
+            message: `Your withdrawal of ₦${amount} has failed.${note ? ` Reason: ${note}` : ""} The funds remain in your wallet.`,
+            link: "/wallet",
+          },
+        });
+      } catch (notifErr) {
+        console.error("[ADMIN-WITHDRAWALS] Notification error:", notifErr);
+      }
+    } else if (status === "processing") {
+      // Notify supplier about processing
+      try {
+        await prisma.notification.create({
+          data: {
+            userId,
+            type: "PAYMENT",
+            title: "Withdrawal Processing",
+            message: `Your withdrawal of ₦${amount} is being processed.`,
+            link: "/wallet",
+          },
+        });
+      } catch (notifErr) {
+        console.error("[ADMIN-WITHDRAWALS] Notification error:", notifErr);
+      }
     }
 
-    const timestamp = new Date().toISOString();
-    console.log(`[ADMIN-WITHDRAWAL] Withdrawal ${withdrawalId} status changed to ${status} by admin ${admin.id} at ${timestamp}`);
+    console.log(`[ADMIN-WITHDRAWAL] Withdrawal ${withdrawalId} status → ${status} by admin ${admin.id}`);
 
     return NextResponse.json({
       success: true,
       message: `Withdrawal marked as ${status}`,
       withdrawal: {
         id: withdrawal.id,
-        amount: withdrawal.amount,
         status: withdrawal.status,
-        accountName: withdrawal.accountName,
-        accountNumber: withdrawal.accountNumber,
-        processedBy: withdrawal.processedBy,
+        amount: withdrawal.amount,
         processedAt: withdrawal.processedAt,
+        processedBy: withdrawal.processedBy,
+        note: note || null,
       },
     });
   } catch (error) {
     console.error("[ADMIN-WITHDRAWALS-PATCH] Error:", error);
     return NextResponse.json(
-      { error: "Failed to update withdrawal" },
+      { error: "Internal server error", message: "Failed to update withdrawal" },
       { status: 500 }
     );
   }

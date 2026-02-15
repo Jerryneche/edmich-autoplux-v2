@@ -20,45 +20,66 @@ export async function GET(request: NextRequest) {
   try {
     const admin = await getAdminUser(request);
     if (!admin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", message: "Admin access required" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (status) {
       where.status = status;
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            businessName: true,
-            verified: true,
-            approved: true,
+    const [products, statusCounts] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              businessName: true,
+              city: true,
+              state: true,
+              verified: true,
+              approved: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
           },
         },
-        reviews: {
-          take: 3,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.product.groupBy({
+        by: ["status"],
+        _count: { id: true },
+      }),
+    ]);
+
+    // Build status counts
+    const counts: Record<string, number> = {};
+    let total = 0;
+    for (const group of statusCounts) {
+      counts[group.status] = group._count.id;
+      total += group._count.id;
+    }
 
     return NextResponse.json({
-      success: true,
-      count: products.length,
-      status: status || "ALL",
       products,
+      total,
+      active: counts["ACTIVE"] || 0,
+      inactive: counts["INACTIVE"] || 0,
+      pending: counts["PENDING"] || 0,
     });
   } catch (error) {
     console.error("[ADMIN-PRODUCTS-GET] Error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch products" },
+      { error: "Internal server error", message: "Failed to fetch products" },
       { status: 500 }
     );
   }
@@ -68,7 +89,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const admin = await getAdminUser(request);
     if (!admin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", message: "Admin access required" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -76,7 +97,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!productId) {
       return NextResponse.json(
-        { error: "Product ID required" },
+        { error: "Validation error", message: "Product ID required" },
         { status: 400 }
       );
     }
@@ -84,7 +105,22 @@ export async function PATCH(request: NextRequest) {
     const { status } = await request.json();
 
     if (!["ACTIVE", "INACTIVE", "PENDING", "REJECTED"].includes(status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "Invalid status",
+          message: "Invalid product status",
+          details: { field: "status", value: status, allowed: ["ACTIVE", "INACTIVE", "PENDING", "REJECTED"] },
+        },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.product.findUnique({ where: { id: productId } });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Not found", message: `Product with ID ${productId} not found` },
+        { status: 404 }
+      );
     }
 
     const product = await prisma.product.update({
@@ -92,25 +128,43 @@ export async function PATCH(request: NextRequest) {
       data: { status },
       include: {
         supplier: {
-          select: { id: true, businessName: true },
+          select: { id: true, businessName: true, userId: true },
         },
       },
     });
 
-    // Log action
-    console.log(
-      `[ADMIN-PRODUCTS] Product ${productId} (${product.name}) status changed to ${status} by admin ${admin.id}`
-    );
+    // Notify supplier about product status change
+    if (product.supplier?.userId) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: product.supplier.userId,
+            type: "PRODUCT",
+            title: status === "ACTIVE" ? "Product Approved" : "Product Status Updated",
+            message: `Your product "${product.name}" has been ${status === "ACTIVE" ? "approved and is now live" : `marked as ${status}`}.`,
+            link: `/dashboard/supplier/products/${product.id}`,
+          },
+        });
+      } catch (notifErr) {
+        console.error("[ADMIN-PRODUCTS] Notification error:", notifErr);
+      }
+    }
+
+    console.log(`[ADMIN-PRODUCTS] Product ${productId} (${product.name}) status → ${status} by admin ${admin.id}`);
 
     return NextResponse.json({
       success: true,
-      message: `Product ${status === "ACTIVE" ? "approved" : "rejected"}`,
-      product,
+      message: "Product status updated",
+      product: {
+        id: product.id,
+        status: product.status,
+        updatedAt: product.updatedAt,
+      },
     });
   } catch (error) {
     console.error("[ADMIN-PRODUCTS-PATCH] Error:", error);
     return NextResponse.json(
-      { error: "Failed to update product" },
+      { error: "Internal server error", message: "Failed to update product" },
       { status: 500 }
     );
   }
