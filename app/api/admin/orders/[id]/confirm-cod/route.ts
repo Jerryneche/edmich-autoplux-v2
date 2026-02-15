@@ -15,9 +15,10 @@ async function getAdminUser(request: NextRequest) {
   return null;
 }
 
-export async function POST(
+) {
   request: NextRequest,
   context: { params: { id: string } }
+) {
 ) {
   try {
     // Dual admin authentication
