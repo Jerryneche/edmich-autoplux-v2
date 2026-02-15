@@ -18,7 +18,7 @@ async function getAdminUser(request: NextRequest) {
 export async function POST(
   request: NextRequest,
   context: { params: { id: string } }
-): Promise<NextResponse> {
+): Promise<void | Response> {
   try {
     // Dual admin authentication
     const adminUser = await getAdminUser(request);
