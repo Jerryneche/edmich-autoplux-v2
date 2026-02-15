@@ -18,11 +18,10 @@ import {
   CalendarDaysIcon,
 } from "@heroicons/react/24/outline";
 
-type Props = { params: { id: string } | Promise<{ id: string }> };
+type Props = { params: { id: string } };
 
 export default async function TrackingPage({ params }: Props) {
-  const { id: raw } = await params;
-  const trackingCode = String(raw ?? "").trim();
+  const trackingCode = String(params.id ?? "").trim();
 
   if (!trackingCode) {
     return (

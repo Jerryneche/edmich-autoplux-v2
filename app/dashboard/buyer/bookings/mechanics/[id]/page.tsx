@@ -56,16 +56,14 @@ interface MechanicBooking {
 export default function MechanicBookingDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [booking, setBooking] = useState<MechanicBooking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Unwrap params Promise
-  const resolvedParams = use(params);
-  const bookingId = resolvedParams.id;
+  const bookingId = params.id;
 
   useEffect(() => {
     if (status === "unauthenticated") {

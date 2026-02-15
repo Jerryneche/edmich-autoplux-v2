@@ -30,14 +30,12 @@ const CATEGORIES = [
 ];
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default function EditProductPage({ params }: Props) {
   const { data: session, status } = useSession();
   const router = useRouter();
-
-  // Unwrap params using React.use()
   const { id: productId } = use(params);
 
   const [isLoading, setIsLoading] = useState(true);
