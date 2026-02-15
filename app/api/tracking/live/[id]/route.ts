@@ -4,10 +4,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = await context.params;
+    const { id } = context.params;
 
     // Find tracking by order ID
     const tracking = await prisma.orderTracking.findUnique({

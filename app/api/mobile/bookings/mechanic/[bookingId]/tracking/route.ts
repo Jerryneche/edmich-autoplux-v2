@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ bookingId: string }> }
+  { params }: { params: { bookingId: string } }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { bookingId } = await params;
+    const { bookingId } = params;
 
     const booking = await prisma.mechanicBooking.findUnique({
       where: { id: bookingId },

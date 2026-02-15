@@ -8,7 +8,7 @@ import { logisticsDeliveryTrackingService } from "@/services/tracking.service";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ deliveryId: string }> }
+  { params }: { params: { deliveryId: string } }
 ) {
   try {
     const user = await getAuthUser(request);
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { deliveryId } = await params;
+    const { deliveryId } = params;
 
     const tracking = await logisticsDeliveryTrackingService.getLogisticsDeliveryTracking(
       deliveryId
