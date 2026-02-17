@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
+    // Only filter if status is provided, otherwise return all
     const where: Record<string, unknown> = {};
     if (status) {
       where.status = status;
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      products,
+      products: products.length ? products : [],
       total,
       active: counts["ACTIVE"] || 0,
       inactive: counts["INACTIVE"] || 0,

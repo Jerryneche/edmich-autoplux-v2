@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const method = searchParams.get("method");
 
-    // Build filter — return ALL if no status provided
+    // Only filter if status or method is provided, otherwise return all
     const where: Record<string, unknown> = {};
     if (status) {
       where.status = status.toLowerCase();
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      payments,
+      payments: payments.length ? payments : [],
       total,
       pending: counts["PENDING"] || 0,
       paid: counts["PAID"] || 0,

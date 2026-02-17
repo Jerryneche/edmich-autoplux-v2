@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      users: formattedUsers,
+      users: formattedUsers.length ? formattedUsers : [],
       total,
       buyers: roles["BUYER"] || 0,
       suppliers: roles["SUPPLIER"] || 0,

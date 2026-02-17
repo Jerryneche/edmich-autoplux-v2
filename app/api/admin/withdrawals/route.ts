@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
+    // Only filter if status is provided, otherwise return all
     const where: Record<string, unknown> = {};
     if (status) {
       where.status = status;
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      withdrawals: withdrawals.map((w) => ({
+      withdrawals: withdrawals.length ? withdrawals.map((w) => ({
         id: w.id,
         userId: w.wallet.user.id,
         userName: w.wallet.user.name,
@@ -85,6 +86,10 @@ export async function GET(request: NextRequest) {
         initiatedAt: w.initiatedAt,
         processedAt: w.processedAt,
         processedBy: w.processedBy,
+      total,
+      pending: counts["PENDING"] || 0,
+      approved: counts["APPROVED"] || 0,
+      rejected: counts["REJECTED"] || 0,
         user: {
           id: w.wallet.user.id,
           name: w.wallet.user.name,
