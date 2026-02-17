@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     // Update mechanic profile
     const mechanic = await prisma.mechanicProfile.update({
@@ -54,7 +54,7 @@ export async function POST(
     console.error("Error approving mechanic:", error);
     return NextResponse.json(
       { error: "Failed to approve mechanic" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

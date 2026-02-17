@@ -5,7 +5,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// Helper to get user from either JWT (mobile) or session (web)
 async function getCurrentUser(request: NextRequest) {
   const authUser = await getAuthUser(request);
   if (authUser) return authUser;
@@ -19,7 +18,7 @@ async function getCurrentUser(request: NextRequest) {
 // GET - Get single product
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -27,32 +26,22 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: user.id },
     });
-
     if (!supplierProfile) {
       return NextResponse.json(
         { error: "Supplier profile not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const product = await prisma.product.findFirst({
-      where: {
-        id,
-        supplierId: supplierProfile.id,
-      },
+      where: { id, supplierId: supplierProfile.id },
       include: {
-        supplier: {
-          select: {
-            businessName: true,
-            city: true,
-            state: true,
-          },
-        },
+        supplier: { select: { businessName: true, city: true, state: true } },
       },
     });
 
@@ -61,11 +50,11 @@ export async function GET(
     }
 
     return NextResponse.json(product);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Supplier product GET error:", error);
     return NextResponse.json(
       { error: "Failed to fetch product" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -73,7 +62,7 @@ export async function GET(
 // PATCH - Update product
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -81,27 +70,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: user.id },
     });
-
     if (!supplierProfile) {
       return NextResponse.json(
         { error: "Supplier profile not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Check product belongs to supplier
     const existingProduct = await prisma.product.findFirst({
-      where: {
-        id,
-        supplierId: supplierProfile.id,
-      },
+      where: { id, supplierId: supplierProfile.id },
     });
-
     if (!existingProduct) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
@@ -132,22 +115,16 @@ export async function PATCH(
       where: { id },
       data: updateData,
       include: {
-        supplier: {
-          select: {
-            businessName: true,
-            city: true,
-            state: true,
-          },
-        },
+        supplier: { select: { businessName: true, city: true, state: true } },
       },
     });
 
     return NextResponse.json(product);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Supplier product PATCH error:", error);
     return NextResponse.json(
       { error: "Failed to update product" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -155,7 +132,7 @@ export async function PATCH(
 // DELETE - Delete product
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -163,41 +140,33 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: user.id },
     });
-
     if (!supplierProfile) {
       return NextResponse.json(
         { error: "Supplier profile not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Check product belongs to supplier
     const existingProduct = await prisma.product.findFirst({
-      where: {
-        id,
-        supplierId: supplierProfile.id,
-      },
+      where: { id, supplierId: supplierProfile.id },
     });
-
     if (!existingProduct) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    await prisma.product.delete({
-      where: { id },
-    });
+    await prisma.product.delete({ where: { id } });
 
     return NextResponse.json({ message: "Product deleted successfully" });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Supplier product DELETE error:", error);
     return NextResponse.json(
       { error: "Failed to delete product" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

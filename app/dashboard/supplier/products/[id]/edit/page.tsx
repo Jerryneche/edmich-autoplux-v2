@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react"; // Add 'use' import
+import { useState, useEffect } from "react"; // ❌ removed illegal `use`
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Header from "@/app/components/Header";
@@ -36,7 +36,9 @@ interface Props {
 export default function EditProductPage({ params }: Props) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { id: productId } = use(params);
+
+  // ✅ correct way in client component
+  const productId = params.id;
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,6 +47,7 @@ export default function EditProductPage({ params }: Props) {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
   const [cloudinaryPublicId, setCloudinaryPublicId] = useState<string>("");
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -53,18 +56,22 @@ export default function EditProductPage({ params }: Props) {
     stock: "",
   });
 
+  // ✅ FIXED: single, valid useEffect
   useEffect(() => {
     if (status === "loading") return;
+
     if (!session) {
       router.push("/login");
       return;
     }
+
     if (session.user.role !== "SUPPLIER") {
       router.push("/dashboard");
       return;
     }
+
     fetchProduct();
-  }, [status, session, router, productId]); // Use productId instead of params.id
+  }, [status, session, router, productId]);
 
   const fetchProduct = async () => {
     try {
@@ -99,7 +106,7 @@ export default function EditProductPage({ params }: Props) {
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -109,7 +116,6 @@ export default function EditProductPage({ params }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const validTypes = [
       "image/jpeg",
       "image/jpg",
@@ -119,25 +125,23 @@ export default function EditProductPage({ params }: Props) {
       "image/heic",
       "image/heif",
     ];
+
     if (!validTypes.includes(file.type.toLowerCase())) {
       toast.error("Please upload a valid image file");
       return;
     }
 
-    // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error("Image size must be less than 10MB");
       return;
     }
 
-    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Upload to Cloudinary
     await uploadImage(file);
   };
 
@@ -190,7 +194,6 @@ export default function EditProductPage({ params }: Props) {
     setUploadedImageUrl("");
     setCloudinaryPublicId("");
   };
-  // Replace the handleSubmit function in your edit page
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,10 +224,8 @@ export default function EditProductPage({ params }: Props) {
         price: parseFloat(formData.price),
         category: formData.category,
         stock: parseInt(formData.stock),
-        imageUrl: uploadedImageUrl || product.image, // Match the API field name
+        imageUrl: uploadedImageUrl || product.image,
       };
-
-      console.log("Updating product with data:", updateData);
 
       const response = await fetch(`/api/supplier/products/${productId}`, {
         method: "PATCH",
@@ -232,32 +233,12 @@ export default function EditProductPage({ params }: Props) {
         body: JSON.stringify(updateData),
       });
 
-      // ✅ Better error handling
       if (!response.ok) {
-        let errorMessage = "Failed to update product";
-
-        try {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } else {
-            errorMessage = `Server error: ${response.status}`;
-          }
-        } catch (parseError) {
-          console.error("Could not parse error response:", parseError);
-        }
-
-        throw new Error(errorMessage);
+        throw new Error("Failed to update product");
       }
-
-      // ✅ Parse success response
-      const result = await response.json();
-      console.log("Update successful:", result);
 
       toast.success("Product updated successfully! 🎉");
 
-      // Redirect after a short delay
       setTimeout(() => {
         router.push("/dashboard/supplier");
         router.refresh();
@@ -281,9 +262,7 @@ export default function EditProductPage({ params }: Props) {
     );
   }
 
-  if (!product) {
-    return null;
-  }
+  if (!product) return null;
 
   return (
     <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">

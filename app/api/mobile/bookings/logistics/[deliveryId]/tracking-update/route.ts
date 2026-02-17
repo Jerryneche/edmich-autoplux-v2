@@ -8,7 +8,7 @@ import { logisticsDeliveryTrackingService } from "@/services/tracking.service";
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { deliveryId: string } }
+  context: { params: Promise<{ deliveryId: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -16,11 +16,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { deliveryId } = params;
+    const { deliveryId } = await context.params;
     const body = await request.json();
     const { status, currentLocation, estimatedDeliveryDate } = body;
 
-    // Verify tracking exists
     const tracking =
       await logisticsDeliveryTrackingService.getLogisticsDeliveryTracking(
         deliveryId,
@@ -29,17 +28,15 @@ export async function PATCH(
     if (!tracking) {
       return NextResponse.json(
         { error: "Tracking not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Check authorization - only assigned provider or admin can update
     const assignedUserId = tracking.assignedProvider?.userId;
     if (assignedUserId !== user.id && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Validate status
     const validStatuses = [
       "PENDING",
       "ACCEPTED",
@@ -51,7 +48,7 @@ export async function PATCH(
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         { error: "Invalid delivery status" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -90,7 +87,7 @@ export async function PATCH(
     console.error("Error updating logistics delivery:", error);
     return NextResponse.json(
       { error: "Failed to update delivery" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

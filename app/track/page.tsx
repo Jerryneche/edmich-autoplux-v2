@@ -49,7 +49,7 @@ export default function UnifiedTrackPage() {
 
     try {
       const response = await fetch(
-        `/api/track/unified?id=${encodeURIComponent(trackingNumber.trim())}`
+        `/api/track/unified?id=${encodeURIComponent(trackingNumber.trim())}`,
       );
 
       if (response.ok) {
@@ -144,7 +144,10 @@ export default function UnifiedTrackPage() {
   };
 
   const shareTracking = () => {
-    const url = `${window.location.origin}/track?id=${trackingNumber}`;
+    const url =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/track?id=${trackingNumber}`
+        : "";
     if (navigator.share) {
       navigator.share({
         title: "EDMICH Tracking",
@@ -304,7 +307,7 @@ export default function UnifiedTrackPage() {
               <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-gray-200">
                 <div
                   className={`bg-gradient-to-r ${getTypeColor(
-                    result.type
+                    result.type,
                   )} p-8 text-white`}
                 >
                   <div className="flex items-center justify-between mb-4">
@@ -356,7 +359,7 @@ export default function UnifiedTrackPage() {
                     </div>
                     <span
                       className={`px-4 py-2 rounded-xl font-bold border-2 bg-white ${getStatusColor(
-                        result.status
+                        result.status,
                       )}`}
                     >
                       {result.status.replace("_", " ")}
@@ -587,8 +590,8 @@ export default function UnifiedTrackPage() {
                                 step.status === "completed"
                                   ? "bg-green-50 border-green-200"
                                   : step.status === "in_progress"
-                                  ? "bg-blue-50 border-blue-200"
-                                  : "bg-gray-50 border-gray-200"
+                                    ? "bg-blue-50 border-blue-200"
+                                    : "bg-gray-50 border-gray-200"
                               }`}
                             >
                               <div className="flex items-center gap-3 mb-2">
@@ -643,11 +646,11 @@ export default function UnifiedTrackPage() {
                             event.completed
                               ? "bg-green-600"
                               : index ===
-                                result.timeline.findIndex(
-                                  (e: any) => !e.completed
-                                )
-                              ? "bg-blue-600 animate-pulse"
-                              : "bg-gray-300"
+                                  result.timeline.findIndex(
+                                    (e: any) => !e.completed,
+                                  )
+                                ? "bg-blue-600 animate-pulse"
+                                : "bg-gray-300"
                           }`}
                         >
                           {event.completed ? (

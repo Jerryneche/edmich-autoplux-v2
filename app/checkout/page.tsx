@@ -262,7 +262,7 @@ export default function CheckoutPage() {
 
         if (paymentData.authorization_url) {
           // Redirect to Paystack checkout
-          window.location.href = paymentData.authorization_url;
+          if (typeof window !== "undefined") window.location.href = paymentData.authorization_url;
           return;
         } else {
           toast.error("Failed to initialize payment");

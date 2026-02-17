@@ -8,7 +8,7 @@ import { logisticsDeliveryTrackingService } from "@/services/tracking.service";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { deliveryId: string } }
+  context: { params: Promise<{ deliveryId: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -16,16 +16,17 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { deliveryId } = params;
+    const { deliveryId } = await context.params;
 
-    const tracking = await logisticsDeliveryTrackingService.getLogisticsDeliveryTracking(
-      deliveryId
-    );
+    const tracking =
+      await logisticsDeliveryTrackingService.getLogisticsDeliveryTracking(
+        deliveryId,
+      );
 
     if (!tracking) {
       return NextResponse.json(
         { error: "Tracking not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -70,7 +71,7 @@ export async function GET(
     console.error("Error fetching logistics tracking:", error);
     return NextResponse.json(
       { error: "Failed to fetch tracking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

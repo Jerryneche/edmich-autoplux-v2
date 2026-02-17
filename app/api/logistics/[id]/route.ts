@@ -1,18 +1,18 @@
 // app/api/logistics/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  _request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
         { error: "Invalid provider ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -27,11 +27,7 @@ export async function GET(
       },
       include: {
         user: {
-          select: {
-            name: true,
-            email: true,
-            image: true,
-          },
+          select: { name: true, email: true, image: true },
         },
       },
     });
@@ -40,7 +36,7 @@ export async function GET(
       console.log("Logistics provider not found for ID:", id);
       return NextResponse.json(
         { error: "Logistics provider not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -50,7 +46,7 @@ export async function GET(
     console.error("Error fetching logistics provider:", error);
     return NextResponse.json(
       { error: "Failed to fetch provider" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

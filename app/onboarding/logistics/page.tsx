@@ -123,7 +123,7 @@ export default function LogisticsOnboarding() {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -132,13 +132,13 @@ export default function LogisticsOnboarding() {
     setVehicleTypes((prev) =>
       prev.includes(vehicle)
         ? prev.filter((v) => v !== vehicle)
-        : [...prev, vehicle]
+        : [...prev, vehicle],
     );
   };
 
   const toggleCoverageArea = (state: string) => {
     setCoverageAreas((prev) =>
-      prev.includes(state) ? prev.filter((s) => s !== state) : [...prev, state]
+      prev.includes(state) ? prev.filter((s) => s !== state) : [...prev, state],
     );
   };
 
@@ -211,7 +211,9 @@ export default function LogisticsOnboarding() {
 
       // Force a hard refresh if soft navigation doesn't work
       setTimeout(() => {
-        window.location.href = "/dashboard/logistics";
+        if (typeof window !== "undefined") {
+          window.location.href = "/dashboard/logistics";
+        }
       }, 1000);
     } catch (error: any) {
       toast.error(error.message || "Something went wrong");

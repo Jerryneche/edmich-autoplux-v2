@@ -140,10 +140,12 @@ export default function ServiceBookingClient({
         returnUrl: `/track/${trackingId}`,
       })
     );
-    window.location.href =
-      activeTab === "mechanic"
-        ? `/booking/mechanic/${providerId}`
-        : `/booking/logistics/${providerId}`;
+    if (typeof window !== "undefined") {
+      window.location.href =
+        activeTab === "mechanic"
+          ? `/booking/mechanic/${providerId}`
+          : `/booking/logistics/${providerId}`;
+    }
   };
 
   const handleUnlink = async (type: "mechanic" | "logistics") => {

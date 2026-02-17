@@ -1,11 +1,4 @@
 // app/api/orders/[id]/status/route.ts
-// ===========================================
-// ORDER STATUS UPDATE API
-// Supplier can: CONFIRM, SHIP
-// Buyer can: Mark as DELIVERED (received)
-// Both parties get notifications with timestamps
-// ===========================================
-
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-api";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 const SUPPLIER_TRANSITIONS: Record<string, string[]> = {
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["SHIPPED", "CANCELLED"],
-  SHIPPED: [], // Supplier can't change after shipping
+  SHIPPED: [],
   DELIVERED: [],
   CANCELLED: [],
 };
@@ -22,14 +15,14 @@ const SUPPLIER_TRANSITIONS: Record<string, string[]> = {
 const BUYER_TRANSITIONS: Record<string, string[]> = {
   PENDING: ["CANCELLED"],
   CONFIRMED: [],
-  SHIPPED: ["DELIVERED"], // Only buyer can mark as delivered (received)
+  SHIPPED: ["DELIVERED"],
   DELIVERED: [],
   CANCELLED: [],
 };
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -37,7 +30,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     const { status } = body;
 
@@ -48,7 +41,6 @@ export async function PATCH(
       );
     }
 
-    // Find order with related data
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -56,9 +48,7 @@ export async function PATCH(
         items: {
           include: {
             product: {
-              include: {
-                supplier: { select: { userId: true } },
-              },
+              include: { supplier: { select: { userId: true } } },
             },
           },
         },
@@ -69,7 +59,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Get supplier user ID from first product (all items should be from same supplier for this flow)
     const supplierUserId = order.items[0]?.product?.supplier?.userId;
     const isBuyer = order.userId === user.id;
     const isSupplier = supplierUserId === user.id;
@@ -82,12 +71,10 @@ export async function PATCH(
       );
     }
 
-    // Check valid transitions
     const currentStatus = order.status;
     let allowedStatuses: string[] = [];
 
     if (isAdmin) {
-      // Admin can do any transition
       allowedStatuses = [
         "PENDING",
         "CONFIRMED",
@@ -111,7 +98,6 @@ export async function PATCH(
       );
     }
 
-    // Shipping guard: Enforce payment verification before shipping
     if (
       (status === "SHIPPED" || status === "OUT_FOR_DELIVERY") &&
       order.paymentStatus !== "PAID" &&
@@ -119,17 +105,15 @@ export async function PATCH(
     ) {
       return NextResponse.json(
         { error: "Payment not confirmed" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    // Update order status
     const updatedOrder = await prisma.order.update({
       where: { id },
       data: {
         status,
         updatedAt: new Date(),
-        // If delivered, set payment status to completed (for COD)
         ...(status === "DELIVERED" &&
           order.paymentMethod === "CASH_ON_DELIVERY" && {
             paymentStatus: "PAID",
@@ -146,7 +130,6 @@ export async function PATCH(
       },
     });
 
-    // Create notifications for both parties
     const timestamp = new Date().toLocaleString("en-NG", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -159,7 +142,6 @@ export async function PATCH(
       order.id,
     );
 
-    // Notify buyer
     await prisma.notification.create({
       data: {
         userId: order.userId,
@@ -170,7 +152,6 @@ export async function PATCH(
       },
     });
 
-    // Notify supplier (if not the one making the change)
     if (supplierUserId && supplierUserId !== user.id) {
       await prisma.notification.create({
         data: {
@@ -183,7 +164,6 @@ export async function PATCH(
       });
     }
 
-    // If delivered, credit supplier wallet
     if (status === "DELIVERED" && supplierUserId) {
       await creditSupplierWallet(order, supplierUserId);
     }
@@ -193,7 +173,7 @@ export async function PATCH(
       order: updatedOrder,
       message: `Order status updated to ${status}`,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Order status update error:", error);
     return NextResponse.json(
       { error: "Failed to update order status" },
@@ -208,15 +188,7 @@ function getNotificationData(
   timestamp: string,
   orderId: string,
 ) {
-  const notifications: Record<
-    string,
-    {
-      buyerTitle: string;
-      buyerMessage: string;
-      supplierTitle: string;
-      supplierMessage: string;
-    }
-  > = {
+  const notifications: Record<string, any> = {
     CONFIRMED: {
       buyerTitle: "Order Confirmed! ✅",
       buyerMessage: `Your order #${trackingId} has been confirmed by the seller. It will be shipped soon. (${timestamp})`,
@@ -253,19 +225,19 @@ function getNotificationData(
   );
 }
 
-async function creditSupplierWallet(order: any, _orderId?: string) {
+async function creditSupplierWallet(order: any, supplierUserId?: string) {
   try {
     if (!order) return;
     // Wallet credit logic here
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Failed to credit supplier wallet:", error);
   }
 }
 
-// GET - Get order status history (if you have a tracking model)
+// GET - Get order status history
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -273,7 +245,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const order = await prisma.order.findUnique({
       where: { id },
@@ -291,7 +263,6 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Only buyer or supplier can view
     if (
       order.userId !== user.id &&
       user.role !== "SUPPLIER" &&

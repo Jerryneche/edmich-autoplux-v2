@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
@@ -48,7 +48,7 @@ export async function GET(
     if (!supplier) {
       return NextResponse.json(
         { error: "Supplier not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -57,17 +57,17 @@ export async function GET(
     console.error("Error fetching supplier:", error);
     return NextResponse.json(
       { error: "Failed to fetch supplier" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
@@ -116,7 +116,7 @@ export async function PATCH(
     console.error("Error updating supplier:", error);
     return NextResponse.json(
       { error: "Failed to update supplier" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

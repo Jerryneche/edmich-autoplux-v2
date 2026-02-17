@@ -25,7 +25,9 @@ export default function OfflinePage() {
           </p>
 
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              if (typeof window !== "undefined") window.location.reload();
+            }}
             className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-xl transition-all"
           >
             <ArrowPathIcon className="h-5 w-5" />

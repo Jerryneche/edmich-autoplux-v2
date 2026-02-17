@@ -1,18 +1,18 @@
 // app/api/track/[trackingCode]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { trackingCode: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ trackingCode: string }> },
 ) {
   try {
-    const { trackingCode } = params;
+    const { trackingCode } = await context.params;
 
     if (!trackingCode) {
       return NextResponse.json(
         { error: "Missing tracking code" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -22,12 +22,7 @@ export async function GET(
         items: {
           include: {
             product: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-                price: true,
-              },
+              select: { id: true, name: true, image: true, price: true },
             },
           },
         },
@@ -39,7 +34,6 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Note: return everything needed for tracking UI
     return NextResponse.json(order);
   } catch (error: any) {
     console.error("TRACK API ERROR:", error);

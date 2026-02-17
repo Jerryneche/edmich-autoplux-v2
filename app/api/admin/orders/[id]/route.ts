@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
 
     const session = await getServerSession(authOptions);
 
@@ -49,17 +49,17 @@ export async function GET(
     console.error("Error fetching order:", error);
     return NextResponse.json(
       { error: "Failed to fetch order" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     console.log("PATCH called with orderId:", id);
 
     const session = await getServerSession(authOptions);
@@ -78,7 +78,7 @@ export async function PATCH(
       console.error("No status provided");
       return NextResponse.json(
         { error: "Status is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -164,12 +164,12 @@ export async function PATCH(
               status === "DELIVERED"
                 ? "Payment processing will begin shortly."
                 : status === "CANCELLED"
-                ? "This order has been cancelled."
-                : "Keep your inventory ready."
+                  ? "This order has been cancelled."
+                  : "Keep your inventory ready."
             }`,
             link: `/dashboard/supplier`,
           },
-        })
+        }),
     );
 
     await Promise.all(supplierNotifications);
@@ -177,10 +177,9 @@ export async function PATCH(
     return NextResponse.json(updatedOrder);
   } catch (error: unknown) {
     console.error("Error updating order:", error);
-    console.error("Error details:", error);
     return NextResponse.json(
       { error: "Failed to update order" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

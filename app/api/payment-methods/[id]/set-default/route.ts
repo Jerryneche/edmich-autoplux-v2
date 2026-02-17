@@ -7,11 +7,9 @@ import { prisma } from "@/lib/prisma";
 
 // Helper to get user from either session or JWT
 async function getUser(request: NextRequest) {
-  // First try JWT (mobile)
   const jwtUser = await getAuthUser(request);
   if (jwtUser) return jwtUser;
 
-  // Fallback to session (web)
   const session = await getServerSession(authOptions);
   if (session?.user?.id) {
     return { id: session.user.id };
@@ -22,7 +20,7 @@ async function getUser(request: NextRequest) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getUser(request);
@@ -30,9 +28,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
-    // Check ownership
     const existingMethod = await prisma.paymentMethod.findFirst({
       where: { id, userId: user.id },
     });
@@ -40,17 +37,15 @@ export async function PATCH(
     if (!existingMethod) {
       return NextResponse.json(
         { error: "Payment method not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Unset all defaults
     await prisma.paymentMethod.updateMany({
       where: { userId: user.id },
       data: { isDefault: false },
     });
 
-    // Set new default
     const method = await prisma.paymentMethod.update({
       where: { id },
       data: { isDefault: true },
@@ -61,7 +56,7 @@ export async function PATCH(
     console.error("Set default error:", error);
     return NextResponse.json(
       { error: "Failed to set default" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -23,7 +23,7 @@ async function getUser(request: NextRequest) {
 // GET - Fetch single address
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getUser(request);
@@ -31,7 +31,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const address = await prisma.userAddress.findUnique({
       where: { id },
@@ -50,7 +50,7 @@ export async function GET(
     console.error("Error fetching address:", error);
     return NextResponse.json(
       { error: "Failed to fetch address" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -58,7 +58,7 @@ export async function GET(
 // PATCH - Update address
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getUser(request);
@@ -66,7 +66,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     const { fullName, phone, address, city, state, zipCode, label, isDefault } =
       body;
@@ -110,7 +110,7 @@ export async function PATCH(
     console.error("Error updating address:", error);
     return NextResponse.json(
       { error: "Failed to update address" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -118,7 +118,7 @@ export async function PATCH(
 // DELETE - Delete address
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getUser(request);
@@ -126,7 +126,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const existingAddress = await prisma.userAddress.findUnique({
       where: { id },
@@ -162,7 +162,7 @@ export async function DELETE(
     console.error("Error deleting address:", error);
     return NextResponse.json(
       { error: "Failed to delete address" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,14 +1,14 @@
 // app/api/mechanic/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET - Fetch single mechanic profile (public)
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
 
     console.log("Fetching mechanic with ID:", id);
 
@@ -16,28 +16,16 @@ export async function GET(
     let mechanic = await prisma.mechanicProfile.findUnique({
       where: { userId: id },
       include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-            image: true,
-          },
-        },
+        user: { select: { name: true, email: true, image: true } },
       },
     });
 
     // If not found by userId, try by mechanicProfile.id
     if (!mechanic) {
       mechanic = await prisma.mechanicProfile.findUnique({
-        where: { id: id },
+        where: { id },
         include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-              image: true,
-            },
-          },
+          user: { select: { name: true, email: true, image: true } },
         },
       });
     }
@@ -46,18 +34,17 @@ export async function GET(
       console.log("Mechanic not found for ID:", id);
       return NextResponse.json(
         { error: "Mechanic not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     console.log("Mechanic found:", mechanic.businessName);
-
     return NextResponse.json(mechanic);
   } catch (error: unknown) {
     console.error("Error fetching mechanic:", error);
     return NextResponse.json(
       { error: "Failed to fetch mechanic" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

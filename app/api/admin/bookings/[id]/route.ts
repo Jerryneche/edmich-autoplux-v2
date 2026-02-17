@@ -8,17 +8,17 @@ import type { BookingStatus } from "@prisma/client";
 // Helper: Add type discriminator
 const withType = <T extends { id: string }>(
   booking: T,
-  type: "MECHANIC" | "LOGISTICS"
+  type: "MECHANIC" | "LOGISTICS",
 ): T & { type: "MECHANIC" | "LOGISTICS" } => {
   return { ...booking, type };
 };
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
@@ -60,17 +60,17 @@ export async function GET(
     console.error("Error fetching booking:", error);
     return NextResponse.json(
       { error: "Failed to fetch booking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
@@ -86,7 +86,7 @@ export async function PATCH(
     if (!status || !type) {
       return NextResponse.json(
         { error: "Status and type are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -95,7 +95,7 @@ export async function PATCH(
     if (type === "MECHANIC") {
       updatedBooking = await prisma.mechanicBooking.update({
         where: { id },
-        data: { status }, // ← status is BookingStatus enum
+        data: { status },
         include: {
           user: { select: { name: true, email: true } },
           mechanic: {
@@ -112,7 +112,7 @@ export async function PATCH(
     } else if (type === "LOGISTICS") {
       updatedBooking = await prisma.logisticsBooking.update({
         where: { id },
-        data: { status }, // ← status is BookingStatus enum
+        data: { status },
         include: {
           user: { select: { name: true, email: true } },
           driver: {
@@ -130,7 +130,7 @@ export async function PATCH(
     console.error("Error updating booking:", error);
     return NextResponse.json(
       { error: "Failed to update booking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -13,9 +13,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
-    // Check ownership
     const method = await prisma.paymentMethod.findFirst({
       where: { id, userId: user.id },
     });
@@ -23,7 +22,7 @@ export async function DELETE(
     if (!method) {
       return NextResponse.json(
         { error: "Payment method not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -34,14 +33,14 @@ export async function DELETE(
     console.error("Payment method deletion error:", error);
     return NextResponse.json(
       { error: "Failed to delete payment method" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -49,15 +48,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
-    // Unset all defaults
     await prisma.paymentMethod.updateMany({
       where: { userId: user.id },
       data: { isDefault: false },
     });
 
-    // Set new default
     const method = await prisma.paymentMethod.update({
       where: { id },
       data: { isDefault: true },
@@ -68,7 +65,7 @@ export async function PATCH(
     console.error("Set default error:", error);
     return NextResponse.json(
       { error: "Failed to set default" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

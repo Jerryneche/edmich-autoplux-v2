@@ -315,9 +315,11 @@ export default function TrackingPage() {
                     </div>
 
                     <button
-                      onClick={() =>
-                        (window.location.href = `tel:${tracking.driver.phone}`)
-                      }
+                      onClick={() => {
+                        if (typeof window !== "undefined") {
+                          window.location.href = `tel:${tracking.driver.phone}`;
+                        }
+                      }}
                       className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium"
                     >
                       <PhoneIcon className="h-5 w-5" />

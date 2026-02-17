@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  context: { params: Promise<{ bookingId: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { bookingId } = params;
+    const { bookingId } = await context.params;
 
     const booking = await prisma.mechanicBooking.findUnique({
       where: { id: bookingId },
@@ -39,10 +39,7 @@ export async function GET(
     });
 
     if (!booking) {
-      return NextResponse.json(
-        { error: "Booking not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
     const mechanic = booking.mechanic;
@@ -67,7 +64,7 @@ export async function GET(
     console.error("Error fetching mechanic booking tracking:", error);
     return NextResponse.json(
       { error: "Failed to fetch tracking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

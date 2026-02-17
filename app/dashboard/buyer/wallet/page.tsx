@@ -97,7 +97,7 @@ export default function WalletPage() {
         const data = await response.json();
         if (data.paymentUrl) {
           // Redirect to payment gateway
-          window.location.href = data.paymentUrl;
+          if (typeof window !== "undefined") window.location.href = data.paymentUrl;
         } else {
           toast.success("Wallet funded successfully!");
           setShowFundModal(false);

@@ -102,7 +102,7 @@ export default function SupplierPublicPage() {
   };
 
   const handleShare = () => {
-    const url = window.location.href;
+    const url = typeof window !== "undefined" ? window.location.href : "";
     if (navigator.share) {
       navigator.share({
         title: data?.supplier.businessName || "Check out this supplier",

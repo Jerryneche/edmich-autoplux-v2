@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -13,12 +13,12 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id: raw } = await params;
+    const { id: raw } = await context.params;
     const orderIdOrTracking = raw?.trim();
     if (!orderIdOrTracking) {
       return NextResponse.json(
         { error: "Missing order id/tracking" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,7 +28,7 @@ export async function POST(
     if (!logisticsId) {
       return NextResponse.json(
         { error: "Missing logisticsId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -61,13 +61,12 @@ export async function POST(
     if (!provider || !provider.approved) {
       return NextResponse.json(
         { error: "Invalid or unapproved logistics provider" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const trackingNumber = order.trackingId || order.id;
 
-    // BUILD FULL ADDRESS STRING
     const formatAddress = (addr: typeof order.shippingAddress) => {
       if (!addr) return "Address not provided";
       return `${addr.city}, ${addr.state} ${addr.zipCode || ""}`.trim();
@@ -122,7 +121,7 @@ export async function POST(
     console.error("assign-logistics error:", err);
     return NextResponse.json(
       { error: "Failed to assign logistics" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

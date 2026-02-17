@@ -1,13 +1,11 @@
-// app/api/supplier/[id]/route.ts
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
 
@@ -15,13 +13,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-  const { verified } = await req.json(); // ← MATCH SCHEMA
+  const { id } = await context.params;
+  const { verified } = await req.json();
 
   try {
     const supplier = await prisma.supplierProfile.update({
       where: { id },
-      data: { verified }, // ← USE verified, NOT approved
+      data: { verified },
     });
 
     return NextResponse.json(supplier);
@@ -29,12 +27,12 @@ export async function PATCH(
     if (error.code === "P2025") {
       return NextResponse.json(
         { error: "Supplier not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     return NextResponse.json(
       { error: "Failed to update supplier" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

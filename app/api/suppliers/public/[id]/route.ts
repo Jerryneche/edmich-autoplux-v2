@@ -1,30 +1,20 @@
 // app/api/suppliers/public/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
 
-    // Fetch supplier with all necessary data
     const supplier = await prisma.supplierProfile.findUnique({
       where: { id },
       include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
-            image: true,
-          },
-        },
+        user: { select: { name: true, email: true, phone: true, image: true } },
         products: {
-          where: {
-            status: "ACTIVE",
-          },
+          where: { status: "ACTIVE" },
           select: {
             id: true,
             name: true,
@@ -36,9 +26,7 @@ export async function GET(
             stock: true,
             createdAt: true,
           },
-          orderBy: {
-            createdAt: "desc",
-          },
+          orderBy: { createdAt: "desc" },
         },
       },
     });
@@ -46,47 +34,31 @@ export async function GET(
     if (!supplier) {
       return NextResponse.json(
         { error: "Supplier not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Only show verified suppliers publicly
     if (!supplier.verified) {
       return NextResponse.json(
         { error: "Supplier not verified" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    // Calculate stats
     const totalProducts = supplier.products.length;
     const inStockProducts = supplier.products.filter((p) => p.stock > 0).length;
     const categories = [...new Set(supplier.products.map((p) => p.category))];
 
-    // Get orders stats (if you want to show completed orders)
     const completedOrders = await prisma.order.count({
       where: {
-        items: {
-          some: {
-            product: {
-              supplierId: supplier.id,
-            },
-          },
-        },
+        items: { some: { product: { supplierId: supplier.id } } },
         status: "DELIVERED",
       },
     });
 
-    // Get average rating (if you have reviews)
     const reviews = await prisma.review.findMany({
-      where: {
-        product: {
-          supplierId: supplier.id,
-        },
-      },
-      select: {
-        rating: true,
-      },
+      where: { product: { supplierId: supplier.id } },
+      select: { rating: true },
     });
 
     const averageRating =
@@ -135,7 +107,7 @@ export async function GET(
     console.error("Error fetching supplier:", error);
     return NextResponse.json(
       { error: "Failed to fetch supplier" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

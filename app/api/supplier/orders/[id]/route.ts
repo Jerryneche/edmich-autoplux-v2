@@ -14,19 +14,18 @@ async function getCurrentUser(request: NextRequest) {
   return null;
 }
 
-// Valid status transitions for suppliers
 const SUPPLIER_TRANSITIONS: Record<string, string[]> = {
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["SHIPPED", "CANCELLED"],
   PROCESSING: ["SHIPPED", "CANCELLED"],
-  SHIPPED: [], // Buyer marks as delivered
+  SHIPPED: [],
   DELIVERED: [],
   CANCELLED: [],
 };
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getCurrentUser(request);
@@ -41,7 +40,7 @@ export async function PATCH(
       );
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const { status } = await request.json();
 
     if (!status) {
@@ -51,22 +50,11 @@ export async function PATCH(
       );
     }
 
-    // Get order with supplier verification
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                supplier: true,
-              },
-            },
-          },
-        },
-        user: {
-          select: { id: true, name: true, email: true },
-        },
+        items: { include: { product: { include: { supplier: true } } } },
+        user: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -74,7 +62,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Verify supplier owns products in this order
     const supplierProfile = await prisma.supplierProfile.findUnique({
       where: { userId: user.id },
     });
@@ -97,7 +84,6 @@ export async function PATCH(
       );
     }
 
-    // Validate status transition
     const allowedStatuses = SUPPLIER_TRANSITIONS[order.status] || [];
     if (!allowedStatuses.includes(status)) {
       return NextResponse.json(
@@ -109,16 +95,11 @@ export async function PATCH(
       );
     }
 
-    // Update order
     const updatedOrder = await prisma.order.update({
       where: { id },
-      data: {
-        status,
-        updatedAt: new Date(),
-      },
+      data: { status, updatedAt: new Date() },
     });
 
-    // Notify buyer
     const timestamp = new Date().toLocaleString("en-NG", {
       dateStyle: "medium",
       timeStyle: "short",

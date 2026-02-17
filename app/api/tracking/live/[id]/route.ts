@@ -1,25 +1,20 @@
 // app/tracking/live/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  request: Request,
-  context: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
 
-    // Find tracking by order ID
     const tracking = await prisma.orderTracking.findUnique({
-      where: {
-        orderId: id,
-      },
+      where: { orderId: id },
       include: {
         order: {
           include: {
-            user: {
-              select: { name: true, phone: true, image: true },
-            },
+            user: { select: { name: true, phone: true, image: true } },
             items: {
               include: {
                 product: {
@@ -44,16 +39,14 @@ export async function GET(
             image: true,
           },
         },
-        updates: {
-          orderBy: { timestamp: "desc" },
-        },
+        updates: { orderBy: { timestamp: "desc" } },
       },
     });
 
     if (!tracking) {
       return NextResponse.json(
         { error: "Tracking not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -115,7 +108,7 @@ export async function GET(
     console.error("Live tracking error:", error);
     return NextResponse.json(
       { error: "Failed to load tracking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

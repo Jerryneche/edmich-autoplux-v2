@@ -57,7 +57,8 @@ export default function SupplierProfileSettings() {
       setProfile(data.supplierProfile);
 
       // Generate public page URL
-      const baseUrl = window.location.origin;
+      const baseUrl =
+        typeof window !== "undefined" ? window.location.origin : "";
       const pageUrl = `${baseUrl}/suppliers/${data.supplierProfile.id}`;
       setPublicPageUrl(pageUrl);
 

@@ -1,23 +1,24 @@
 // app/api/track/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const id = params.id?.trim();
+    const { id } = await context.params;
+    const trackingId = id?.trim();
 
-    if (!id) {
+    if (!trackingId) {
       return NextResponse.json(
         { error: "Missing tracking code" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const order = await prisma.order.findFirst({
-      where: { OR: [{ trackingId: id }, { id }] },
+      where: { OR: [{ trackingId }, { id: trackingId }] },
       include: {
         items: {
           include: {

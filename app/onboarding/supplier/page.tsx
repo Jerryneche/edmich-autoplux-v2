@@ -147,7 +147,7 @@ export default function SupplierOnboarding() {
 
       // Force a hard refresh if soft navigation doesn't work
       setTimeout(() => {
-        window.location.href = "/dashboard/supplier";
+        if (typeof window !== "undefined") window.location.href = "/dashboard/supplier";
       }, 1000);
     } catch (error: any) {
       toast.error(error.message || "Something went wrong");

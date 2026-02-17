@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,13 +13,13 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const { reply } = await request.json();
 
     if (!reply || !reply.trim()) {
       return NextResponse.json(
         { error: "Reply message is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -32,7 +32,7 @@ export async function POST(
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
-    // Update status to REPLIED (no adminReply field needed)
+    // Update status to REPLIED
     const updated = await prisma.contactSubmission.update({
       where: { id },
       data: {
@@ -56,7 +56,7 @@ export async function POST(
             originalMessage: contact.message,
             reply,
           }),
-        }
+        },
       );
 
       if (!emailResponse.ok) {
@@ -76,7 +76,7 @@ export async function POST(
     console.error("Error sending reply:", error);
     return NextResponse.json(
       { error: "Failed to send reply" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

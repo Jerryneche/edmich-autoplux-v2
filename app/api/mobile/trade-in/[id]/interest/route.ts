@@ -6,18 +6,18 @@ import { pushNotificationService } from "@/services/push-notification.service";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
-
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
-    const message = typeof body?.message === "string" ? body.message : undefined;
+    const message =
+      typeof body?.message === "string" ? body.message : undefined;
 
     const tradeIn = await prisma.tradeIn.findUnique({
       where: { id },
@@ -25,7 +25,10 @@ export async function POST(
     });
 
     if (!tradeIn) {
-      return NextResponse.json({ error: "Trade-in not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Trade-in not found" },
+        { status: 404 },
+      );
     }
 
     if (tradeIn.userId === user.id) {
@@ -36,12 +39,7 @@ export async function POST(
     }
 
     const existing = await prisma.tradeInInterest.findUnique({
-      where: {
-        tradeInId_userId: {
-          tradeInId: tradeIn.id,
-          userId: user.id,
-        },
-      },
+      where: { tradeInId_userId: { tradeInId: tradeIn.id, userId: user.id } },
     });
 
     if (existing) {
@@ -62,10 +60,7 @@ export async function POST(
     await pushNotificationService.notifyUser(tradeIn.userId, {
       title: "New interest",
       body: `Someone is interested in your trade-in ${tradeIn.itemName}`,
-      data: {
-        type: "trade-in",
-        tradeInId: tradeIn.id,
-      },
+      data: { type: "trade-in", tradeInId: tradeIn.id },
     });
 
     return NextResponse.json(
@@ -74,9 +69,7 @@ export async function POST(
     );
   } catch (error: unknown) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to record interest";
+      error instanceof Error ? error.message : "Failed to record interest";
     console.error("[TRADE-IN INTEREST] Error:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }

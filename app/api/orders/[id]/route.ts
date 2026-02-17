@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -18,9 +18,8 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
-    // Attempt to fetch by internal id first, then by trackingId
     const order =
       (await prisma.order.findUnique({
         where: { id },
@@ -36,17 +35,9 @@ export async function GET(
           orderTracking: {
             include: {
               driver: {
-                select: {
-                  id: true,
-                  name: true,
-                  phone: true,
-                  email: true,
-                },
+                select: { id: true, name: true, phone: true, email: true },
               },
-              updates: {
-                orderBy: { timestamp: "desc" },
-                take: 10,
-              },
+              updates: { orderBy: { timestamp: "desc" }, take: 10 },
             },
           },
         },
@@ -65,17 +56,9 @@ export async function GET(
           orderTracking: {
             include: {
               driver: {
-                select: {
-                  id: true,
-                  name: true,
-                  phone: true,
-                  email: true,
-                },
+                select: { id: true, name: true, phone: true, email: true },
               },
-              updates: {
-                orderBy: { timestamp: "desc" },
-                take: 10,
-              },
+              updates: { orderBy: { timestamp: "desc" }, take: 10 },
             },
           },
         },
@@ -85,17 +68,16 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Ensure current user owns the order (buyer) or is admin
     if (order.userId !== user.id && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json(order);
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error fetching order:", error);
     return NextResponse.json(
       { error: "Failed to fetch order" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -106,7 +88,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -114,19 +96,15 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     const { status, paymentStatus } = body;
 
-    const order = await prisma.order.findUnique({
-      where: { id },
-    });
-
+    const order = await prisma.order.findUnique({ where: { id } });
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Only allow owner, admin, or supplier to update
     if (
       order.userId !== user.id &&
       user.role !== "ADMIN" &&
@@ -154,27 +132,24 @@ export async function PATCH(
       },
     });
 
-    // Notify buyer of status change
     if (status && order.userId !== user.id) {
       await prisma.notification.create({
         data: {
           userId: order.userId,
           type: "ORDER",
           title: "Order Status Updated",
-          message: `Your order ${
-            order.trackingId || order.id
-          } status has been updated to ${status}`,
+          message: `Your order ${order.trackingId || order.id} status has been updated to ${status}`,
           link: `/tracking/${order.id}`,
         },
       });
     }
 
     return NextResponse.json(updatedOrder);
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error updating order:", error);
     return NextResponse.json(
       { error: "Failed to update order" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -71,7 +71,9 @@ export default function LogisticsBookingClient({
       if (!res.ok) throw new Error(data.error || "Assign failed");
       toast.success("Logistics assigned successfully");
       // Optionally refresh page
-      setTimeout(() => location.reload(), 700);
+      setTimeout(() => {
+        if (typeof window !== "undefined") location.reload();
+      }, 700);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to assign");

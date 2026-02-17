@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,8 +13,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const params = await context.params;
-    const supplierId = params.id;
+    const { id: supplierId } = await context.params;
 
     // Update BOTH verified and approved
     const updatedSupplier = await prisma.supplierProfile.update({
@@ -46,7 +45,7 @@ export async function POST(
     console.error("Error approving supplier:", error);
     return NextResponse.json(
       { error: "Failed to approve supplier" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

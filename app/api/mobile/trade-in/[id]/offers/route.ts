@@ -6,16 +6,15 @@ import { pushNotificationService } from "@/services/push-notification.service";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
-
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     const amount = Number(body?.amount);
     const note = typeof body?.note === "string" ? body.note : undefined;
@@ -33,9 +32,11 @@ export async function POST(
     });
 
     if (!tradeIn) {
-      return NextResponse.json({ error: "Trade-in not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Trade-in not found" },
+        { status: 404 },
+      );
     }
-
     if (tradeIn.userId === user.id) {
       return NextResponse.json(
         { error: "You cannot make an offer on your own trade-in" },
@@ -51,11 +52,7 @@ export async function POST(
     if (existing) {
       offer = await prisma.tradeInOffer.update({
         where: { id: existing.id },
-        data: {
-          amount,
-          note: note || null,
-          status: "SUBMITTED",
-        },
+        data: { amount, note: note || null, status: "SUBMITTED" },
       });
 
       await prisma.tradeInOfferRevision.create({
@@ -122,16 +119,15 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
-
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const tradeIn = await prisma.tradeIn.findUnique({
       where: { id },
@@ -139,9 +135,11 @@ export async function GET(
     });
 
     if (!tradeIn) {
-      return NextResponse.json({ error: "Trade-in not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Trade-in not found" },
+        { status: 404 },
+      );
     }
-
     if (tradeIn.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

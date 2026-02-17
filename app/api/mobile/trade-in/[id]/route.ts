@@ -6,10 +6,10 @@ import { prisma } from "@/lib/prisma";
 // GET - Get single trade-in details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const user = await getAuthUser(request);
 
     if (!user) {
@@ -19,13 +19,7 @@ export async function GET(
     const tradeIn = await prisma.tradeIn.findUnique({
       where: { id },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        user: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -36,7 +30,6 @@ export async function GET(
       );
     }
 
-    // Only allow owner to view
     if (tradeIn.userId !== user.id) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
@@ -54,23 +47,19 @@ export async function GET(
 // PATCH - Update trade-in (for user to cancel)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const user = await getAuthUser(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { action } = body;
+    const { action } = await request.json();
 
-    const tradeIn = await prisma.tradeIn.findUnique({
-      where: { id },
-    });
-
+    const tradeIn = await prisma.tradeIn.findUnique({ where: { id } });
     if (!tradeIn) {
       return NextResponse.json(
         { error: "Trade-in not found" },
@@ -78,12 +67,10 @@ export async function PATCH(
       );
     }
 
-    // Only owner can modify
     if (tradeIn.userId !== user.id) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // Handle different actions
     switch (action) {
       case "CANCEL":
         if (tradeIn.status !== "PENDING") {
@@ -92,7 +79,6 @@ export async function PATCH(
             { status: 400 },
           );
         }
-
         const cancelledTradeIn = await prisma.tradeIn.update({
           where: { id },
           data: { status: "CANCELLED" },
@@ -117,20 +103,17 @@ export async function PATCH(
 // DELETE - Delete trade-in (only if pending)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const user = await getAuthUser(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const tradeIn = await prisma.tradeIn.findUnique({
-      where: { id },
-    });
-
+    const tradeIn = await prisma.tradeIn.findUnique({ where: { id } });
     if (!tradeIn) {
       return NextResponse.json(
         { error: "Trade-in not found" },
@@ -149,9 +132,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.tradeIn.delete({
-      where: { id },
-    });
+    await prisma.tradeIn.delete({ where: { id } });
 
     return NextResponse.json(
       { message: "Trade-in deleted successfully" },

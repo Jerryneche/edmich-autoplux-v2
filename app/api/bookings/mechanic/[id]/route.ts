@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 // GET - Get single booking
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const booking = await prisma.mechanicBooking.findUnique({
       where: { id },
@@ -47,7 +47,7 @@ export async function GET(
     console.error("Error fetching booking:", error);
     return NextResponse.json(
       { error: "Failed to fetch booking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -55,7 +55,7 @@ export async function GET(
 // PATCH - Update booking status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -63,18 +63,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
     const { status } = body;
 
     if (!status) {
       return NextResponse.json(
         { error: "Status is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Valid statuses
     const validStatuses = [
       "PENDING",
       "CONFIRMED",
@@ -86,7 +85,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    // Get booking first
     const existingBooking = await prisma.mechanicBooking.findUnique({
       where: { id },
       include: {
@@ -100,7 +98,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Check permission - must be the mechanic or the customer
     const mechanicProfile = await prisma.mechanicProfile.findUnique({
       where: { userId: user.id },
     });
@@ -111,11 +108,10 @@ export async function PATCH(
     if (!isMechanic && !isCustomer) {
       return NextResponse.json(
         { error: "Not authorized to update this booking" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    // Update booking
     const booking = await prisma.mechanicBooking.update({
       where: { id },
       data: { status },
@@ -133,7 +129,6 @@ export async function PATCH(
       },
     });
 
-    // Send notification to the other party
     const notifyUserId = isMechanic
       ? existingBooking.userId
       : existingBooking.mechanic?.userId;
@@ -163,7 +158,7 @@ export async function PATCH(
     console.error("Error updating booking:", error);
     return NextResponse.json(
       { error: "Failed to update booking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -171,7 +166,7 @@ export async function PATCH(
 // DELETE - Cancel/delete booking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -179,7 +174,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
 
     const booking = await prisma.mechanicBooking.findUnique({
       where: { id },
@@ -189,7 +184,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Check permission
     const mechanicProfile = await prisma.mechanicProfile.findUnique({
       where: { userId: user.id },
     });
@@ -210,7 +204,7 @@ export async function DELETE(
     console.error("Error deleting booking:", error);
     return NextResponse.json(
       { error: "Failed to delete booking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

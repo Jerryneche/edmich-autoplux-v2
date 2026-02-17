@@ -8,7 +8,7 @@ import { orderTrackingService } from "@/services/tracking.service";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: { params: Promise<{ orderId: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -16,19 +16,17 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await context.params;
 
-    // Get tracking
     const tracking = await orderTrackingService.getOrderTracking(orderId);
 
     if (!tracking) {
       return NextResponse.json(
         { error: "Tracking not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Format response
     const provider = tracking.driver;
     const response = {
       id: tracking.id,
@@ -66,7 +64,7 @@ export async function GET(
     console.error("Error fetching order tracking:", error);
     return NextResponse.json(
       { error: "Failed to fetch tracking" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -77,7 +75,7 @@ export async function GET(
  */
 export async function getOrderTrackingHistory(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  context: { params: Promise<{ orderId: string }> },
 ) {
   try {
     const user = await getAuthUser(request);
@@ -85,33 +83,38 @@ export async function getOrderTrackingHistory(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await context.params;
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = parseInt(searchParams.get("skip") || "0");
 
-    const { total, updates } = await orderTrackingService.getOrderTrackingHistory(
-      orderId,
-      limit,
-      skip
-    );
+    const { total, updates } =
+      await orderTrackingService.getOrderTrackingHistory(orderId, limit, skip);
 
     return NextResponse.json({
       success: true,
       total,
-      updates: updates.map((update: { id: string; latitude: number; longitude: number; status: string | null; timestamp: Date }) => ({
-        id: update.id,
-        latitude: update.latitude,
-        longitude: update.longitude,
-        status: update.status,
-        timestamp: update.timestamp,
-      })),
+      updates: updates.map(
+        (update: {
+          id: string;
+          latitude: number;
+          longitude: number;
+          status: string | null;
+          timestamp: Date;
+        }) => ({
+          id: update.id,
+          latitude: update.latitude,
+          longitude: update.longitude,
+          status: update.status,
+          timestamp: update.timestamp,
+        }),
+      ),
     });
   } catch (error: any) {
     console.error("Error fetching tracking history:", error);
     return NextResponse.json(
       { error: "Failed to fetch tracking history" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

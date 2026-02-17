@@ -17,18 +17,24 @@ async function getAdminUser(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     // Dual admin authentication
     const adminUser = await getAdminUser(request);
     if (!adminUser) {
-      return NextResponse.json({ error: "Unauthorized: Admin access required." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: Admin access required." },
+        { status: 401 },
+      );
     }
 
-    const orderId = context.params.id;
+    const { id: orderId } = await context.params;
     if (!orderId) {
-      return NextResponse.json({ error: "Order ID is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Order ID is required." },
+        { status: 400 },
+      );
     }
 
     // Fetch order and validate
@@ -40,11 +46,15 @@ export async function POST(
         status: true,
       },
     });
+
     if (!order) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
     if (order.status !== "PENDING_COD_CONFIRMATION") {
-      return NextResponse.json({ error: "Order is not pending COD confirmation." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Order is not pending COD confirmation." },
+        { status: 400 },
+      );
     }
 
     // Update order status
@@ -63,7 +73,6 @@ export async function POST(
         pushData: { orderId: order.id, status: "COD_CONFIRMED" },
       });
     } catch (notifyErr) {
-      // Log but do not fail the endpoint
       console.error("Notification error:", notifyErr);
     }
 
@@ -72,7 +81,8 @@ export async function POST(
       order: updatedOrder,
     });
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : "Internal server error.";
+    const errorMsg =
+      err instanceof Error ? err.message : "Internal server error.";
     console.error("COD confirm error:", err);
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }

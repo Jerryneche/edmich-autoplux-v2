@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: orderId } = await params;
+    const { id: orderId } = await context.params;
     console.log("GET service-links - orderId:", orderId);
 
     const user = await getAuthUser(request);
@@ -16,7 +16,6 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get order with service links
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -57,7 +56,6 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Check authorization
     if (order.userId !== user.id && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -67,17 +65,17 @@ export async function GET(
     console.error("Error fetching service links:", error);
     return NextResponse.json(
       { error: "Failed to fetch service links" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: orderId } = await params;
+    const { id: orderId } = await context.params;
     console.log("POST service-links - orderId:", orderId);
 
     const user = await getAuthUser(request);
@@ -91,9 +89,6 @@ export async function POST(
       type: "MECHANIC" | "LOGISTICS";
     };
 
-    console.log("Creating service link:", { orderId, bookingId, type });
-
-    // Verify order ownership
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { serviceLinks: true },
@@ -102,45 +97,33 @@ export async function POST(
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-
     if (order.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Check if service type already linked
     const existingLink = order.serviceLinks.find((link) =>
-      type === "MECHANIC" ? link.mechanicBookingId : link.logisticsBookingId
+      type === "MECHANIC" ? link.mechanicBookingId : link.logisticsBookingId,
     );
-
     if (existingLink) {
       return NextResponse.json(
         { error: `${type} service already booked for this order` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Create service link in a transaction
     const serviceLink = await prisma.$transaction(async (tx) => {
-      // First update the booking with order info
       if (type === "MECHANIC") {
         await tx.mechanicBooking.update({
           where: { id: bookingId },
-          data: {
-            orderId,
-            trackingId: order.trackingId,
-          },
+          data: { orderId, trackingId: order.trackingId },
         });
       } else {
         await tx.logisticsBooking.update({
           where: { id: bookingId },
-          data: {
-            orderId,
-            trackingId: order.trackingId,
-          },
+          data: { orderId, trackingId: order.trackingId },
         });
       }
 
-      // Then create the service link
       return await tx.orderServiceLink.create({
         data: {
           orderId,
@@ -177,24 +160,22 @@ export async function POST(
       });
     });
 
-    console.log("Service link created successfully:", serviceLink.id);
-
     return NextResponse.json(serviceLink);
   } catch (error) {
     console.error("Error creating service link:", error);
     return NextResponse.json(
       { error: "Failed to create service link" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: orderId } = await params;
+    const { id: orderId } = await context.params;
 
     const user = await getAuthUser(request);
     if (!user) {
@@ -207,24 +188,18 @@ export async function DELETE(
     if (!type) {
       return NextResponse.json(
         { error: "Type parameter required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Verify order ownership
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-    });
-
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-
     if (order.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Find and delete service link
     const serviceLink = await prisma.orderServiceLink.findFirst({
       where: {
         orderId,
@@ -237,20 +212,18 @@ export async function DELETE(
     if (!serviceLink) {
       return NextResponse.json(
         { error: "Service link not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    await prisma.orderServiceLink.delete({
-      where: { id: serviceLink.id },
-    });
+    await prisma.orderServiceLink.delete({ where: { id: serviceLink.id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting service link:", error);
     return NextResponse.json(
       { error: "Failed to delete service link" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
