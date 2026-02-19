@@ -99,6 +99,17 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Always create a payment for the order
+      const payment = await tx.payment.create({
+        data: {
+          userId: user.id,
+          orderId: order.id,
+          amount: total,
+          method: paymentMethod,
+          status: "PENDING",
+        },
+      });
+
       // Create order items and update stock
       const orderItems = await Promise.all(
         items.map(
