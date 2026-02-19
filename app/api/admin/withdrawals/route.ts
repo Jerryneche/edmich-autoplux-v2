@@ -86,10 +86,6 @@ export async function GET(request: NextRequest) {
         initiatedAt: w.initiatedAt,
         processedAt: w.processedAt,
         processedBy: w.processedBy,
-      total,
-      pending: counts["PENDING"] || 0,
-      approved: counts["APPROVED"] || 0,
-      rejected: counts["REJECTED"] || 0,
         user: {
           id: w.wallet.user.id,
           name: w.wallet.user.name,
@@ -102,10 +98,10 @@ export async function GET(request: NextRequest) {
         },
       })),
       total,
-      pending: counts["pending"] || 0,
-      processing: counts["processing"] || 0,
-      credited: counts["credited"] || 0,
-      failed: counts["failed"] || 0,
+      pending: counts["PENDING"] || 0,
+      processing: counts["PROCESSING"] || 0,
+      credited: counts["CREDITED"] || 0,
+      failed: counts["FAILED"] || 0,
     });
   } catch (error) {
     console.error("[ADMIN-WITHDRAWALS-GET] Error:", error);
