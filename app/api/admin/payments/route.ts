@@ -162,6 +162,46 @@ export async function PATCH(request: NextRequest) {
             paidAt: new Date(),
           },
         });
+
+        // Credit supplier's wallet if not already credited
+        // Find the order and its items
+        const order = await prisma.order.findUnique({
+          where: { id: existingPayment.orderId },
+          include: {
+            items: { include: { product: { select: { supplierId: true } } } },
+          },
+        });
+        if (order) {
+          // For each supplier in the order, credit their wallet
+          const supplierTotals: Record<string, number> = {};
+          for (const item of order.items) {
+            const supplierId = item.product.supplierId;
+            if (!supplierTotals[supplierId]) supplierTotals[supplierId] = 0;
+            supplierTotals[supplierId] += item.price * item.quantity;
+          }
+          for (const [supplierId, amount] of Object.entries(supplierTotals)) {
+            // Find supplier's userId
+            const supplierProfile = await prisma.supplierProfile.findUnique({ where: { id: supplierId }, select: { userId: true } });
+            if (supplierProfile) {
+              // Credit wallet
+              const wallet = await prisma.wallet.upsert({
+                where: { userId: supplierProfile.userId },
+                update: { balance: { increment: amount } },
+                create: { userId: supplierProfile.userId, balance: amount },
+              });
+              // Create wallet transaction
+              await prisma.walletTransaction.create({
+                data: {
+                  walletId: wallet.id,
+                  type: "credit",
+                  amount,
+                  description: `Order payment credited for order ${order.trackingId}`,
+                  orderId: order.id,
+                },
+              });
+            }
+          }
+        }
       } else if (normalizedStatus === "FAILED") {
         await prisma.order.update({
           where: { id: existingPayment.orderId },
