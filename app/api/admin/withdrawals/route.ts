@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   try {
     const admin = await getAdminUser(request);
     if (!admin) {
-      return NextResponse.json({ error: "Unauthorized", message: "Admin access required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Admin access required" },
+        { status: 401 },
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -68,36 +71,37 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      withdrawals: withdrawals.length ? withdrawals.map((w) => ({
-        id: w.id,
-        userId: w.wallet.user.id,
-        userName: w.wallet.user.name,
-        userEmail: w.wallet.user.email,
-        userPhone: w.wallet.user.phone,
-        userRole: w.wallet.user.role,
-        amount: w.amount,
-        status: w.status,
-        bankName: w.bankName,
-        bankCode: w.bankCode,
-        accountNumber: w.accountNumber,
-        accountName: w.accountName,
-        reference: w.reference,
-        requestedAt: w.initiatedAt,
-        initiatedAt: w.initiatedAt,
-        processedAt: w.processedAt,
-        processedBy: w.processedBy,
-        user: {
-          id: w.wallet.user.id,
-          name: w.wallet.user.name,
-          email: w.wallet.user.email,
-          phone: w.wallet.user.phone,
-          role: w.wallet.user.role,
-          wallet: {
-            balance: w.wallet.balance,
-          },
-        },
-      })),
-      total,
+      withdrawals: withdrawals.length
+        ? withdrawals.map((w) => ({
+            id: w.id,
+            userId: w.wallet.user.id,
+            userName: w.wallet.user.name,
+            userEmail: w.wallet.user.email,
+            userPhone: w.wallet.user.phone,
+            userRole: w.wallet.user.role,
+            amount: w.amount,
+            status: w.status,
+            bankName: w.bankName,
+            bankCode: w.bankCode,
+            accountNumber: w.accountNumber,
+            accountName: w.accountName,
+            reference: w.reference,
+            requestedAt: w.initiatedAt,
+            initiatedAt: w.initiatedAt,
+            processedAt: w.processedAt,
+            processedBy: w.processedBy,
+            user: {
+              id: w.wallet.user.id,
+              name: w.wallet.user.name,
+              email: w.wallet.user.email,
+              phone: w.wallet.user.phone,
+              role: w.wallet.user.role,
+              wallet: {
+                balance: w.wallet.balance,
+              },
+            },
+          }))
+        : total,
       pending: counts["PENDING"] || 0,
       processing: counts["PROCESSING"] || 0,
       credited: counts["CREDITED"] || 0,
@@ -106,8 +110,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[ADMIN-WITHDRAWALS-GET] Error:", error);
     return NextResponse.json(
-      { error: "Internal server error", message: "Failed to fetch withdrawals" },
-      { status: 500 }
+      {
+        error: "Internal server error",
+        message: "Failed to fetch withdrawals",
+      },
+      { status: 500 },
     );
   }
 }
@@ -117,7 +124,10 @@ export async function PATCH(request: NextRequest) {
   try {
     const admin = await getAdminUser(request);
     if (!admin) {
-      return NextResponse.json({ error: "Unauthorized", message: "Admin access required" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Admin access required" },
+        { status: 401 },
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -126,21 +136,28 @@ export async function PATCH(request: NextRequest) {
     if (!withdrawalId) {
       return NextResponse.json(
         { error: "Validation error", message: "Withdrawal ID required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const body = await request.json();
     const { status, note } = body;
 
-    if (!status || !["pending", "processing", "credited", "failed"].includes(status)) {
+    if (
+      !status ||
+      !["pending", "processing", "credited", "failed"].includes(status)
+    ) {
       return NextResponse.json(
         {
           error: "Invalid status",
           message: "Invalid withdrawal status",
-          details: { field: "status", value: status, allowed: ["pending", "processing", "credited", "failed"] },
+          details: {
+            field: "status",
+            value: status,
+            allowed: ["pending", "processing", "credited", "failed"],
+          },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -158,8 +175,11 @@ export async function PATCH(request: NextRequest) {
 
     if (!existing) {
       return NextResponse.json(
-        { error: "Not found", message: `Withdrawal with ID ${withdrawalId} not found` },
-        { status: 404 }
+        {
+          error: "Not found",
+          message: `Withdrawal with ID ${withdrawalId} not found`,
+        },
+        { status: 404 },
       );
     }
 
@@ -170,8 +190,11 @@ export async function PATCH(request: NextRequest) {
     };
     if (invalidTransitions[existing.status]?.includes(status)) {
       return NextResponse.json(
-        { error: "Invalid status transition", message: `Cannot change status from ${existing.status} to ${status}` },
-        { status: 400 }
+        {
+          error: "Invalid status transition",
+          message: `Cannot change status from ${existing.status} to ${status}`,
+        },
+        { status: 400 },
       );
     }
 
@@ -180,7 +203,9 @@ export async function PATCH(request: NextRequest) {
       where: { id: withdrawalId },
       data: {
         status,
-        processedAt: ["processing", "credited", "failed"].includes(status) ? new Date() : null,
+        processedAt: ["processing", "credited", "failed"].includes(status)
+          ? new Date()
+          : null,
         processedBy: admin.id,
       },
     });
@@ -255,7 +280,9 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    console.log(`[ADMIN-WITHDRAWAL] Withdrawal ${withdrawalId} status → ${status} by admin ${admin.id}`);
+    console.log(
+      `[ADMIN-WITHDRAWAL] Withdrawal ${withdrawalId} status → ${status} by admin ${admin.id}`,
+    );
 
     return NextResponse.json({
       success: true,
@@ -272,8 +299,11 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error("[ADMIN-WITHDRAWALS-PATCH] Error:", error);
     return NextResponse.json(
-      { error: "Internal server error", message: "Failed to update withdrawal" },
-      { status: 500 }
+      {
+        error: "Internal server error",
+        message: "Failed to update withdrawal",
+      },
+      { status: 500 },
     );
   }
 }
