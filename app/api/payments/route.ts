@@ -16,14 +16,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Determine initial status
-    let status: "PENDING" | "SUCCESS" = "PENDING";
-    if (["CARD", "WALLET"].includes(method.toUpperCase())) {
-      // For instant methods, status remains PENDING until gateway confirms
-      status = "PENDING";
-    } else if (["BANK TRANSFER", "PAY ON DELIVERY"].includes(method.toUpperCase())) {
-      status = "PENDING";
-    }
+    // All new payments start as PENDING
+    type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
+    const status: PaymentStatus = "PENDING";
 
     // Create payment
     const payment = await prisma.payment.create({
@@ -33,7 +28,7 @@ export async function POST(req: NextRequest) {
         amount,
         method,
         status,
-        reference: reference || null,
+        // reference removed: not a valid field in Payment model
       },
     });
 

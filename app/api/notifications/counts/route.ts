@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       // Pending payments for admin dashboard
       homeCount = await prisma.payment.count({
         where: {
-          status: "pending",
+          status: "PENDING",
         },
       });
     }
