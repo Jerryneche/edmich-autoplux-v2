@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           trackingId,
           total,
-          status: paymentMethod === "BANK TRANSFER" ? "PENDING" : "CONFIRMED",
+          status: "PENDING",
           paymentMethod,
           deliveryNotes: deliveryNotes || null,
         },

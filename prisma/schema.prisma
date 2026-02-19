@@ -1,3 +1,9 @@
+/// Payment status enum for all payment flows
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native"]
@@ -820,7 +826,7 @@ model Payment {
   amount           Float
   currency         String    @default("NGN")
   method           String
-  status           String    @default("pending")
+  status           PaymentStatus @default(PENDING)
   gatewayReference String?   @unique
   gatewayResponse  Json?
   verifiedAt       DateTime?

@@ -116,18 +116,19 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { status, note } = body;
 
-    if (!status || !["PAID", "FAILED"].includes(status.toUpperCase())) {
+    const allowedStatuses = ["PENDING", "SUCCESS", "FAILED"];
+    if (!status || !allowedStatuses.includes(status.toUpperCase())) {
       return NextResponse.json(
         {
           error: "Invalid status",
-          message: "Status must be PAID or FAILED",
-          details: { field: "status", value: status, allowed: ["PAID", "FAILED"] },
+          message: `Status must be one of ${allowedStatuses.join(", ")}`,
+          details: { field: "status", value: status, allowed: allowedStatuses },
         },
         { status: 400 }
       );
     }
 
-    const normalizedStatus = status.toLowerCase();
+    const normalizedStatus = status.toUpperCase();
 
     // Find the payment first
     const existingPayment = await prisma.payment.findUnique({
@@ -147,19 +148,28 @@ export async function PATCH(request: NextRequest) {
       where: { id: paymentId },
       data: {
         status: normalizedStatus,
-        verifiedAt: normalizedStatus === "paid" ? new Date() : null,
+        verifiedAt: normalizedStatus === "SUCCESS" ? new Date() : null,
       },
     });
 
     // If payment is marked PAID, update order payment status
     if (normalizedStatus === "paid" && existingPayment.orderId) {
-      await prisma.order.update({
-        where: { id: existingPayment.orderId },
-        data: {
-          paymentStatus: "PAID",
-          paidAt: new Date(),
-        },
-      });
+      if (normalizedStatus === "SUCCESS" && existingPayment.orderId) {
+        await prisma.order.update({
+          where: { id: existingPayment.orderId },
+          data: {
+            paymentStatus: "SUCCESS",
+            paidAt: new Date(),
+          },
+        });
+      } else if (normalizedStatus === "FAILED" && existingPayment.orderId) {
+        await prisma.order.update({
+          where: { id: existingPayment.orderId },
+          data: {
+            paymentStatus: "FAILED",
+          },
+        });
+      }
     }
 
     // Send notification to buyer
