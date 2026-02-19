@@ -153,8 +153,8 @@ export async function PATCH(request: NextRequest) {
     });
 
     // If payment is marked PAID, update order payment status
-    if (normalizedStatus === "paid" && existingPayment.orderId) {
-      if (normalizedStatus === "SUCCESS" && existingPayment.orderId) {
+    if (existingPayment.orderId) {
+      if (normalizedStatus === "SUCCESS") {
         await prisma.order.update({
           where: { id: existingPayment.orderId },
           data: {
@@ -162,11 +162,18 @@ export async function PATCH(request: NextRequest) {
             paidAt: new Date(),
           },
         });
-      } else if (normalizedStatus === "FAILED" && existingPayment.orderId) {
+      } else if (normalizedStatus === "FAILED") {
         await prisma.order.update({
           where: { id: existingPayment.orderId },
           data: {
             paymentStatus: "FAILED",
+          },
+        });
+      } else if (normalizedStatus === "PENDING") {
+        await prisma.order.update({
+          where: { id: existingPayment.orderId },
+          data: {
+            paymentStatus: "PENDING",
           },
         });
       }
