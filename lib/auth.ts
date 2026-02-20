@@ -208,31 +208,45 @@ export const authOptions: NextAuthOptions = {
 
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          include: {
-            supplierProfile: true,
-            mechanicProfile: true,
-            logisticsProfile: true,
-          },
-        });
-
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.role = (dbUser.role ?? "BUYER") as UserRole;
-          token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
-          token.isGoogleAuth = dbUser.isGoogleAuth ?? false;
-          token.hasCompletedOnboarding = dbUser.hasCompletedOnboarding ?? true;
-
-          if (dbUser.role === "SUPPLIER") {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            include: {
+              supplierProfile: true,
+              mechanicProfile: true,
+              logisticsProfile: true,
+            },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = (dbUser.role ?? "BUYER") as UserRole;
+            token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
+            token.isGoogleAuth = dbUser.isGoogleAuth ?? false;
+            token.hasCompletedOnboarding = dbUser.hasCompletedOnboarding ?? true;
             token.hasSupplierProfile = !!dbUser.supplierProfile;
-          }
-          if (dbUser.role === "MECHANIC") {
             token.hasMechanicProfile = !!dbUser.mechanicProfile;
-          }
-          if (dbUser.role === "LOGISTICS") {
             token.hasLogisticsProfile = !!dbUser.logisticsProfile;
+          } else {
+            // Fallback: create full token to prevent auth loop
+            token.id = user.id;
+            token.role = "BUYER";
+            token.onboardingStatus = "PENDING";
+            token.isGoogleAuth = false;
+            token.hasCompletedOnboarding = false;
+            token.hasSupplierProfile = false;
+            token.hasMechanicProfile = false;
+            token.hasLogisticsProfile = false;
           }
+        } catch (error) {
+          // Fallback: create full token to prevent auth loop
+          token.id = user.id;
+          token.role = "BUYER";
+          token.onboardingStatus = "PENDING";
+          token.isGoogleAuth = false;
+          token.hasCompletedOnboarding = false;
+          token.hasSupplierProfile = false;
+          token.hasMechanicProfile = false;
+          token.hasLogisticsProfile = false;
         }
       }
 
