@@ -269,61 +269,70 @@ export const authOptions: NextAuthOptions = {
               console.warn("[AUTH-JWT] ⚠️ User not found in database:", user.id);
               // Still create a minimal token to prevent loop
               token.id = user.id;
-              token.role = "BUYER";
-              token.onboardingStatus = "PENDING";
-            }
-          } catch (queryError) {
-            console.warn("[AUTH-JWT] ⚠️ Database query timeout or error:", queryError);
-            // Fallback: create minimal token to prevent auth loop
-            token.id = user.id;
-            token.role = "BUYER";
-            token.onboardingStatus = "PENDING";
-          }
-          
-          console.log("[AUTH-JWT] ✅ JWT callback completed - returning token");
-          return token;
-        }
-
-        // For session updates, refresh user data (with timeout)
-        if (trigger === "update" && session) {
-          console.log("[AUTH-JWT] Refreshing token for session update");
-          
-          try {
-            type RefreshedUser = {
-              role: string | null;
-              onboardingStatus: string | null;
-              hasCompletedOnboarding: boolean;
-              supplierProfile: { id: string } | null;
-              mechanicProfile: { id: string } | null;
-              logisticsProfile: { id: string } | null;
-            };
-
             const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Database query timeout")), 5000)
-            );
-            
-            const refreshedUserPromise = prisma.user.findUnique({
               where: { id: token.id as string },
-              select: {
-                role: true,
-                onboardingStatus: true,
-                hasCompletedOnboarding: true,
                 supplierProfile: { select: { id: true } },
-                mechanicProfile: { select: { id: true } },
-                logisticsProfile: { select: { id: true } },
-              },
-            }) as Promise<RefreshedUser | null>;
 
-            const refreshedUser = await Promise.race<RefreshedUser | null>([refreshedUserPromise, timeoutPromise]);
-
-            if (refreshedUser) {
-              console.log("[AUTH-JWT] ✅ Token refreshed from user data");
-              token.role = (refreshedUser.role ?? "BUYER") as UserRole;
-              token.onboardingStatus = refreshedUser.onboardingStatus ?? "PENDING";
-              token.hasCompletedOnboarding = refreshedUser.hasCompletedOnboarding ?? true;
-              token.hasSupplierProfile = !!refreshedUser.supplierProfile;
               token.hasMechanicProfile = !!refreshedUser.mechanicProfile;
-              token.hasLogisticsProfile = !!refreshedUser.logisticsProfile;
+              try {
+                // CRITICAL: Only fetch on initial sign-in, not every request
+                if (user && !token.id) {
+                  console.log("[AUTH-JWT] Initial token creation for user:", user.id);
+                  const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("Database query timeout")), 5000)
+                  );
+                  try {
+                    const dbUserPromise = prisma.user.findUnique({
+                      where: { id: user.id },
+                      select: {
+                        id: true,
+                        role: true,
+                        onboardingStatus: true,
+                        isGoogleAuth: true,
+                        hasCompletedOnboarding: true,
+                        supplierProfile: { select: { id: true } },
+                        mechanicProfile: { select: { id: true } },
+                        logisticsProfile: { select: { id: true } },
+                      },
+                    });
+                    const dbUser = await Promise.race([dbUserPromise, timeoutPromise]);
+                    if (dbUser) {
+                      console.log("[AUTH-JWT] ✅ Initial token populated for:", user.id);
+                      token.id = dbUser.id;
+                      token.role = (dbUser.role ?? "BUYER") as UserRole;
+                      token.onboardingStatus = dbUser.onboardingStatus ?? "PENDING";
+                      token.isGoogleAuth = dbUser.isGoogleAuth ?? false;
+                      token.hasCompletedOnboarding = dbUser.hasCompletedOnboarding ?? true;
+                      token.hasSupplierProfile = !!dbUser.supplierProfile;
+                      token.hasMechanicProfile = !!dbUser.mechanicProfile;
+                      token.hasLogisticsProfile = !!dbUser.logisticsProfile;
+                    } else {
+                      console.warn("[AUTH-JWT] ⚠️ User not found in database:", user.id);
+                      // Fallback: create full token to prevent auth loop
+                      token.id = user.id;
+                      token.role = "BUYER";
+                      token.onboardingStatus = "PENDING";
+                      token.isGoogleAuth = false;
+                      token.hasCompletedOnboarding = false;
+                      token.hasSupplierProfile = false;
+                      token.hasMechanicProfile = false;
+                      token.hasLogisticsProfile = false;
+                    }
+                  } catch (queryError) {
+                    console.warn("[AUTH-JWT] ⚠️ Database query timeout or error:", queryError);
+                    // Fallback: create full token to prevent auth loop
+                    token.id = user.id;
+                    token.role = "BUYER";
+                    token.onboardingStatus = "PENDING";
+                    token.isGoogleAuth = false;
+                    token.hasCompletedOnboarding = false;
+                    token.hasSupplierProfile = false;
+                    token.hasMechanicProfile = false;
+                    token.hasLogisticsProfile = false;
+                  }
+                  console.log("[AUTH-JWT] ✅ JWT callback completed - returning token");
+                  return token;
+                }
             }
           } catch (queryError) {
             console.warn("[AUTH-JWT] ⚠️ Token refresh timeout/error:", queryError);
