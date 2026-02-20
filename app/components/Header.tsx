@@ -61,7 +61,7 @@ export default function Header() {
                 priority
               />
             </div>
-            <span className="font-black text-xl sm:text-2xl text-gray-700 tracking-tighter group-hover:bg-linear-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+            <span className="font-black text-xl sm:text-2xl text-gray-700 tracking-tighter group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
               AUTOPLUX
             </span>
           </Link>
@@ -101,7 +101,7 @@ export default function Header() {
               >
                 <ShoppingBagIcon className="h-6 w-6" />
                 {itemCount > 0 && (
-                  <span className="absolute top-0 right-0 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-linear-to-r from-blue-600 to-purple-600 rounded-full shadow-md translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform">
+                  <span className="absolute top-0 right-0 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-md translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform">
                     {itemCount}
                   </span>
                 )}
@@ -113,15 +113,13 @@ export default function Header() {
               <div className="ml-4 w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             ) : session ? (
               <div className="ml-4 flex items-center gap-2">
-                {session.user?.role === "ADMIN" && (
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-200 transition-all"
-                  >
-                    <UserCircleIcon className="h-4 w-4" />
-                    Dashboard
-                  </Link>
-                )}
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-200 transition-all"
+                >
+                  <UserCircleIcon className="h-4 w-4" />
+                  Dashboard
+                </Link>
                 <button
                   onClick={() => signOut({ callbackUrl: "/" })}
                   className="flex items-center gap-2 px-5 py-2.5 text-gray-600 hover:text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-100 transition-all"
@@ -132,7 +130,7 @@ export default function Header() {
             ) : (
               <Link
                 href="/login"
-                className="ml-4 flex items-center gap-2 px-6 py-2.5 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300 group"
+                className="ml-4 flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300 group"
               >
                 <ArrowRightOnRectangleIcon className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                 Login
@@ -156,7 +154,7 @@ export default function Header() {
               >
                 <ShoppingBagIcon className="h-6 w-6" />
                 {itemCount > 0 && (
-                  <span className="absolute top-0 right-0 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-linear-to-r from-blue-600 to-purple-600 rounded-full shadow-md translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform">
+                  <span className="absolute top-0 right-0 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-md translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform">
                     {itemCount}
                   </span>
                 )}
@@ -181,7 +179,7 @@ export default function Header() {
         {/* Mobile Menu Dropdown - ONLY ON MOBILE */}
         <div
           className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-            mobileOpen ? "max-h-125 opacity-100" : "max-h-0 opacity-0"
+            mobileOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
           }`}
         >
           <div className="bg-white/95 backdrop-blur-xl border-t border-gray-100 px-6 py-6 space-y-3">
@@ -208,16 +206,14 @@ export default function Header() {
             {/* Mobile Auth */}
             {session ? (
               <>
-                {session.user?.role === "ADMIN" && (
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gray-100 text-gray-900 rounded-xl text-base font-semibold hover:bg-gray-200"
-                  >
-                    <UserCircleIcon className="h-5 w-5" />
-                    Dashboard
-                  </Link>
-                )}
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gray-100 text-gray-900 rounded-xl text-base font-semibold hover:bg-gray-200"
+                >
+                  <UserCircleIcon className="h-5 w-5" />
+                  Dashboard
+                </Link>
                 <button
                   onClick={() => {
                     signOut({ callbackUrl: "/" });
@@ -232,7 +228,7 @@ export default function Header() {
               <Link
                 href="/login"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl text-base font-semibold hover:shadow-lg"
+                className="flex items-center justify-center gap-2 px-5 py-3.5 mt-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-base font-semibold hover:shadow-lg"
               >
                 <ArrowRightOnRectangleIcon className="h-5 w-5" />
                 Login
