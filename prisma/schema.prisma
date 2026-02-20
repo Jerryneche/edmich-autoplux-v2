@@ -1,3 +1,10 @@
+/// Withdrawal status enum for all withdrawal flows
+enum WithdrawalStatus {
+  pending
+  processing
+  credited
+  failed
+}
 /// Payment status enum for all payment flows
 enum PaymentStatus {
   PENDING
@@ -926,7 +933,7 @@ model Withdrawal {
   bankName      String?
   accountNumber String
   accountName   String?
-  status        String    @default("pending") // pending, processing, credited, failed
+  status        WithdrawalStatus @default(pending)
   initiatedAt   DateTime  @default(now())
   processedAt   DateTime?
   processedBy   String?   // Admin user ID
