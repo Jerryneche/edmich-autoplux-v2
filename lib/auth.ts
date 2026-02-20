@@ -267,17 +267,16 @@ export const authOptions: NextAuthOptions = {
               token.hasLogisticsProfile = !!dbUser.logisticsProfile;
             } else {
               console.warn("[AUTH-JWT] ⚠️ User not found in database:", user.id);
-              // Still create a minimal token to prevent loop
+              // Fallback: create full token to prevent auth loop
               token.id = user.id;
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              where: { id: token.id as string },
-                supplierProfile: { select: { id: true } },
-
-              token.hasMechanicProfile = !!refreshedUser.mechanicProfile;
-              try {
-                // CRITICAL: Only fetch on initial sign-in, not every request
-                if (user && !token.id) {
-                  console.log("[AUTH-JWT] Initial token creation for user:", user.id);
+              token.role = "BUYER";
+              token.onboardingStatus = "PENDING";
+              token.isGoogleAuth = false;
+              token.hasCompletedOnboarding = false;
+              token.hasSupplierProfile = false;
+              token.hasMechanicProfile = false;
+              token.hasLogisticsProfile = false;
+            }
                   const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject(new Error("Database query timeout")), 5000)
                   );
