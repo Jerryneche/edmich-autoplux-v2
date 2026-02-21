@@ -133,6 +133,28 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Computed values
+  const pendingMechanics = mechanics.filter((m) => !m.verified).length;
+  const pendingLogistics = logistics.filter((l) => !l.verified).length;
+
+  const filteredOrders = orders.filter((order) => {
+    const matchesSearch =
+      order.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.user.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || product.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   useEffect(() => {
     if (status === "loading") return;
     if (!session) {
@@ -158,6 +180,9 @@ export default function AdminDashboard() {
         prodRes,
         anaRes,
         contRes,
+        paymentsRes,
+        withdrawalsRes,
+        usersRes,
       ] = await Promise.all([
         fetch("/api/admin/suppliers"),
         fetch("/api/admin/mechanics"),
@@ -299,97 +324,47 @@ export default function AdminDashboard() {
     }
   };
 
+  // Order status update
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
-      const response = await fetch(`/api/admin/orders/${orderId}`, {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update status");
+      if (res.ok) {
+        toast.success("Order status updated");
+        fetchAllData();
+      } else {
+        throw new Error("Failed to update");
       }
-
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
-      );
-
-      toast.success("Order status updated successfully");
-    } catch (error) {
-      console.error("Status update error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update order status"
-      );
+    } catch (err) {
+      toast.error("Failed to update order status");
     }
   };
 
-  const deleteProduct = async (id: string) => {
-    if (!confirm("Delete this product permanently?")) return;
+  // Delete product
+  const deleteProduct = async (productId: string) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
     try {
-      const res = await fetch(`/api/admin/products/${id}`, {
+      const res = await fetch(`/api/admin/products/${productId}`, {
         method: "DELETE",
       });
       if (res.ok) {
         toast.success("Product deleted");
         fetchAllData();
+      } else {
+        throw new Error("Failed to delete");
       }
     } catch (err) {
       toast.error("Failed to delete product");
     }
   };
 
-  // Filter functions
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      !searchQuery ||
-      order.trackingId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      order.status?.toUpperCase() === statusFilter.toUpperCase();
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      !searchQuery ||
-      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      product.status?.toUpperCase() === statusFilter.toUpperCase();
-
-    return matchesSearch && matchesStatus;
-  });
-
-  // Calculate pending counts
-  const pendingMechanics = mechanics.filter((m) => !m.verified).length;
-  const pendingLogistics = logistics.filter((l) => !l.verified).length;
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white via-neutral-50 to-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-neutral-600 font-medium">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <main className="bg-gradient-to-b from-white via-neutral-50 to-white min-h-screen">
       <Toaster position="top-center" />
       <Header />
-
       <section className="pt-32 pb-24 max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
@@ -398,7 +373,7 @@ export default function AdminDashboard() {
               Admin Dashboard
             </h1>
             <p className="text-neutral-600">
-              Welcome back• Manage your platform
+              Welcome back • Manage your platform
             </p>
           </div>
           <button
@@ -415,7 +390,11 @@ export default function AdminDashboard() {
           {[
             { id: "overview", label: "Overview", icon: ChartBarIcon },
             { id: "payments", label: "Payments", icon: CurrencyDollarIcon },
-            { id: "withdrawals", label: "Withdrawals", icon: CurrencyDollarIcon },
+            {
+              id: "withdrawals",
+              label: "Withdrawals",
+              icon: CurrencyDollarIcon,
+            },
             { id: "users", label: "Users", icon: UserGroupIcon },
             {
               id: "suppliers",
@@ -447,250 +426,29 @@ export default function AdminDashboard() {
           ].map((tab) => (
             <button
               key={tab.id}
-              className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${activeTab === tab.id ? "bg-blue-600 text-white" : "bg-white border-2 border-neutral-200 text-neutral-700 hover:border-blue-300"}`}
+              className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? "bg-blue-600 text-white"
+                  : "bg-white border-2 border-neutral-200 text-neutral-700 hover:border-blue-300"
+              }`}
               onClick={() => setActiveTab(tab.id)}
             >
               <tab.icon className="h-5 w-5" />
               {tab.label}
               {tab.badge ? (
-                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">{tab.badge}</span>
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">
+                  {tab.badge}
+                </span>
               ) : null}
             </button>
           ))}
         </div>
 
         {/* Tab Content */}
-        {activeTab === "payments" && (
-          <section>
-            <h2 className="text-2xl font-bold mb-4">Payments Management</h2>
-            <table className="min-w-full bg-white border">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Order</th>
-                  <th>Status</th>
-                  <th>Amount</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((payment) => (
-                  <tr key={payment.id}>
-                    <td>{payment.id}</td>
-                    <td>{payment.orderId}</td>
-                    <td>{payment.status}</td>
-                    <td>{payment.amount}</td>
-                    <td>
-                      <button
-                        className="px-2 py-1 bg-blue-600 text-white rounded"
-                        onClick={async () => {
-                          await fetch(`/api/admin/payments?id=${payment.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: "PAID" }),
-                          });
-                          fetchAllData();
-                        }}
-                      >Mark as PAID</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        )}
-        {activeTab === "withdrawals" && (
-          <section>
-            <h2 className="text-2xl font-bold mb-4">Withdrawals Management</h2>
-            <table className="min-w-full bg-white border">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>User</th>
-                  <th>Status</th>
-                  <th>Amount</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {withdrawals.map((withdrawal) => (
-                  <tr key={withdrawal.id}>
-                    <td>{withdrawal.id}</td>
-                    <td>{withdrawal.userId}</td>
-                    <td>{withdrawal.status}</td>
-                    <td>{withdrawal.amount}</td>
-                    <td>
-                      <button
-                        className="px-2 py-1 bg-green-600 text-white rounded"
-                        onClick={async () => {
-                          await fetch(`/api/admin/withdrawals?id=${withdrawal.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: "credited" }),
-                          });
-                          fetchAllData();
-                        }}
-                      >Mark as Credited</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        )}
-                      <section>
-                        <h2 className="text-2xl font-bold mb-4">Users Management</h2>
-                        <table className="min-w-full bg-white border">
-                          <thead>
-                            <tr>
-                              <th>ID</th>
-                              <th>Email</th>
-                              <th>Role</th>
-                              <th>Verified</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {users.map((user) => (
-                              <tr key={user.id}>
-                                <td>{user.id}</td>
-                                <td>{user.email}</td>
-                                <td>{user.role}</td>
-                                <td>{user.verified ? "Yes" : "No"}</td>
-                                <td>
-                                  <button
-                                    className="px-2 py-1 bg-purple-600 text-white rounded"
-                                    onClick={async () => {
-                                      await fetch(`/api/admin/users?id=${user.id}`, {
-                                        method: "PATCH",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ verified: true }),
-                                      });
-                                      fetchAllData();
-                                    }}
-                                  >Verify User</button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </section>
-                    )}
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setSearchQuery("");
-                setStatusFilter("all");
-              }}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all relative ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
-                  : "text-neutral-700 hover:bg-neutral-100"
-              }`}
-            >
-              <tab.icon className="h-5 w-5" />
-              {tab.label}
-              {tab.badge && tab.badge > 0 && (
-                <span className="absolute -top-1 -right-1 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* OVERVIEW TAB */}
         {activeTab === "overview" && analytics && (
-          <>
-            {/* Key Metrics - Keep your existing code */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {/* Your existing stats cards */}
-              <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <CurrencyDollarIcon className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <ArrowTrendingUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-bold">
-                      {analytics.revenueGrowth}%
-                    </span>
-                  </div>
-                </div>
-                <p className="text-sm text-neutral-600 mb-1">Total Revenue</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  ₦{analytics.totalRevenue.toLocaleString()}
-                </p>
-                <p className="text-xs text-neutral-500 mt-2">
-                  From {analytics.totalOrders} orders
-                </p>
-              </div>
-
-              {/* Add new service provider stats */}
-              <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <WrenchScrewdriverIcon className="h-6 w-6 text-white" />
-                  </div>
-                  {pendingMechanics > 0 && (
-                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full">
-                      {pendingMechanics} pending
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-neutral-600 mb-1">Mechanics</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  {mechanics.length}
-                </p>
-                <p className="text-xs text-neutral-500 mt-2">
-                  {mechanics.filter((m) => m.verified).length} verified
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <TruckIcon className="h-6 w-6 text-white" />
-                  </div>
-                  {pendingLogistics > 0 && (
-                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full">
-                      {pendingLogistics} pending
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-neutral-600 mb-1">Logistics</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  {logistics.length}
-                </p>
-                <p className="text-xs text-neutral-500 mt-2">
-                  {logistics.filter((l) => l.verified).length} verified
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 hover:shadow-xl transition-all">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <UserGroupIcon className="h-6 w-6 text-white" />
-                  </div>
-                  {analytics.pendingSuppliers > 0 && (
-                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-full">
-                      {analytics.pendingSuppliers} pending
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-neutral-600 mb-1">Suppliers</p>
-                <p className="text-3xl font-bold text-neutral-900">
-                  {analytics.totalSuppliers}
-                </p>
-                <p className="text-xs text-neutral-500 mt-2">
-                  {suppliers.filter((s) => s.verified).length} verified
-                </p>
-              </div>
-            </div>
-
+          <div className="space-y-6">
             {/* Pending Actions with Service Providers */}
-            <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200 mb-8">
+            <div className="bg-white rounded-2xl p-6 border-2 border-neutral-200">
               <h3 className="text-lg font-bold text-neutral-900 mb-4">
                 Pending Approvals
               </h3>
@@ -766,14 +524,222 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Keep your existing overview content */}
-          </>
+            {/* Add your existing overview content here */}
+          </div>
         )}
 
-        {/* SUPPLIERS TAB - Keep your existing code */}
+        {/* PAYMENTS TAB */}
+        {activeTab === "payments" && (
+          <section>
+            <h2 className="text-2xl font-bold mb-4">Payments Management</h2>
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
+              <table className="min-w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Order
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-neutral-200">
+                  {payments.map((payment) => (
+                    <tr key={payment.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                        {payment.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                        {payment.orderId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(
+                            payment.status,
+                          )}`}
+                        >
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900">
+                        ₦{payment.amount?.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          onClick={async () => {
+                            await fetch(
+                              `/api/admin/payments?id=${payment.id}`,
+                              {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ status: "PAID" }),
+                              },
+                            );
+                            fetchAllData();
+                          }}
+                        >
+                          Mark as PAID
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* WITHDRAWALS TAB */}
+        {activeTab === "withdrawals" && (
+          <section>
+            <h2 className="text-2xl font-bold mb-4">Withdrawals Management</h2>
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
+              <table className="min-w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-neutral-200">
+                  {withdrawals.map((withdrawal) => (
+                    <tr key={withdrawal.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                        {withdrawal.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                        {withdrawal.userId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(
+                            withdrawal.status,
+                          )}`}
+                        >
+                          {withdrawal.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900">
+                        ₦{withdrawal.amount?.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          onClick={async () => {
+                            await fetch(
+                              `/api/admin/withdrawals?id=${withdrawal.id}`,
+                              {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ status: "credited" }),
+                              },
+                            );
+                            fetchAllData();
+                          }}
+                        >
+                          Mark as Credited
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* USERS TAB */}
+        {activeTab === "users" && (
+          <section>
+            <h2 className="text-2xl font-bold mb-4">Users Management</h2>
+            <div className="bg-white rounded-2xl border-2 border-neutral-200 overflow-hidden">
+              <table className="min-w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Verified
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-neutral-200">
+                  {users.map((user) => (
+                    <tr key={user.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                        {user.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                        {user.verified ? "✓ Yes" : "✗ No"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                          onClick={async () => {
+                            await fetch(`/api/admin/users?id=${user.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ verified: true }),
+                            });
+                            fetchAllData();
+                          }}
+                        >
+                          Verify User
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* SUPPLIERS TAB */}
         {activeTab === "suppliers" && (
           <div className="space-y-6">
-            {/* Your existing suppliers list */}
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
@@ -851,7 +817,7 @@ export default function AdminDashboard() {
                                 Joined{" "}
                                 {format(
                                   new Date(supplier.createdAt),
-                                  "MMM d, yyyy"
+                                  "MMM d, yyyy",
                                 )}
                               </p>
                             )}
@@ -892,7 +858,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MECHANICS TAB - NEW */}
+        {/* MECHANICS TAB */}
         {activeTab === "mechanics" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
@@ -976,7 +942,7 @@ export default function AdminDashboard() {
                                 Joined{" "}
                                 {format(
                                   new Date(mechanic.createdAt),
-                                  "MMM d, yyyy"
+                                  "MMM d, yyyy",
                                 )}
                               </p>
                             )}
@@ -1033,7 +999,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* LOGISTICS TAB - NEW */}
+        {/* LOGISTICS TAB */}
         {activeTab === "logistics" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
@@ -1117,7 +1083,7 @@ export default function AdminDashboard() {
                                 Joined{" "}
                                 {format(
                                   new Date(provider.createdAt),
-                                  "MMM d, yyyy"
+                                  "MMM d, yyyy",
                                 )}
                               </p>
                             )}
@@ -1174,7 +1140,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ORDERS TAB - Keep your existing code */}
+        {/* ORDERS TAB */}
         {activeTab === "orders" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
@@ -1224,7 +1190,7 @@ export default function AdminDashboard() {
                           </p>
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusColor(
-                              order.status
+                              order.status,
                             )}`}
                           >
                             {order.status}
@@ -1238,14 +1204,14 @@ export default function AdminDashboard() {
                           <p className="text-neutral-500">
                             {order.items.reduce(
                               (sum, item) => sum + item.quantity,
-                              0
+                              0,
                             )}{" "}
                             items • {order.paymentMethod}
                           </p>
                           <p className="text-xs text-neutral-400">
                             {format(
                               new Date(order.createdAt),
-                              "MMM d, yyyy h:mm a"
+                              "MMM d, yyyy h:mm a",
                             )}
                           </p>
                         </div>
@@ -1288,7 +1254,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* BOOKINGS TAB - Keep your existing code */}
+        {/* BOOKINGS TAB */}
         {activeTab === "bookings" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
@@ -1351,7 +1317,7 @@ export default function AdminDashboard() {
                             </h3>
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusColor(
-                                booking.status
+                                booking.status,
                               )}`}
                             >
                               {booking.status}
@@ -1382,7 +1348,7 @@ export default function AdminDashboard() {
                             <p className="text-neutral-500">
                               {format(
                                 new Date(booking.appointmentDate),
-                                "MMM d, yyyy h:mm a"
+                                "MMM d, yyyy h:mm a",
                               )}
                             </p>
                           </div>
@@ -1418,7 +1384,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* PRODUCTS TAB - Keep your existing code */}
+        {/* PRODUCTS TAB */}
         {activeTab === "products" && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 border-2 border-neutral-200">
@@ -1529,7 +1495,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* CONTACTS TAB - ADD THIS BEFORE </section> */}
         {/* CONTACTS TAB */}
         {activeTab === "contacts" && (
           <div className="space-y-6">
@@ -1582,8 +1547,8 @@ export default function AdminDashboard() {
                               contact.status === "NEW"
                                 ? "bg-yellow-100 text-yellow-800"
                                 : contact.status === "REPLIED"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-gray-100 text-gray-800"
                             }`}
                           >
                             {contact.status}
