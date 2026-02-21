@@ -183,6 +183,17 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Prevent double approval: if already credited, block further approval
+    if (existing.status === "credited") {
+      return NextResponse.json(
+        {
+          error: "Already approved",
+          message: "This withdrawal has already been approved and credited. Approval can only be done once.",
+        },
+        { status: 400 },
+      );
+    }
+
     // Validate status transitions
     const invalidTransitions: Record<string, string[]> = {
       credited: ["pending", "processing", "failed"],

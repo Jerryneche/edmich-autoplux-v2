@@ -5,6 +5,18 @@ import { fileURLToPath } from "url";
 const prisma = new PrismaClient();
 
 async function main() {
+    // === ADMIN USER ===
+    const admin = await prisma.user.upsert({
+      where: { email: "admin@edmich.com" },
+      update: {},
+      create: {
+        email: "admin@edmich.com",
+        name: "Platform Admin",
+        role: "ADMIN",
+        onboardingStatus: "COMPLETED",
+        // Add any other required fields here
+      },
+    });
   console.log("Seeding Edmich Autoplux — FULL PLATFORM DATA...");
 
   // === 1. USERS ===

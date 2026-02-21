@@ -121,6 +121,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
     }
 
+    if (wallet.balance <= 0) {
+      return NextResponse.json(
+        { error: "Your wallet balance is zero. Please fund your wallet before making a withdrawal." },
+        { status: 400 },
+      );
+    }
+
     if (wallet.balance < amount) {
       return NextResponse.json(
         { error: "Insufficient balance" },

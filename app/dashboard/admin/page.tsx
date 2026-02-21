@@ -118,6 +118,9 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [logistics, setLogistics] = useState<LogisticsProvider[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -164,6 +167,9 @@ export default function AdminDashboard() {
         fetch("/api/admin/products"),
         fetch("/api/admin/analytics"),
         fetch("/api/contact"),
+        fetch("/api/admin/payments"),
+        fetch("/api/admin/withdrawals"),
+        fetch("/api/admin/users"),
       ]);
 
       if (supRes.ok) setSuppliers(await supRes.json());
@@ -174,6 +180,9 @@ export default function AdminDashboard() {
       if (prodRes.ok) setProducts(await prodRes.json());
       if (anaRes.ok) setAnalytics(await anaRes.json());
       if (contRes.ok) setContacts(await contRes.json());
+      if (paymentsRes.ok) setPayments(await paymentsRes.json());
+      if (withdrawalsRes.ok) setWithdrawals(await withdrawalsRes.json());
+      if (usersRes.ok) setUsers(await usersRes.json());
     } catch (err) {
       console.error("Fetch error:", err);
       toast.error("Failed to load data");
@@ -405,6 +414,9 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl border-2 border-neutral-200 p-2 mb-8 flex flex-wrap gap-2">
           {[
             { id: "overview", label: "Overview", icon: ChartBarIcon },
+            { id: "payments", label: "Payments", icon: CurrencyDollarIcon },
+            { id: "withdrawals", label: "Withdrawals", icon: CurrencyDollarIcon },
+            { id: "users", label: "Users", icon: UserGroupIcon },
             {
               id: "suppliers",
               label: "Suppliers",
@@ -430,9 +442,126 @@ export default function AdminDashboard() {
               id: "contacts",
               label: "Contacts",
               icon: EnvelopeIcon,
-              badge: contacts.filter((c) => c.status === "NEW").length, // Fixed: removed ?. since contacts is always defined
+              badge: contacts.filter((c) => c.status === "NEW").length,
             },
           ].map((tab) => (
+                    {activeTab === "payments" && (
+                      <section>
+                        <h2 className="text-2xl font-bold mb-4">Payments Management</h2>
+                        <table className="min-w-full bg-white border">
+                          <thead>
+                            <tr>
+                              <th>ID</th>
+                              <th>Order</th>
+                              <th>Status</th>
+                              <th>Amount</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {payments.map((payment) => (
+                              <tr key={payment.id}>
+                                <td>{payment.id}</td>
+                                <td>{payment.orderId}</td>
+                                <td>{payment.status}</td>
+                                <td>{payment.amount}</td>
+                                <td>
+                                  <button
+                                    className="px-2 py-1 bg-blue-600 text-white rounded"
+                                    onClick={async () => {
+                                      await fetch(`/api/admin/payments?id=${payment.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ status: "PAID" }),
+                                      });
+                                      fetchAllData();
+                                    }}
+                                  >Mark as PAID</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </section>
+                    )}
+                    {activeTab === "withdrawals" && (
+                      <section>
+                        <h2 className="text-2xl font-bold mb-4">Withdrawals Management</h2>
+                        <table className="min-w-full bg-white border">
+                          <thead>
+                            <tr>
+                              <th>ID</th>
+                              <th>User</th>
+                              <th>Status</th>
+                              <th>Amount</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {withdrawals.map((withdrawal) => (
+                              <tr key={withdrawal.id}>
+                                <td>{withdrawal.id}</td>
+                                <td>{withdrawal.userId}</td>
+                                <td>{withdrawal.status}</td>
+                                <td>{withdrawal.amount}</td>
+                                <td>
+                                  <button
+                                    className="px-2 py-1 bg-green-600 text-white rounded"
+                                    onClick={async () => {
+                                      await fetch(`/api/admin/withdrawals?id=${withdrawal.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ status: "credited" }),
+                                      });
+                                      fetchAllData();
+                                    }}
+                                  >Mark as Credited</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </section>
+                    )}
+                    {activeTab === "users" && (
+                      <section>
+                        <h2 className="text-2xl font-bold mb-4">Users Management</h2>
+                        <table className="min-w-full bg-white border">
+                          <thead>
+                            <tr>
+                              <th>ID</th>
+                              <th>Email</th>
+                              <th>Role</th>
+                              <th>Verified</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {users.map((user) => (
+                              <tr key={user.id}>
+                                <td>{user.id}</td>
+                                <td>{user.email}</td>
+                                <td>{user.role}</td>
+                                <td>{user.verified ? "Yes" : "No"}</td>
+                                <td>
+                                  <button
+                                    className="px-2 py-1 bg-purple-600 text-white rounded"
+                                    onClick={async () => {
+                                      await fetch(`/api/admin/users?id=${user.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ verified: true }),
+                                      });
+                                      fetchAllData();
+                                    }}
+                                  >Verify User</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </section>
+                    )}
             <button
               key={tab.id}
               onClick={() => {
