@@ -61,9 +61,17 @@ export default function LoginPage() {
       const session = await userRes.json();
 
       if (session?.user) {
-        const { role, onboardingStatus } = session.user;
+        let { role, onboardingStatus, hasCompletedOnboarding, isConfirmed, isActive, isVerified } = session.user;
 
-        if (onboardingStatus === "PENDING" && role !== "BUYER") {
+        // For admin, force all restriction flags to true/completed/confirmed
+        if (role === "ADMIN") {
+          onboardingStatus = "COMPLETED";
+          hasCompletedOnboarding = true;
+          isConfirmed = true;
+          isActive = true;
+          isVerified = true;
+          router.push("/dashboard/admin");
+        } else if (onboardingStatus === "PENDING" && role !== "BUYER") {
           router.push(`/onboarding/${role.toLowerCase()}`);
         } else {
           router.push(`/dashboard/${role.toLowerCase()}`);
