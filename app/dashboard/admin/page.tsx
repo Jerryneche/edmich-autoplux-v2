@@ -400,19 +400,19 @@ export default function AdminDashboard() {
               id: "suppliers",
               label: "Suppliers",
               icon: UserGroupIcon,
-              badge: analytics?.pendingSuppliers,
+              badge: analytics?.pendingSuppliers || 0,
             },
             {
               id: "mechanics",
               label: "Mechanics",
               icon: WrenchScrewdriverIcon,
-              badge: pendingMechanics,
+              badge: pendingMechanics || 0,
             },
             {
               id: "logistics",
               label: "Logistics",
               icon: TruckIcon,
-              badge: pendingLogistics,
+              badge: pendingLogistics || 0,
             },
             { id: "orders", label: "Orders", icon: ShoppingBagIcon },
             { id: "bookings", label: "Bookings", icon: ClockIcon },
@@ -421,7 +421,9 @@ export default function AdminDashboard() {
               id: "contacts",
               label: "Contacts",
               icon: EnvelopeIcon,
-              badge: contacts.filter((c) => c.status === "NEW").length,
+              badge: Array.isArray(contacts)
+                ? contacts.filter((c) => c.status === "NEW").length
+                : 0,
             },
           ].map((tab) => (
             <button
@@ -435,7 +437,7 @@ export default function AdminDashboard() {
             >
               <tab.icon className="h-5 w-5" />
               {tab.label}
-              {tab.badge ? (
+              {tab.badge && tab.badge > 0 ? (
                 <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">
                   {tab.badge}
                 </span>
@@ -470,7 +472,7 @@ export default function AdminDashboard() {
                         Suppliers
                       </p>
                       <p className="text-sm text-neutral-600">
-                        {analytics.pendingSuppliers} pending
+                        {analytics?.pendingSuppliers || 0} pending
                       </p>
                     </div>
                   </div>
@@ -1509,9 +1511,17 @@ export default function AdminDashboard() {
                 {contacts.length} total contacts
               </p>
               <p className="text-sm text-neutral-500 mb-8">
-                {contacts.filter((c) => c.status === "NEW").length} new •{" "}
-                {contacts.filter((c) => c.status === "REPLIED").length} replied
-                • {contacts.filter((c) => c.status === "RESOLVED").length}{" "}
+                {Array.isArray(contacts)
+                  ? contacts.filter((c) => c.status === "NEW").length
+                  : 0}{" "}
+                new •{" "}
+                {Array.isArray(contacts)
+                  ? contacts.filter((c) => c.status === "REPLIED").length
+                  : 0}{" "}
+                replied •{" "}
+                {Array.isArray(contacts)
+                  ? contacts.filter((c) => c.status === "RESOLVED").length
+                  : 0}{" "}
                 resolved
               </p>
               <Link
@@ -1531,43 +1541,44 @@ export default function AdminDashboard() {
                 </h3>
               </div>
               <div className="divide-y-2 divide-neutral-100">
-                {contacts.slice(0, 5).map((contact: any) => (
-                  <div
-                    key={contact.id}
-                    className="p-4 hover:bg-neutral-50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-neutral-900">
-                            {contact.name}
+                {Array.isArray(contacts) &&
+                  contacts.slice(0, 5).map((contact: any) => (
+                    <div
+                      key={contact.id}
+                      className="p-4 hover:bg-neutral-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-neutral-900">
+                              {contact.name}
+                            </p>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                contact.status === "NEW"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : contact.status === "REPLIED"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {contact.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-neutral-600">
+                            {contact.subject}
                           </p>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                              contact.status === "NEW"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : contact.status === "REPLIED"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {contact.status}
-                          </span>
                         </div>
-                        <p className="text-sm text-neutral-600">
-                          {contact.subject}
-                        </p>
+                        <Link
+                          href={`/dashboard/admin/contacts/${contact.id}`}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          View
+                        </Link>
                       </div>
-                      <Link
-                        href={`/dashboard/admin/contacts/${contact.id}`}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
-                      >
-                        View
-                      </Link>
                     </div>
-                  </div>
-                ))}
-                {contacts.length === 0 && (
+                  ))}
+                {(!Array.isArray(contacts) || contacts.length === 0) && (
                   <div className="p-12 text-center text-neutral-500">
                     No contact submissions yet
                   </div>
