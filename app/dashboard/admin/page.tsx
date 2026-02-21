@@ -133,27 +133,35 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Computed values
-  const pendingMechanics = mechanics.filter((m) => !m.verified).length;
-  const pendingLogistics = logistics.filter((l) => !l.verified).length;
+  // Computed values with safe array checks
+  const pendingMechanics = Array.isArray(mechanics)
+    ? mechanics.filter((m) => !m.verified).length
+    : 0;
+  const pendingLogistics = Array.isArray(logistics)
+    ? logistics.filter((l) => !l.verified).length
+    : 0;
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.user.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrders = Array.isArray(orders)
+    ? orders.filter((order) => {
+        const matchesSearch =
+          order.trackingId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          order.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || order.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      })
+    : [];
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || product.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredProducts = Array.isArray(products)
+    ? products.filter((product) => {
+        const matchesSearch =
+          product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.category?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || product.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      })
+    : [];
 
   useEffect(() => {
     if (status === "loading") return;
@@ -197,17 +205,47 @@ export default function AdminDashboard() {
         fetch("/api/admin/users"),
       ]);
 
-      if (supRes.ok) setSuppliers(await supRes.json());
-      if (mechRes.ok) setMechanics(await mechRes.json());
-      if (logRes.ok) setLogistics(await logRes.json());
-      if (ordRes.ok) setOrders(await ordRes.json());
-      if (bookRes.ok) setBookings(await bookRes.json());
-      if (prodRes.ok) setProducts(await prodRes.json());
+      if (supRes.ok) {
+        const data = await supRes.json();
+        if (Array.isArray(data)) setSuppliers(data);
+      }
+      if (mechRes.ok) {
+        const data = await mechRes.json();
+        if (Array.isArray(data)) setMechanics(data);
+      }
+      if (logRes.ok) {
+        const data = await logRes.json();
+        if (Array.isArray(data)) setLogistics(data);
+      }
+      if (ordRes.ok) {
+        const data = await ordRes.json();
+        if (Array.isArray(data)) setOrders(data);
+      }
+      if (bookRes.ok) {
+        const data = await bookRes.json();
+        if (Array.isArray(data)) setBookings(data);
+      }
+      if (prodRes.ok) {
+        const data = await prodRes.json();
+        if (Array.isArray(data)) setProducts(data);
+      }
       if (anaRes.ok) setAnalytics(await anaRes.json());
-      if (contRes.ok) setContacts(await contRes.json());
-      if (paymentsRes.ok) setPayments(await paymentsRes.json());
-      if (withdrawalsRes.ok) setWithdrawals(await withdrawalsRes.json());
-      if (usersRes.ok) setUsers(await usersRes.json());
+      if (contRes.ok) {
+        const data = await contRes.json();
+        if (Array.isArray(data)) setContacts(data);
+      }
+      if (paymentsRes.ok) {
+        const data = await paymentsRes.json();
+        if (Array.isArray(data)) setPayments(data);
+      }
+      if (withdrawalsRes.ok) {
+        const data = await withdrawalsRes.json();
+        if (Array.isArray(data)) setWithdrawals(data);
+      }
+      if (usersRes.ok) {
+        const data = await usersRes.json();
+        if (Array.isArray(data)) setUsers(data);
+      }
     } catch (err) {
       console.error("Fetch error:", err);
       toast.error("Failed to load data");
@@ -556,46 +594,49 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-neutral-200">
-                  {payments.map((payment) => (
-                    <tr key={payment.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                        {payment.id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                        {payment.orderId}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(
-                            payment.status,
-                          )}`}
-                        >
-                          {payment.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900">
-                        ₦{payment.amount?.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                          onClick={async () => {
-                            await fetch(
-                              `/api/admin/payments?id=${payment.id}`,
-                              {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ status: "PAID" }),
-                              },
-                            );
-                            fetchAllData();
-                          }}
-                        >
-                          Mark as PAID
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {Array.isArray(payments) &&
+                    payments.map((payment) => (
+                      <tr key={payment.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                          {payment.id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                          {payment.orderId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(
+                              payment.status,
+                            )}`}
+                          >
+                            {payment.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900">
+                          ₦{payment.amount?.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            onClick={async () => {
+                              await fetch(
+                                `/api/admin/payments?id=${payment.id}`,
+                                {
+                                  method: "PATCH",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ status: "PAID" }),
+                                },
+                              );
+                              fetchAllData();
+                            }}
+                          >
+                            Mark as PAID
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -628,46 +669,49 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-neutral-200">
-                  {withdrawals.map((withdrawal) => (
-                    <tr key={withdrawal.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                        {withdrawal.id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                        {withdrawal.userId}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(
-                            withdrawal.status,
-                          )}`}
-                        >
-                          {withdrawal.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900">
-                        ₦{withdrawal.amount?.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                          onClick={async () => {
-                            await fetch(
-                              `/api/admin/withdrawals?id=${withdrawal.id}`,
-                              {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ status: "credited" }),
-                              },
-                            );
-                            fetchAllData();
-                          }}
-                        >
-                          Mark as Credited
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {Array.isArray(withdrawals) &&
+                    withdrawals.map((withdrawal) => (
+                      <tr key={withdrawal.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                          {withdrawal.id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                          {withdrawal.userId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(
+                              withdrawal.status,
+                            )}`}
+                          >
+                            {withdrawal.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-900">
+                          ₦{withdrawal.amount?.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            onClick={async () => {
+                              await fetch(
+                                `/api/admin/withdrawals?id=${withdrawal.id}`,
+                                {
+                                  method: "PATCH",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ status: "credited" }),
+                                },
+                              );
+                              fetchAllData();
+                            }}
+                          >
+                            Mark as Credited
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -700,39 +744,40 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-neutral-200">
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                        {user.id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                        {user.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                        {user.verified ? "✓ Yes" : "✗ No"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                          onClick={async () => {
-                            await fetch(`/api/admin/users?id=${user.id}`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ verified: true }),
-                            });
-                            fetchAllData();
-                          }}
-                        >
-                          Verify User
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {Array.isArray(users) &&
+                    users.map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                          {user.id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
+                          {user.verified ? "✓ Yes" : "✗ No"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                            onClick={async () => {
+                              await fetch(`/api/admin/users?id=${user.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ verified: true }),
+                              });
+                              fetchAllData();
+                            }}
+                          >
+                            Verify User
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -773,88 +818,91 @@ export default function AdminDashboard() {
                 </h2>
               </div>
               <div className="divide-y-2 divide-neutral-100">
-                {suppliers
-                  .filter((s) => {
-                    const matchesSearch =
-                      s.businessName
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase()) ||
-                      s.city.toLowerCase().includes(searchQuery.toLowerCase());
-                    const matchesStatus =
-                      statusFilter === "all" ||
-                      (statusFilter === "pending" && !s.verified) ||
-                      (statusFilter === "verified" && s.verified);
-                    return matchesSearch && matchesStatus;
-                  })
-                  .map((supplier) => (
-                    <div
-                      key={supplier.id}
-                      className="p-6 hover:bg-neutral-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-neutral-900">
-                              {supplier.businessName}
-                            </h3>
-                            {supplier.verified ? (
-                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
-                                ✓ Verified
-                              </span>
-                            ) : (
-                              <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                          <div className="space-y-1 text-sm text-neutral-600">
-                            <p>
-                              📍 {supplier.city}, {supplier.state}
-                            </p>
-                            {supplier.user?.email && (
-                              <p>✉️ {supplier.user.email}</p>
-                            )}
-                            {supplier.createdAt && (
-                              <p className="text-xs">
-                                Joined{" "}
-                                {format(
-                                  new Date(supplier.createdAt),
-                                  "MMM d, yyyy",
-                                )}
+                {Array.isArray(suppliers) &&
+                  suppliers
+                    .filter((s) => {
+                      const matchesSearch =
+                        s.businessName
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase()) ||
+                        s.city
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase());
+                      const matchesStatus =
+                        statusFilter === "all" ||
+                        (statusFilter === "pending" && !s.verified) ||
+                        (statusFilter === "verified" && s.verified);
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((supplier) => (
+                      <div
+                        key={supplier.id}
+                        className="p-6 hover:bg-neutral-50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-bold text-neutral-900">
+                                {supplier.businessName}
+                              </h3>
+                              {supplier.verified ? (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
+                                  ✓ Verified
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1 text-sm text-neutral-600">
+                              <p>
+                                📍 {supplier.city}, {supplier.state}
                               </p>
-                            )}
+                              {supplier.user?.email && (
+                                <p>✉️ {supplier.user.email}</p>
+                              )}
+                              {supplier.createdAt && (
+                                <p className="text-xs">
+                                  Joined{" "}
+                                  {format(
+                                    new Date(supplier.createdAt),
+                                    "MMM d, yyyy",
+                                  )}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {!supplier.verified && (
-                            <>
-                              <button
-                                onClick={() => approveSupplier(supplier.id)}
-                                className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
-                              >
-                                <CheckCircleIcon className="h-4 w-4" />
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => rejectSupplier(supplier.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
-                              >
-                                <XCircleIcon className="h-4 w-4" />
-                                Reject
-                              </button>
-                            </>
-                          )}
-                          <Link
-                            href={`/dashboard/admin/suppliers/${supplier.id}`}
-                            className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
-                          >
-                            <EyeIcon className="h-4 w-4" />
-                            View
-                          </Link>
+                          <div className="flex flex-col gap-2">
+                            {!supplier.verified && (
+                              <>
+                                <button
+                                  onClick={() => approveSupplier(supplier.id)}
+                                  className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                                >
+                                  <CheckCircleIcon className="h-4 w-4" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => rejectSupplier(supplier.id)}
+                                  className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
+                                >
+                                  <XCircleIcon className="h-4 w-4" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            <Link
+                              href={`/dashboard/admin/suppliers/${supplier.id}`}
+                              className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                              View
+                            </Link>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
               </div>
             </div>
           </div>
@@ -894,104 +942,108 @@ export default function AdminDashboard() {
                 </h2>
               </div>
               <div className="divide-y-2 divide-neutral-100">
-                {mechanics
-                  .filter((m) => {
+                {Array.isArray(mechanics) &&
+                  mechanics
+                    .filter((m) => {
+                      const matchesSearch =
+                        m.businessName
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase()) ||
+                        m.city
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase());
+                      const matchesStatus =
+                        statusFilter === "all" ||
+                        (statusFilter === "pending" && !m.verified) ||
+                        (statusFilter === "verified" && m.verified);
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((mechanic) => (
+                      <div
+                        key={mechanic.id}
+                        className="p-6 hover:bg-neutral-50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-bold text-neutral-900">
+                                {mechanic.businessName}
+                              </h3>
+                              {mechanic.verified ? (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
+                                  ✓ Verified
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1 text-sm text-neutral-600">
+                              <p>
+                                📍 {mechanic.city}, {mechanic.state}
+                              </p>
+                              <p>📞 {mechanic.phone}</p>
+                              {mechanic.specialization && (
+                                <p>🔧 {mechanic.specialization}</p>
+                              )}
+                              {mechanic.user?.email && (
+                                <p>✉️ {mechanic.user.email}</p>
+                              )}
+                              {mechanic.createdAt && (
+                                <p className="text-xs">
+                                  Joined{" "}
+                                  {format(
+                                    new Date(mechanic.createdAt),
+                                    "MMM d, yyyy",
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {!mechanic.verified && (
+                              <>
+                                <button
+                                  onClick={() => approveMechanic(mechanic.id)}
+                                  className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                                >
+                                  <CheckCircleIcon className="h-4 w-4" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => rejectMechanic(mechanic.id)}
+                                  className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
+                                >
+                                  <XCircleIcon className="h-4 w-4" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            <Link
+                              href={`/dashboard/admin/mechanics/${mechanic.id}`}
+                              className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                              View
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                {(!Array.isArray(mechanics) ||
+                  mechanics.filter((m) => {
                     const matchesSearch =
                       m.businessName
-                        .toLowerCase()
+                        ?.toLowerCase()
                         .includes(searchQuery.toLowerCase()) ||
-                      m.city.toLowerCase().includes(searchQuery.toLowerCase());
+                      m.city?.toLowerCase().includes(searchQuery.toLowerCase());
                     const matchesStatus =
                       statusFilter === "all" ||
                       (statusFilter === "pending" && !m.verified) ||
                       (statusFilter === "verified" && m.verified);
                     return matchesSearch && matchesStatus;
-                  })
-                  .map((mechanic) => (
-                    <div
-                      key={mechanic.id}
-                      className="p-6 hover:bg-neutral-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-neutral-900">
-                              {mechanic.businessName}
-                            </h3>
-                            {mechanic.verified ? (
-                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
-                                ✓ Verified
-                              </span>
-                            ) : (
-                              <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                          <div className="space-y-1 text-sm text-neutral-600">
-                            <p>
-                              📍 {mechanic.city}, {mechanic.state}
-                            </p>
-                            <p>📞 {mechanic.phone}</p>
-                            {mechanic.specialization && (
-                              <p>🔧 {mechanic.specialization}</p>
-                            )}
-                            {mechanic.user?.email && (
-                              <p>✉️ {mechanic.user.email}</p>
-                            )}
-                            {mechanic.createdAt && (
-                              <p className="text-xs">
-                                Joined{" "}
-                                {format(
-                                  new Date(mechanic.createdAt),
-                                  "MMM d, yyyy",
-                                )}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {!mechanic.verified && (
-                            <>
-                              <button
-                                onClick={() => approveMechanic(mechanic.id)}
-                                className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
-                              >
-                                <CheckCircleIcon className="h-4 w-4" />
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => rejectMechanic(mechanic.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
-                              >
-                                <XCircleIcon className="h-4 w-4" />
-                                Reject
-                              </button>
-                            </>
-                          )}
-                          <Link
-                            href={`/dashboard/admin/mechanics/${mechanic.id}`}
-                            className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
-                          >
-                            <EyeIcon className="h-4 w-4" />
-                            View
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                {mechanics.filter((m) => {
-                  const matchesSearch =
-                    m.businessName
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase()) ||
-                    m.city.toLowerCase().includes(searchQuery.toLowerCase());
-                  const matchesStatus =
-                    statusFilter === "all" ||
-                    (statusFilter === "pending" && !m.verified) ||
-                    (statusFilter === "verified" && m.verified);
-                  return matchesSearch && matchesStatus;
-                }).length === 0 && (
+                  }).length === 0) && (
                   <div className="p-12 text-center text-neutral-500">
                     No mechanics found matching your criteria
                   </div>
@@ -1035,104 +1087,108 @@ export default function AdminDashboard() {
                 </h2>
               </div>
               <div className="divide-y-2 divide-neutral-100">
-                {logistics
-                  .filter((l) => {
+                {Array.isArray(logistics) &&
+                  logistics
+                    .filter((l) => {
+                      const matchesSearch =
+                        l.companyName
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase()) ||
+                        l.city
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase());
+                      const matchesStatus =
+                        statusFilter === "all" ||
+                        (statusFilter === "pending" && !l.verified) ||
+                        (statusFilter === "verified" && l.verified);
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((provider) => (
+                      <div
+                        key={provider.id}
+                        className="p-6 hover:bg-neutral-50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-bold text-neutral-900">
+                                {provider.companyName}
+                              </h3>
+                              {provider.verified ? (
+                                <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
+                                  ✓ Verified
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1 text-sm text-neutral-600">
+                              <p>
+                                📍 {provider.city}, {provider.state}
+                              </p>
+                              <p>📞 {provider.phone}</p>
+                              {provider.vehicleType && (
+                                <p>🚚 {provider.vehicleType}</p>
+                              )}
+                              {provider.user?.email && (
+                                <p>✉️ {provider.user.email}</p>
+                              )}
+                              {provider.createdAt && (
+                                <p className="text-xs">
+                                  Joined{" "}
+                                  {format(
+                                    new Date(provider.createdAt),
+                                    "MMM d, yyyy",
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {!provider.verified && (
+                              <>
+                                <button
+                                  onClick={() => approveLogistics(provider.id)}
+                                  className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                                >
+                                  <CheckCircleIcon className="h-4 w-4" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => rejectLogistics(provider.id)}
+                                  className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
+                                >
+                                  <XCircleIcon className="h-4 w-4" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            <Link
+                              href={`/dashboard/admin/logistics/${provider.id}`}
+                              className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                              View
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                {(!Array.isArray(logistics) ||
+                  logistics.filter((l) => {
                     const matchesSearch =
                       l.companyName
-                        .toLowerCase()
+                        ?.toLowerCase()
                         .includes(searchQuery.toLowerCase()) ||
-                      l.city.toLowerCase().includes(searchQuery.toLowerCase());
+                      l.city?.toLowerCase().includes(searchQuery.toLowerCase());
                     const matchesStatus =
                       statusFilter === "all" ||
                       (statusFilter === "pending" && !l.verified) ||
                       (statusFilter === "verified" && l.verified);
                     return matchesSearch && matchesStatus;
-                  })
-                  .map((provider) => (
-                    <div
-                      key={provider.id}
-                      className="p-6 hover:bg-neutral-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-neutral-900">
-                              {provider.companyName}
-                            </h3>
-                            {provider.verified ? (
-                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border-2 border-green-200">
-                                ✓ Verified
-                              </span>
-                            ) : (
-                              <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full border-2 border-yellow-200">
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                          <div className="space-y-1 text-sm text-neutral-600">
-                            <p>
-                              📍 {provider.city}, {provider.state}
-                            </p>
-                            <p>📞 {provider.phone}</p>
-                            {provider.vehicleType && (
-                              <p>🚚 {provider.vehicleType}</p>
-                            )}
-                            {provider.user?.email && (
-                              <p>✉️ {provider.user.email}</p>
-                            )}
-                            {provider.createdAt && (
-                              <p className="text-xs">
-                                Joined{" "}
-                                {format(
-                                  new Date(provider.createdAt),
-                                  "MMM d, yyyy",
-                                )}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {!provider.verified && (
-                            <>
-                              <button
-                                onClick={() => approveLogistics(provider.id)}
-                                className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
-                              >
-                                <CheckCircleIcon className="h-4 w-4" />
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => rejectLogistics(provider.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
-                              >
-                                <XCircleIcon className="h-4 w-4" />
-                                Reject
-                              </button>
-                            </>
-                          )}
-                          <Link
-                            href={`/dashboard/admin/logistics/${provider.id}`}
-                            className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-semibold hover:bg-neutral-200 transition-colors text-center flex items-center gap-2"
-                          >
-                            <EyeIcon className="h-4 w-4" />
-                            View
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                {logistics.filter((l) => {
-                  const matchesSearch =
-                    l.companyName
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase()) ||
-                    l.city.toLowerCase().includes(searchQuery.toLowerCase());
-                  const matchesStatus =
-                    statusFilter === "all" ||
-                    (statusFilter === "pending" && !l.verified) ||
-                    (statusFilter === "verified" && l.verified);
-                  return matchesSearch && matchesStatus;
-                }).length === 0 && (
+                  }).length === 0) && (
                   <div className="p-12 text-center text-neutral-500">
                     No logistics providers found matching your criteria
                   </div>
@@ -1293,90 +1349,93 @@ export default function AdminDashboard() {
                 </h2>
               </div>
               <div className="divide-y-2 divide-neutral-100">
-                {bookings
-                  .filter((booking) => {
+                {Array.isArray(bookings) &&
+                  bookings
+                    .filter((booking) => {
+                      const matchesSearch =
+                        booking.carModel
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase()) ||
+                        booking.user?.name
+                          ?.toLowerCase()
+                          .includes(searchQuery.toLowerCase());
+                      const matchesStatus =
+                        statusFilter === "all" ||
+                        booking.status === statusFilter;
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="p-6 hover:bg-neutral-50 transition-colors"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-bold text-neutral-900">
+                                {booking.carModel}
+                              </h3>
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusColor(
+                                  booking.status,
+                                )}`}
+                              >
+                                {booking.status}
+                              </span>
+                              {booking.type && (
+                                <span className="px-3 py-1 bg-neutral-100 text-neutral-700 text-xs font-bold rounded-full">
+                                  {booking.type}
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1 text-sm">
+                              <p className="text-neutral-900 font-semibold">
+                                {booking.user.name} • {booking.service}
+                              </p>
+                              <p className="text-neutral-600">
+                                {booking.user.email}
+                              </p>
+                              {booking.mechanic && (
+                                <p className="text-purple-600 font-medium">
+                                  Mechanic: {booking.mechanic.businessName}
+                                </p>
+                              )}
+                              {booking.driver && (
+                                <p className="text-green-600 font-medium">
+                                  Driver: {booking.driver.companyName}
+                                </p>
+                              )}
+                              <p className="text-neutral-500">
+                                {format(
+                                  new Date(booking.appointmentDate),
+                                  "MMM d, yyyy h:mm a",
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <Link
+                            href={`/dashboard/admin/bookings/${booking.id}`}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            View Details
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                {(!Array.isArray(bookings) ||
+                  bookings.filter((booking) => {
                     const matchesSearch =
                       booking.carModel
-                        .toLowerCase()
+                        ?.toLowerCase()
                         .includes(searchQuery.toLowerCase()) ||
-                      booking.user.name
-                        .toLowerCase()
+                      booking.user?.name
+                        ?.toLowerCase()
                         .includes(searchQuery.toLowerCase());
                     const matchesStatus =
                       statusFilter === "all" || booking.status === statusFilter;
                     return matchesSearch && matchesStatus;
-                  })
-                  .map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="p-6 hover:bg-neutral-50 transition-colors"
-                    >
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-neutral-900">
-                              {booking.carModel}
-                            </h3>
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusColor(
-                                booking.status,
-                              )}`}
-                            >
-                              {booking.status}
-                            </span>
-                            {booking.type && (
-                              <span className="px-3 py-1 bg-neutral-100 text-neutral-700 text-xs font-bold rounded-full">
-                                {booking.type}
-                              </span>
-                            )}
-                          </div>
-                          <div className="space-y-1 text-sm">
-                            <p className="text-neutral-900 font-semibold">
-                              {booking.user.name} • {booking.service}
-                            </p>
-                            <p className="text-neutral-600">
-                              {booking.user.email}
-                            </p>
-                            {booking.mechanic && (
-                              <p className="text-purple-600 font-medium">
-                                Mechanic: {booking.mechanic.businessName}
-                              </p>
-                            )}
-                            {booking.driver && (
-                              <p className="text-green-600 font-medium">
-                                Driver: {booking.driver.companyName}
-                              </p>
-                            )}
-                            <p className="text-neutral-500">
-                              {format(
-                                new Date(booking.appointmentDate),
-                                "MMM d, yyyy h:mm a",
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <Link
-                          href={`/dashboard/admin/bookings/${booking.id}`}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                          View Details
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                {bookings.filter((booking) => {
-                  const matchesSearch =
-                    booking.carModel
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase()) ||
-                    booking.user.name
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase());
-                  const matchesStatus =
-                    statusFilter === "all" || booking.status === statusFilter;
-                  return matchesSearch && matchesStatus;
-                }).length === 0 && (
+                  }).length === 0) && (
                   <div className="p-12 text-center text-neutral-500">
                     No bookings found
                   </div>
