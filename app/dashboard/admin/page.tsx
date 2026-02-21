@@ -205,6 +205,7 @@ export default function AdminDashboard() {
         fetch("/api/admin/users"),
       ]);
 
+      // Suppliers, Mechanics, Logistics, Orders, Bookings (keep existing logic)
       if (supRes.ok) {
         const data = await supRes.json();
         if (Array.isArray(data)) setSuppliers(data);
@@ -225,26 +226,62 @@ export default function AdminDashboard() {
         const data = await bookRes.json();
         if (Array.isArray(data)) setBookings(data);
       }
+
+      // Products - Handle structured response per API docs
       if (prodRes.ok) {
         const data = await prodRes.json();
-        if (Array.isArray(data)) setProducts(data);
+        // API should return: { products: [...], total: 342, active: 320, ... }
+        if (data.products && Array.isArray(data.products)) {
+          setProducts(data.products);
+        } else if (Array.isArray(data)) {
+          // Fallback for raw array response
+          setProducts(data);
+        }
       }
+
+      // Analytics
       if (anaRes.ok) setAnalytics(await anaRes.json());
+
+      // Contacts
       if (contRes.ok) {
         const data = await contRes.json();
         if (Array.isArray(data)) setContacts(data);
       }
+
+      // Payments - Handle structured response per API docs
       if (paymentsRes.ok) {
         const data = await paymentsRes.json();
-        if (Array.isArray(data)) setPayments(data);
+        // API should return: { payments: [...], total: 150, pending: 23, ... }
+        if (data.payments && Array.isArray(data.payments)) {
+          setPayments(data.payments);
+        } else if (Array.isArray(data)) {
+          // Fallback for raw array response
+          setPayments(data);
+        }
       }
+
+      // Withdrawals - Handle structured response per API docs
       if (withdrawalsRes.ok) {
         const data = await withdrawalsRes.json();
-        if (Array.isArray(data)) setWithdrawals(data);
+        // API should return: { withdrawals: [...], total: 45, pending: 12, ... }
+        if (data.withdrawals && Array.isArray(data.withdrawals)) {
+          setWithdrawals(data.withdrawals);
+        } else if (Array.isArray(data)) {
+          // Fallback for raw array response
+          setWithdrawals(data);
+        }
       }
+
+      // Users - Handle structured response per API docs
       if (usersRes.ok) {
         const data = await usersRes.json();
-        if (Array.isArray(data)) setUsers(data);
+        // API should return: { users: [...], total: 1234, buyers: 890, ... }
+        if (data.users && Array.isArray(data.users)) {
+          setUsers(data.users);
+        } else if (Array.isArray(data)) {
+          // Fallback for raw array response
+          setUsers(data);
+        }
       }
     } catch (err) {
       console.error("Fetch error:", err);
@@ -619,20 +656,32 @@ export default function AdminDashboard() {
                           <button
                             className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                             onClick={async () => {
-                              await fetch(
-                                `/api/admin/payments?id=${payment.id}`,
-                                {
-                                  method: "PATCH",
-                                  headers: {
-                                    "Content-Type": "application/json",
+                              try {
+                                const res = await fetch(
+                                  `/api/admin/payments?id=${payment.id}`,
+                                  {
+                                    method: "PATCH",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({ status: "SUCCESS" }),
                                   },
-                                  body: JSON.stringify({ status: "PAID" }),
-                                },
-                              );
-                              fetchAllData();
+                                );
+                                if (res.ok) {
+                                  toast.success("Payment marked as successful");
+                                  fetchAllData();
+                                } else {
+                                  const error = await res.json();
+                                  toast.error(
+                                    error.message || "Failed to update payment",
+                                  );
+                                }
+                              } catch (err) {
+                                toast.error("Failed to update payment");
+                              }
                             }}
                           >
-                            Mark as PAID
+                            Mark as SUCCESS
                           </button>
                         </td>
                       </tr>
@@ -694,17 +743,34 @@ export default function AdminDashboard() {
                           <button
                             className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                             onClick={async () => {
-                              await fetch(
-                                `/api/admin/withdrawals?id=${withdrawal.id}`,
-                                {
-                                  method: "PATCH",
-                                  headers: {
-                                    "Content-Type": "application/json",
+                              try {
+                                const res = await fetch(
+                                  `/api/admin/withdrawals?id=${withdrawal.id}`,
+                                  {
+                                    method: "PATCH",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      status: "credited",
+                                    }),
                                   },
-                                  body: JSON.stringify({ status: "credited" }),
-                                },
-                              );
-                              fetchAllData();
+                                );
+                                if (res.ok) {
+                                  toast.success(
+                                    "Withdrawal marked as credited",
+                                  );
+                                  fetchAllData();
+                                } else {
+                                  const error = await res.json();
+                                  toast.error(
+                                    error.message ||
+                                      "Failed to update withdrawal",
+                                  );
+                                }
+                              } catch (err) {
+                                toast.error("Failed to update withdrawal");
+                              }
                             }}
                           >
                             Mark as Credited
@@ -765,12 +831,29 @@ export default function AdminDashboard() {
                           <button
                             className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                             onClick={async () => {
-                              await fetch(`/api/admin/users?id=${user.id}`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ verified: true }),
-                              });
-                              fetchAllData();
+                              try {
+                                const res = await fetch(
+                                  `/api/admin/users?id=${user.id}`,
+                                  {
+                                    method: "PATCH",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({ verified: true }),
+                                  },
+                                );
+                                if (res.ok) {
+                                  toast.success("User verified successfully");
+                                  fetchAllData();
+                                } else {
+                                  const error = await res.json();
+                                  toast.error(
+                                    error.message || "Failed to verify user",
+                                  );
+                                }
+                              } catch (err) {
+                                toast.error("Failed to verify user");
+                              }
                             }}
                           >
                             Verify User
